@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Scan Struk{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Struk</h1>
+        <a href="/receipts/upload" class="btn btn-primary btn-sm">📷 Upload</a>
+    </header>
+
+    {% if items %}
+    <div class="stack">
+        {% for it in items %}
+        <a href="/receipts/{{ it.id }}" class="card receipt-row">
+            <img class="receipt-thumb" src="/receipts/{{ it.id }}/image"
+                 alt="Thumbnail struk {{ it.filename }}" loading="lazy"
+                 width="56" height="56">
+            <div class="receipt-info">
+                <strong class="ellipsis">{{ it.merchant }}</strong>
+                <span class="tx-meta">{{ it.created.strftime('%d %b %Y %H:%M') if it.created }} · {{ it.size_kb }} KB</span>
+                <span class="badge {{ it.status_class }}">{{ it.status_label }}</span>
+            </div>
+            {% if it.confirmed %}
+            <div class="receipt-right">
+                <span class="tx-amount tx-expense">{{ format_rupiah(it.amount) }}</span>
+                <a class="link-more" href="/transactions/edit/{{ it.transaction_id }}">Lihat transaksi →</a>
+            </div>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🧾</div>
+        <div class="empty-title">Belum ada struk</div>
+        <div class="empty-desc">Potong struk belanjaanmu dan upload di sini</div>
+        <a href="/receipts/upload" class="btn btn-primary btn-block" style="max-width:220px; margin-top:12px;">
+            📷 Upload struk pertama
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

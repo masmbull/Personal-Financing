@@ -1,0 +1,14 @@
+services:
+  finance:
+    build: .
+    container_name: finance-app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:///./data/finance.db
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8080
+      - DEBUG=false
+    restart: unless-stopped

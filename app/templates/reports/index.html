@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Laporan{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Laporan</h1>
+    </header>
+
+    <section class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-label">Hari Ini</div>
+            <div class="summary-value text-red">{{ format_rupiah(data.today_expense) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Minggu Ini</div>
+            <div class="summary-value text-red">{{ format_rupiah(data.week_expense) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Bulan Ini</div>
+            <div class="summary-value text-red">{{ format_rupiah(data.month_expense) }}</div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Pemasukan vs Pengeluaran</h2>
+        <div class="ie-compare">
+            <div class="ie-item">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span class="ie-label">Pemasukan</span>
+                    <span class="ie-value text-green">{{ format_rupiah(data.month_income) }}</span>
+                </div>
+                {% if data.month_income + data.month_expense > 0 %}
+                <div class="ie-bar">
+                    <div class="ie-bar-fill bar-green" style="width: {{ (data.month_income * 100 / (data.month_income + data.month_expense))|int }}%"></div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="ie-item">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span class="ie-label">Pengeluaran</span>
+                    <span class="ie-value text-red">{{ format_rupiah(data.month_expense) }}</span>
+                </div>
+                {% if data.month_income + data.month_expense > 0 %}
+                <div class="ie-bar">
+                    <div class="ie-bar-fill bar-red" style="width: {{ (data.month_expense * 100 / (data.month_income + data.month_expense))|int }}%"></div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Kategori Terbesar</h2>
+        {% if data.expense_by_category %}
+        <div class="category-list">
+            {% for cat in data.expense_by_category %}
+            <div class="category-item">
+                <span class="cat-icon">{{ cat.icon or '📋' }}</span>
+                <span class="cat-name">{{ cat.name }}</span>
+                <span class="cat-amount">{{ format_rupiah(cat.total) }}</span>
+            </div>
+            {% if data.month_expense > 0 %}
+            <div class="cat-bar-wrap">
+                <div class="cat-bar" style="width: {{ (cat.total * 100 / data.month_expense)|int }}%"></div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📊</div>
+            <div class="empty-title">Belum ada data</div>
+            <div class="empty-desc">Mulai catat pengeluaran untuk melihat laporan</div>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="section">
+        <h2 class="section-title">Trend 6 Bulan</h2>
+        <div class="trend-chart">
+            {% for m in data.monthly_data %}
+            <div class="trend-col">
+                <div class="trend-bars">
+                    {% if m.income > 0 %}
+                    <div class="trend-bar bar-green" style="height: {{ ((m.income * 100) / ([data.monthly_data|map(attribute='income')|max, data.monthly_data|map(attribute='expense')|max, 1]|max))|int }}px"></div>
+                    {% endif %}
+                    {% if m.expense > 0 %}
+                    <div class="trend-bar bar-red" style="height: {{ ((m.expense * 100) / ([data.monthly_data|map(attribute='income')|max, data.monthly_data|map(attribute='expense')|max, 1]|max))|int }}px"></div>
+                    {% endif %}
+                </div>
+                <span class="trend-label">{{ m.month.split(' ')[0] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="trend-legend">
+            <span class="legend-item"><span class="legend-dot dot-green"></span> Pemasukan</span>
+            <span class="legend-item"><span class="legend-dot dot-red"></span> Pengeluaran</span>
+        </div>
+    </section>
+</div>
+{% endblock %}

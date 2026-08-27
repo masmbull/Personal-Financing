@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Tambah Kategori{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Tambah Kategori</h1>
+    </header>
+
+    <form method="post" action="/categories/create" class="form">
+        <div class="form-group">
+            <label class="form-label" for="name">Nama</label>
+            <input type="text" name="name" id="name" class="input" placeholder="Nama kategori" required maxlength="100">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="type">Tipe</label>
+            <select name="type" id="type" class="input" required>
+                <option value="EXPENSE">Pengeluaran</option>
+                <option value="INCOME">Pemasukan</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="icon">Icon (opsional)</label>
+            <input type="text" name="icon" id="icon" class="input" placeholder="Emoji, contoh: 🍜" maxlength="5">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Simpan Kategori</button>
+    </form>
+</div>
+{% endblock %}

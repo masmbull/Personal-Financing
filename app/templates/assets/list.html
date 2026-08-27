@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Aset Saya{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Aset Saya</h1>
+        <a href="/assets/create" class="btn btn-primary btn-sm">+ Aset</a>
+    </header>
+
+    <section class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-label">Total Nilai Aset</div>
+            <div class="summary-value text-green">{{ format_rupiah(total_value) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Jumlah Aset</div>
+            <div class="summary-value">{{ assets|length }}</div>
+        </div>
+    </section>
+
+    {% if assets %}
+    <div class="transaction-list">
+        {% for a in assets %}
+        <div class="transaction-item">
+            <div class="tx-left">
+                <span class="tx-icon">{{ a.icon or '🏠' }}</span>
+                <div class="tx-info">
+                    <span class="tx-category">{{ a.name }}</span>
+                    <span class="tx-desc">{{ a.asset_type }}</span>
+                    <span class="tx-meta">{{ format_rupiah(a.current_value) }}{% if a.purchase_value %} (beli: {{ format_rupiah(a.purchase_value) }}){% endif %}</span>
+                </div>
+            </div>
+            <div class="tx-right">
+                <a href="/assets/edit/{{ a.id }}" class="btn-link">Edit</a>
+                <a href="/assets/delete/{{ a.id }}" class="btn-link text-red" onclick="return confirm('Hapus aset {{ a.name }}?')">Hapus</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🏠</div>
+        <div class="empty-title">Belum ada aset</div>
+        <div class="empty-desc">Catat aset kamu untuk melacak kekayaan</div>
+        <a href="/assets/create" class="btn btn-primary btn-block" style="max-width:200px; margin-top:12px;">+ Aset</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

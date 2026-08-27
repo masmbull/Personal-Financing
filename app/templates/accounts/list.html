@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Akun{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Akun</h1>
+        <a href="/accounts/create" class="btn btn-primary btn-sm">+ Akun</a>
+    </header>
+
+    {% for group in groups %}
+    <div class="acc-group-title">{{ group.name }} • {{ format_rupiah(group.total) }}</div>
+    <div class="account-list">
+        {% for acc in group.accounts %}
+        <div class="account-card">
+            <div class="acc-left">
+                <span class="acc-icon">{{ acc.icon or '💳' }}</span>
+                <div class="acc-info">
+                    <span class="acc-name">{{ acc.name }}</span>
+                    <span class="acc-type">{{ acc.type.value.replace('_', ' ').title() }}</span>
+                </div>
+            </div>
+            <div class="acc-right">
+                <span class="acc-balance">{{ format_rupiah(acc.current_balance) }}</span>
+                <div class="acc-actions">
+                    <a href="/accounts/edit/{{ acc.id }}" class="btn-link">Edit</a>
+                    <a href="/accounts/delete/{{ acc.id }}" class="btn-link text-red" onclick="return confirm('Hapus akun {{ acc.name }}?')">Hapus</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    {% if not groups %}
+    <div class="empty-state">
+        <div class="empty-icon">🏦</div>
+        <div class="empty-title">Belum ada akun</div>
+        <div class="empty-desc">Tambah akun untuk mulai mencatat keuangan</div>
+        <a href="/accounts/create" class="btn btn-primary btn-block" style="max-width:200px; margin-top:12px;">+ Akun</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

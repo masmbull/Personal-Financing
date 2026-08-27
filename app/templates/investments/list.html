@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Investasi{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Investasi</h1>
+        <a href="/investments/create" class="btn btn-primary btn-sm">+ Investasi</a>
+    </header>
+
+    <section class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-label">Total Investasi</div>
+            <div class="summary-value">{{ format_rupiah(total_invested) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Nilai Saat Ini</div>
+            <div class="summary-value">{{ format_rupiah(total_current) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Return</div>
+            <div class="summary-value {% if total_return >= 0 %}text-green{% else %}text-red{% endif %}">
+                {{ format_rupiah(total_return) }} ({{ return_pct }}%)
+            </div>
+        </div>
+    </section>
+
+    {% if investments %}
+    <div class="transaction-list">
+        {% for i in investments %}
+        {% set ret = i.current_value - i.amount_invested %}
+        {% set rpct = (ret * 100 / i.amount_invested)|round(1) if i.amount_invested > 0 else 0 %}
+        <div class="transaction-item">
+            <div class="tx-left">
+                <span class="tx-icon">{{ i.icon or '📈' }}</span>
+                <div class="tx-info">
+                    <span class="tx-category">{{ i.name }}</span>
+                    <span class="tx-desc">{{ i.investment_type }}</span>
+                    <span class="tx-meta">{{ format_rupiah(i.amount_invested) }} → {{ format_rupiah(i.current_value) }}</span>
+                </div>
+            </div>
+            <div class="tx-right">
+                <span class="tx-amount {% if ret >= 0 %}text-green{% else %}text-red{% endif %}">
+                    {% if ret >= 0 %}+{% endif %}{{ format_rupiah(ret) }}
+                </span>
+                <a href="/investments/edit/{{ i.id }}" class="btn-link">Edit</a>
+                <a href="/investments/delete/{{ i.id }}" class="btn-link text-red" onclick="return confirm('Hapus investasi {{ i.name }}?')">Hapus</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📈</div>
+        <div class="empty-title">Belum ada investasi</div>
+        <div class="empty-desc">Catat investasi kamu untuk melacak perkembangan</div>
+        <a href="/investments/create" class="btn btn-primary btn-block" style="max-width:200px; margin-top:12px;">+ Investasi</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

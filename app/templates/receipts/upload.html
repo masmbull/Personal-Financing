@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Upload Struk{% endblock %}
+{% block content %}
+<div class="page narrow">
+    <header class="page-header">
+        <h1 class="page-title">Scan Struk</h1>
+        <a href="/receipts" class="link-more">← Daftar struk</a>
+    </header>
+
+    <form id="receipt-form" action="/receipts/upload" method="post"
+          enctype="multipart/form-data" class="card upload-card"
+          data-max-mb="{{ max_mb }}">
+        <label class="upload-zone" id="upload-zone">
+            <input type="file" id="file-input" name="file" accept="image/*"
+                   capture="environment" class="sr-only" required>
+            <span class="upload-emoji">📷</span>
+            <span class="upload-main">Ambil Foto Struk</span>
+            <span class="upload-alt">🖼️ atau pilih dari galeri</span>
+        </label>
+
+        <div id="preview" class="preview hidden">
+            <img id="preview-img" alt="Preview struk">
+            <div class="row-between tx-meta">
+                <span id="preview-name"></span>
+                <span id="preview-size"></span>
+            </div>
+        </div>
+
+        <p id="upload-error" class="form-error hidden" role="alert"></p>
+
+        <button type="submit" id="submit-btn" class="btn btn-primary btn-block btn-lg">
+            Upload Struk
+        </button>
+        <p class="tx-meta center">Format gambar · maks {{ max_mb }} MB</p>
+    </form>
+
+    <p class="tx-meta center" style="margin-top:12px;">
+        Setelah upload kamu bisa review dan catat struk sebagai transaksi.
+    </p>
+</div>
+{% endblock %}

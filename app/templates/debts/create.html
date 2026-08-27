@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Tambah Hutang/Piutang{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Tambah {{ 'Piutang' if debt_type == 'RECEIVABLE' else 'Hutang' }}</h1>
+    </header>
+    <form method="post" action="/debts/create" class="form">
+        <input type="hidden" name="type" value="{{ debt_type }}">
+        <div class="form-group">
+            <label class="form-label">Nama Pihak</label>
+            <input type="text" name="person_name" class="form-input" required placeholder="Nama orang/perusahaan">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Jumlah (Rp)</label>
+            <input type="number" name="principal_amount" class="form-input" required min="1" placeholder="0">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Deskripsi</label>
+            <input type="text" name="description" class="form-input" placeholder="Contoh: Pinjam uang untuk beli laptop">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Jatuh Tempo</label>
+            <input type="date" name="due_date" class="form-input">
+        </div>
+        <div class="form-row">
+            <div class="form-group form-group-half">
+                <label class="form-label">Angsuran/Rp</label>
+                <input type="number" name="installment_amount" class="form-input" min="0" placeholder="Opsional">
+            </div>
+            <div class="form-group form-group-half">
+                <label class="form-label">Jumlah Angsuran</label>
+                <input type="number" name="installment_count" class="form-input" min="0" placeholder="Opsional">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Kontak</label>
+            <input type="text" name="person_contact" class="form-input" placeholder="No. HP / Email">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Akun Terkait</label>
+            <select name="related_account_id" class="form-input">
+                <option value="">Tidak terkait akun</option>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}">{{ acc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Catatan</label>
+            <textarea name="notes" class="form-input" rows="2" placeholder="Catatan tambahan"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Simpan</button>
+        <a href="/debts" class="btn btn-block" style="margin-top:8px;">Batal</a>
+    </form>
+</div>
+{% endblock %}

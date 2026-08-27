@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}Finance - Beranda{% endblock %}
+{% block content %}
+<div class="page">
+    <div class="top-bar">
+        <div>
+            <div class="greeting">Selamat datang 👋</div>
+            <h1 class="page-title-large">Beranda</h1>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Ganti tema">🌙</button>
+    </div>
+
+    <section class="balance-card hero" aria-label="Saldo tersedia">
+        <div class="balance-label">Saldo tersedia</div>
+        <div class="balance-amount">{{ format_rupiah(data.available_cash) }}</div>
+        <div class="balance-trend {% if data.monthly_cashflow >= 0 %}up{% else %}down{% endif %}">
+            {% if data.monthly_cashflow >= 0 %}▲{% else %}▼{% endif %}
+            {{ format_rupiah(data.monthly_cashflow if data.monthly_cashflow >= 0 else -data.monthly_cashflow) }} bulan ini
+        </div>
+    </section>
+
+    <section class="worth-grid" aria-label="Kekayaan bersih">
+        <a href="/assets" class="worth-tile">
+            <span class="worth-label">Total aset</span>
+            <span class="worth-value">{{ format_rupiah(data.total_assets) }}</span>
+        </a>
+        <a href="/debts" class="worth-tile">
+            <span class="worth-label">Kewajiban</span>
+            <span class="worth-value text-red">{{ format_rupiah(data.total_liabilities) }}</span>
+        </a>
+        <div class="worth-tile worth-net">
+            <span class="worth-label">Net worth</span>
+            <span class="worth-value {% if data.net_worth >= 0 %}text-green{% else %}text-red{% endif %}">{{ format_rupiah(data.net_worth) }}</span>
+        </div>
+    </section>
+
+    <div class="quick-actions">
+        <a href="/transactions/add?tx_type=EXPENSE" class="quick-action qa-expense"><span>−</span> Uang keluar</a>
+        <a href="/transactions/add?tx_type=INCOME" class="quick-action qa-income"><span>+</span> Uang masuk</a>
+    </div>
+
+    <section class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-label">Uang masuk</div>
+            <div class="summary-value text-green">{{ format_rupiah(data.monthly_income) }}</div>
+            <div class="summary-sub">bulan ini</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Pengeluaran</div>
+            <div class="summary-value text-red">{{ format_rupiah(data.monthly_expense) }}</div>
+            <div class="summary-sub">bulan ini</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Cashflow</div>
+            <div class="summary-value {% if data.monthly_cashflow >= 0 %}text-green{% else %}text-red{% endif %}">{{ format_rupiah(data.monthly_cashflow) }}</div>
+            <div class="summary-sub">bulan ini</div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-header"><h2 class="section-title">Aksi cepat</h2></div>
+        <div class="action-grid">
+            <a href="/transactions/add?tx_type=EXPENSE" class="action-tile"><span class="ai ai-red">−</span>Pengeluaran</a>
+            <a href="/transactions/add?tx_type=INCOME" class="action-tile"><span class="ai ai-green">+</span>Pemasukan</a>
+            <a href="/transfer" class="action-tile"><span class="ai ai-blue">↔</span>Transfer</a>
+            <a href="/receipts/upload" class="action-tile"><span class="ai ai-purple">📷</span>Scan Struk</a>
+            <a href="/debts" class="action-tile"><span class="ai ai-red">💳</span>Bayar Hutang</a>
+            <a href="/savings/create" class="action-tile"><span class="ai ai-green">🎯</span>Tambah Tabungan</a>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">Tren net worth</h2>
+            <span id="nw-delta" class="badge" hidden></span>
+        </div>
+        <div id="nw-chart-wrap" class="chart-card"
+             data-history-url="/api/v1/reports/net-worth/history">
+            <p id="nw-empty" class="empty-text hidden">Belum cukup data untuk melihat tren net worth.</p>
+            <svg id="nw-chart" viewBox="0 0 320 140" preserveAspectRatio="none"
+                 role="img" aria-label="Grafik tren net worth" class="hidden"></svg>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">Budget bulan ini</h2>
+            <a href="/budgets" class="link-more">Atur →</a>
+        </div>
+        {% if data.budget_summary %}
+        <div class="stack">
+            {% for b in data.budget_summary %}
+            <div class="card budget-row">
+                <div class="row-top">
+                    <strong>{{ b.category.icon or '🏷️' }} {{ b.category.name }}</strong>
+                    <span class="badge badge-{{ 'green' if b.status == 'SAFE' else ('yellow' if b.status == 'WARNING' else 'red') }}">
+                        {%- if b.status == 'SAFE' %}Aman{% elif b.status == 'WARNING' %}Hampir habis{% else %}Lewat batas{% endif -%}
+                    </span>
+                </div>
+                <div class="progress-track" role="progressbar"
+                     aria-valuenow="{{ b.percentage|round|int }}" aria-valuemin="0" aria-valuemax="100"
+                     aria-label="Budget {{ b.category.name }}">
+                    <div class="progress-fill fill-{{ 'green' if b.status == 'SAFE' else ('yellow' if b.status == 'WARNING' else 'red') }}"
+                         style="width: {{ [b.percentage, 100]|min }}%"></div>
+                </div>
+                <div class="row-between tx-meta">
+                    <span>{{ format_rupiah(b.spent) }} / {{ format_rupiah(b.budget_amount) }}</span>
+                    <span>{{ b.percentage|round|int }}%</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-text">Belum ada budget bulan ini. <a href="/budgets" class="link-more">Buat budget →</a></p>
+        {% endif %}
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">Tagihan mendekat</h2>
+            <a href="/bills" class="link-more">Semua →</a>
+        </div>
+        {% if data.upcoming_bills %}
+        <div class="stack">
+            {% for b in data.upcoming_bills[:4] %}
+            <div class="card bill-row {% if b.days_until_due < 0 %}bill-overdue{% endif %}">
+                <div>
+                    <strong>{{ b.name }}</strong>
+                    <div class="tx-meta">
+                        {% if b.days_until_due < 0 %}⚠️ Terlambat {{ -b.days_until_due }} hari
+                        {% elif b.days_until_due == 0 %}⏰ Jatuh tempo hari ini
+                        {% else %}Jatuh tempo {{ b.next_due_date.strftime('%d %b') }}{% endif %}
+                    </div>
+                </div>
+                <span class="tx-amount tx-expense">{{ format_rupiah(b.amount) }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-text">Tidak ada tagihan dalam 7 hari ke depan 🎉</p>
+        {% endif %}
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">Hutang &amp; Piutang</h2>
+        </div>
+        <div class="debt-grid">
+            <a href="/debts" class="card debt-tile">
+                <span class="worth-label">💸 Hutang</span>
+                <span class="worth-value text-red">{{ format_rupiah(data.total_debt) }}</span>
+                <span class="link-more">Lihat hutang →</span>
+            </a>
+            <a href="/debts" class="card debt-tile">
+                <span class="worth-label">💰 Piutang</span>
+                <span class="worth-value text-green">{{ format_rupiah(data.total_receivables) }}</span>
+                <span class="link-more">Lihat piutang →</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">Pengeluaran terbesar</h2>
+            <a href="/reports" class="link-more">Laporan →</a>
+        </div>
+        {% if expense_breakdown %}
+        <div class="stack">
+            {% for c in expense_breakdown %}
+            {% set pct = (c.percentage)|round|int %}
+            <div class="cat-row">
+                <div class="cat-line">
+                    <span>{{ c.icon or '🏷️' }} {{ c.name }}</span>
+                    <span class="tx-amount tx-expense">{{ format_rupiah(c.total) }}</span>
+                </div>
+                <div class="progress-track slim">
+                    <div class="progress-fill fill-red" style="width: {{ pct }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-text">Belum ada pengeluaran bulan ini 👍</p>
+        {% endif %}
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">Tabungan</h2>
+            <a href="/savings" class="link-more">Semua →</a>
+        </div>
+        {% if savings_goals %}
+        <div class="stack">
+            {% for g in savings_goals %}
+            <div class="card budget-row">
+                <div class="row-top">
+                    <strong>{{ g.goal.icon or '🎯' }} {{ g.goal.name }}</strong>
+                    <span class="tx-meta">{{ g.percentage|round|int }}%</span>
+                </div>
+                <div class="progress-track" role="progressbar"
+                     aria-valuenow="{{ g.percentage|round|int }}" aria-valuemin="0" aria-valuemax="100"
+                     aria-label="Tabungan {{ g.goal.name }}">
+                    <div class="progress-fill fill-blue" style="width: {{ [g.percentage, 100]|min }}%"></div>
+                </div>
+                <div class="row-between tx-meta">
+                    <span>{{ format_rupiah(g.goal.current_amount) }}</span>
+                    <span>target {{ format_rupiah(g.goal.target_amount) }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-text">Belum ada target tabungan. <a href="/savings/create" class="link-more">Tambah tabungan →</a></p>
+        {% endif %}
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">Transaksi terakhir</h2>
+            <a href="/transactions" class="link-more">Lihat semua transaksi →</a>
+        </div>
+        {% if data.recent_transactions %}
+        <div class="transaction-list">
+            {% for tx in data.recent_transactions %}
+            <a href="/transactions/edit/{{ tx.id }}" class="transaction-item">
+                <div class="tx-left">
+                    <span class="tx-icon">{{ tx.category_icon or '📋' }}</span>
+                    <div class="tx-info">
+                        <span class="tx-desc strong">{{ tx.merchant or tx.description or tx.category_display or 'Transaksi' }}</span>
+                        <span class="tx-meta">{{ tx.category_display }}{% if tx.account_name %} · {{ tx.account_name }}{% endif %} · {{ tx.date.strftime('%d %b') }}</span>
+                    </div>
+                </div>
+                <div class="tx-right">
+                    {% if tx.type.value == 'INCOME' %}
+                    <span class="tx-amount tx-income">+{{ format_rupiah(tx.amount) }}</span>
+                    {% elif tx.type.value == 'TRANSFER' %}
+                    <span class="tx-amount tx-transfer">↔ {{ format_rupiah(tx.amount) }}</span>
+                    {% else %}
+                    <span class="tx-amount tx-expense">−{{ format_rupiah(tx.amount) }}</span>
+                    {% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <div class="empty-title">Belum ada transaksi</div>
+            <div class="empty-desc">Catat pengeluaran pertama kamu</div>
+            <a href="/transactions/add" class="btn btn-primary btn-block" style="max-width:200px; margin-top:12px;">+ Tambah</a>
+        </div>
+        {% endif %}
+    </section>
+{% endblock %}

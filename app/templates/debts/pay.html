@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Bayar Hutang/Piutang{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Bayar {{ debt.person_name }}</h1>
+    </header>
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-label">Sisa</div>
+            <div class="summary-value">{{ format_rupiah(debt.remaining_amount) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Total</div>
+            <div class="summary-value">{{ format_rupiah(debt.principal_amount) }}</div>
+        </div>
+    </div>
+    <form method="post" action="/debts/pay/{{ debt.id }}" class="form">
+        <div class="form-group">
+            <label class="form-label">Jumlah Bayar (Rp)</label>
+            <input type="number" name="amount" class="form-input" required min="1" max="{{ debt.remaining_amount }}" placeholder="0">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Tanggal</label>
+            <input type="date" name="date_val" class="form-input" value="{{ today }}">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Akun</label>
+            <select name="account_id" class="form-input">
+                <option value="">Tanpa akun</option>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}">{{ acc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Catatan</label>
+            <input type="text" name="notes" class="form-input" placeholder="Catatan opsional">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Bayar</button>
+        <a href="/debts" class="btn btn-block" style="margin-top:8px;">Batal</a>
+    </form>
+</div>
+{% endblock %}

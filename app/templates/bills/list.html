@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Tagihan Rutin{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Tagihan Rutin</h1>
+        <a href="/bills/create" class="btn btn-primary btn-sm">+ Tagihan</a>
+    </header>
+
+    {% if upcoming %}
+    <div class="transaction-list">
+        {% for item in upcoming %}
+        {% set b = item.bill %}
+        {% set nd = item.next_due %}
+        <div class="transaction-item">
+            <div class="tx-left">
+                <span class="tx-icon">📄</span>
+                <div class="tx-info">
+                    <span class="tx-category">{{ b.name }}</span>
+                    <span class="tx-desc">{{ b.frequency.value }}{% if b.due_day %} • Tgl {{ b.due_day }}{% endif %}</span>
+                    {% if nd %}
+                    <span class="tx-meta">Berikutnya: {{ nd.strftime('%d %b %Y') }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="tx-right">
+                <span class="tx-amount tx-expense">{{ format_rupiah(b.amount) }}</span>
+                <form method="post" action="/bills/pay/{{ b.id }}" style="display:inline;">
+                    <input type="hidden" name="amount" value="{{ b.amount }}">
+                    <input type="hidden" name="account_id" value="{{ b.account_id or '' }}">
+                    <button type="submit" class="btn btn-primary btn-sm">Bayar</button>
+                </form>
+                <a href="/bills/delete/{{ b.id }}" class="btn-link text-red" onclick="return confirm('Hapus tagihan {{ b.name }}?')">Hapus</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📄</div>
+        <div class="empty-title">Belum ada tagihan rutin</div>
+        <div class="empty-desc">Tambah tagihan untuk mencatat pembayaran rutin</div>
+        <a href="/bills/create" class="btn btn-primary btn-block" style="max-width:200px; margin-top:12px;">+ Tagihan</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

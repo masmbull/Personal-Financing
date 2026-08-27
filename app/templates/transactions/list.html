@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Transaksi{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Transaksi</h1>
+    </header>
+
+    <form class="filter-form" method="get" action="/transactions">
+        <input type="text" name="search" placeholder="Cari catatan..." value="{{ filters.search }}" class="input" aria-label="Cari transaksi">
+        <div class="filter-row">
+            <input type="date" name="filter_date_from" value="{{ filters.date_from }}" class="input input-sm" placeholder="Dari" aria-label="Tanggal mulai">
+            <input type="date" name="filter_date_to" value="{{ filters.date_to }}" class="input input-sm" placeholder="Sampai" aria-label="Tanggal akhir">
+        </div>
+        <div class="filter-row">
+            <select name="filter_account" class="input input-sm" aria-label="Filter akun">
+                <option value="">Semua Akun</option>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}" {% if filters.account == acc.id|string %}selected{% endif %}>{{ acc.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="filter_category" class="input input-sm" aria-label="Filter kategori">
+                <option value="">Semua Kategori</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if filters.category == cat.id|string %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+    </form>
+
+    {% if transactions %}
+    <div class="transaction-list">
+        {% for tx in transactions %}
+        <a href="/transactions/edit/{{ tx.id }}" class="transaction-item">
+            <div class="tx-left">
+                <span class="tx-icon">{{ tx.category_icon or ('↔' if tx.type.value == 'TRANSFER' else '📋') }}</span>
+                <div class="tx-info">
+                    <span class="tx-desc">{{ tx.description or tx.category_display }}</span>
+                    <span class="tx-meta">{{ tx.account.name }} · {{ tx.date.strftime('%d %b %Y') }}</span>
+                </div>
+            </div>
+            <div class="tx-right">
+                {% if tx.type.value == 'INCOME' %}
+                <span class="tx-amount tx-income">+{{ format_rupiah(tx.amount) }}</span>
+                {% elif tx.type.value == 'TRANSFER' %}
+                <span class="tx-amount tx-transfer">↔{{ format_rupiah(tx.amount) }}</span>
+                {% else %}
+                <span class="tx-amount tx-expense">−{{ format_rupiah(tx.amount) }}</span>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📝</div>
+        <div class="empty-title">Belum ada transaksi</div>
+        <div class="empty-desc">Yuk catat transaksi pertama kamu.</div>
+        <a href="/transactions/add" class="btn btn-primary" style="margin-top: 12px;">+ Tambah Pengeluaran</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,14 @@
+{
+  "name": "Finance - Catatan Keuangan Pribadi",
+  "short_name": "Finance",
+  "description": "Catat pengeluaran, tagihan, tabungan, aset, dan investasi pribadi.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f7",
+  "theme_color": "#10b981",
+  "lang": "id",
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

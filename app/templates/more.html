@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Lainnya{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Lainnya</h1>
+    </header>
+
+    <div class="stack">
+        {% for url, icon, title, desc in links %}
+        <a href="{{ url }}" class="card more-row">
+            <span class="more-icon">{{ icon }}</span>
+            <span class="more-text">
+                <strong>{{ title }}</strong>
+                <span class="tx-meta">{{ desc }}</span>
+            </span>
+            <span class="more-chevron" aria-hidden="true">›</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

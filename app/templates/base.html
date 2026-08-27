@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#ffffff">
+    <title>{% block title %}Finance{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+</head>
+<body>
+    <div class="toast-container" id="toast-container"></div>
+    <div class="app">
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+        <nav class="bottom-nav" aria-label="Navigasi utama">
+            <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">Beranda</span>
+            </a>
+            <a href="/transactions" class="nav-item {% if '/transactions' in request.url.path %}active{% endif %}">
+                <span class="nav-icon">📋</span>
+                <span class="nav-label">Transaksi</span>
+            </a>
+            <a href="/receipts/upload" class="nav-item nav-add" aria-label="Scan Struk" title="Scan Struk">
+                <span class="nav-icon-add" aria-hidden="true">📷</span>
+                <span class="nav-label">Scan</span>
+            </a>
+            <a href="/reports" class="nav-item {% if '/reports' in request.url.path %}active{% endif %}">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Laporan</span>
+            </a>
+            <a href="/more" class="nav-item {% if '/more' in request.url.path or '/accounts' in request.url.path or '/debts' in request.url.path or '/bills' in request.url.path or '/budgets' in request.url.path or '/savings' in request.url.path or '/assets' in request.url.path or '/investments' in request.url.path or '/receipts' in request.url.path and '/receipts/upload' not in request.url.path %}active{% endif %}">
+                <span class="nav-icon">☰</span>
+                <span class="nav-label">Lainnya</span>
+            </a>
+        </nav>
+    </div>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

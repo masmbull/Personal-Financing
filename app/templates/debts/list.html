@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Hutang & Piutang{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Hutang & Piutang</h1>
+        <div>
+            <a href="/debts/create?debt_type=PAYABLE" class="btn btn-primary btn-sm">+ Hutang</a>
+            <a href="/debts/create?debt_type=RECEIVABLE" class="btn btn-success btn-sm">+ Piutang</a>
+        </div>
+    </header>
+
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-label">Total Piutang</div>
+            <div class="summary-value text-green">{{ format_rupiah(total_receivable) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Total Hutang</div>
+            <div class="summary-value text-red">{{ format_rupiah(total_payable) }}</div>
+        </div>
+    </div>
+
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">💰 Piutang</h2>
+        </div>
+        {% if receivables %}
+        <div class="transaction-list">
+            {% for d in receivables %}
+            <div class="transaction-item">
+                <div class="tx-left">
+                    <span class="tx-icon">💰</span>
+                    <div class="tx-info">
+                        <span class="tx-category">{{ d.person_name }}</span>
+                        <span class="tx-desc">{{ d.description or '' }}</span>
+                        <span class="tx-meta">{{ d.start_date.strftime('%d %b %Y') }}{% if d.due_date %} → {{ d.due_date.strftime('%d %b %Y') }}{% endif %}</span>
+                    </div>
+                </div>
+                <div class="tx-right">
+                    <span class="tx-amount tx-income">{{ format_rupiah(d.principal_amount) }}</span>
+                    {% if d.status.value == 'PAID' %}
+                    <span class="badge badge-green">Lunas</span>
+                    {% elif d.status.value == 'PARTIALLY_PAID' %}
+                    <span class="badge badge-yellow">Sebagian ({{ format_rupiah(d.remaining_amount) }})</span>
+                    {% elif d.status.value == 'OVERDUE' %}
+                    <span class="badge badge-red">Jatuh Tempo</span>
+                    {% else %}
+                    <span class="badge">{{ format_rupiah(d.remaining_amount) }}</span>
+                    {% endif %}
+                    {% if d.status.value != 'PAID' %}
+                    <a href="/debts/pay/{{ d.id }}" class="btn btn-primary btn-sm">Bayar</a>
+                    {% endif %}
+                    <a href="/debts/delete/{{ d.id }}" class="btn-link text-red" onclick="return confirm('Hapus?')">Hapus</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-text">Belum ada piutang</p>
+        {% endif %}
+    </section>
+
+    <section class="section">
+        <div class="section-header">
+            <h2 class="section-title">💸 Hutang</h2>
+        </div>
+        {% if payables %}
+        <div class="transaction-list">
+            {% for d in payables %}
+            <div class="transaction-item">
+                <div class="tx-left">
+                    <span class="tx-icon">💸</span>
+                    <div class="tx-info">
+                        <span class="tx-category">{{ d.person_name }}</span>
+                        <span class="tx-desc">{{ d.description or '' }}</span>
+                        <span class="tx-meta">{{ d.start_date.strftime('%d %b %Y') }}{% if d.due_date %} → {{ d.due_date.strftime('%d %b %Y') }}{% endif %}</span>
+                    </div>
+                </div>
+                <div class="tx-right">
+                    <span class="tx-amount tx-expense">{{ format_rupiah(d.principal_amount) }}</span>
+                    {% if d.status.value == 'PAID' %}
+                    <span class="badge badge-green">Lunas</span>
+                    {% elif d.status.value == 'PARTIALLY_PAID' %}
+                    <span class="badge badge-yellow">Sebagian ({{ format_rupiah(d.remaining_amount) }})</span>
+                    {% elif d.status.value == 'OVERDUE' %}
+                    <span class="badge badge-red">Jatuh Tempo</span>
+                    {% else %}
+                    <span class="badge">{{ format_rupiah(d.remaining_amount) }}</span>
+                    {% endif %}
+                    {% if d.status.value != 'PAID' %}
+                    <a href="/debts/pay/{{ d.id }}" class="btn btn-primary btn-sm">Bayar</a>
+                    {% endif %}
+                    <a href="/debts/delete/{{ d.id }}" class="btn-link text-red" onclick="return confirm('Hapus?')">Hapus</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-text">Belum ada hutang</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

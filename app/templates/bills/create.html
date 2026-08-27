@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Tambah Tagihan{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Tambah Tagihan</h1>
+    </header>
+    <form method="post" action="/bills/create" class="form">
+        <div class="form-group">
+            <label class="form-label">Nama Tagihan</label>
+            <input type="text" name="name" class="form-input" required placeholder="Contoh: Listrik, Wifi, etc">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Jumlah (Rp)</label>
+            <input type="number" name="amount" class="form-input" required min="1" placeholder="0">
+        </div>
+        <div class="form-row">
+            <div class="form-group form-group-half">
+                <label class="form-label">Frekuensi</label>
+                <select name="frequency" class="form-input">
+                    <option value="MONTHLY">Bulanan</option>
+                    <option value="WEEKLY">Mingguan</option>
+                    <option value="YEARLY">Tahunan</option>
+                    <option value="CUSTOM">Custom</option>
+                </select>
+            </div>
+            <div class="form-group form-group-half">
+                <label class="form-label">Tanggal Jatuh Tempo</label>
+                <input type="number" name="due_day" class="form-input" min="1" max="31" placeholder="1-31">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group form-group-half">
+                <label class="form-label">Kategori</label>
+                <select name="category_id" class="form-input">
+                    <option value="">Tanpa kategori</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group form-group-half">
+                <label class="form-label">Akun Default</label>
+                <select name="account_id" class="form-input">
+                    <option value="">Tanpa akun</option>
+                    {% for acc in accounts %}
+                    <option value="{{ acc.id }}">{{ acc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Catatan</label>
+            <textarea name="notes" class="form-input" rows="2" placeholder="Catatan tambahan"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Simpan</button>
+        <a href="/bills" class="btn btn-block" style="margin-top:8px;">Batal</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Tambah Transaksi{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Tambah {{ 'Pengeluaran' if tx_type == 'EXPENSE' else 'Pemasukan' }}</h1>
+    </header>
+
+    <div class="type-tabs">
+        <a href="/transactions/add?tx_type=EXPENSE" class="type-tab {% if tx_type == 'EXPENSE' %}active tab-expense{% endif %}">− Pengeluaran</a>
+        <a href="/transactions/add?tx_type=INCOME" class="type-tab {% if tx_type == 'INCOME' %}active tab-income{% endif %}">+ Pemasukan</a>
+    </div>
+
+    <form method="post" action="/transactions/add" class="form">
+        <input type="hidden" name="type" value="{{ tx_type }}">
+
+        <div class="form-group">
+            <label class="form-label" for="amount">Nominal</label>
+            <div class="input-prefix">
+                <span class="prefix">Rp</span>
+                <input type="number" name="amount" id="amount" class="input input-lg amount-hero" placeholder="0" min="1" required inputmode="decimal">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="category_id">Kategori</label>
+            <select name="category_id" id="category_id" class="input" required>
+                <option value="">Pilih kategori</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.icon or '' }} {{ cat.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="chip-row" id="quick-cats" aria-label="Kategori cepat"></div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="account_id">Akun</label>
+            <select name="account_id" id="account_id" class="input" required>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}">{{ acc.icon or '' }} {{ acc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="date_val">Tanggal</label>
+            <input type="date" name="date_val" id="date_val" class="input" value="{{ today }}" required>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="merchant">Merchant</label>
+            <input type="text" name="merchant" id="merchant" class="input" placeholder="Contoh: Indomaret, GoFood" maxlength="200">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="description">Catatan</label>
+            <input type="text" name="description" id="description" class="input" placeholder="Opsional" maxlength="200">
+        </div>
+
+        <button type="submit" class="btn btn-green btn-block">Simpan {{ 'Pengeluaran' if tx_type == 'EXPENSE' else 'Pemasukan' }}</button>
+    </form>
+</div>
+{% endblock %}

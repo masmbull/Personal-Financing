@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Kategori{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Kategori</h1>
+        <a href="/categories/create" class="btn btn-primary btn-sm">+ Kategori</a>
+    </header>
+
+    <h2 class="section-title" style="margin-top:8px;">Pengeluaran</h2>
+    <div class="category-list">
+        {% for cat in categories if cat.type.value == 'EXPENSE' %}
+        <div class="category-item">
+            <span class="cat-icon">{{ cat.icon or '📋' }}</span>
+            <span class="cat-name">{{ cat.name }}</span>
+            <div class="cat-actions">
+                <a href="/categories/edit/{{ cat.id }}" class="btn-link">Edit</a>
+                <a href="/categories/delete/{{ cat.id }}" class="btn-link text-red" onclick="return confirm('Hapus kategori {{ cat.name }}?')">Hapus</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <h2 class="section-title" style="margin-top:20px;">Pemasukan</h2>
+    <div class="category-list">
+        {% for cat in categories if cat.type.value == 'INCOME' %}
+        <div class="category-item">
+            <span class="cat-icon">{{ cat.icon or '📋' }}</span>
+            <span class="cat-name">{{ cat.name }}</span>
+            <div class="cat-actions">
+                <a href="/categories/edit/{{ cat.id }}" class="btn-link">Edit</a>
+                <a href="/categories/delete/{{ cat.id }}" class="btn-link text-red" onclick="return confirm('Hapus kategori {{ cat.name }}?')">Hapus</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

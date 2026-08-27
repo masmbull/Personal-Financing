@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Tambah Aset{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Tambah Aset</h1>
+    </header>
+    <form method="post" action="/assets/create" class="form">
+        <div class="form-group">
+            <label class="form-label">Nama Aset</label>
+            <input type="text" name="name" class="form-input" required placeholder="Contoh: Honda Beat, iPhone, etc">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Tipe Aset</label>
+            <select name="asset_type" class="form-input" required>
+                {% for t in ASSET_TYPES %}
+                <option value="{{ t }}">{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Nilai Saat Ini (Rp)</label>
+            <input type="number" name="current_value" class="form-input" required min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Harga Beli (Rp)</label>
+            <input type="number" name="purchase_value" class="form-input" min="0" placeholder="Opsional">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Tanggal Beli</label>
+            <input type="date" name="purchase_date" class="form-input" value="{{ today }}">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Icon (emoji)</label>
+            <input type="text" name="icon" class="form-input" placeholder="🏠">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Catatan</label>
+            <textarea name="notes" class="form-input" rows="2" placeholder="Catatan tambahan"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Simpan</button>
+        <a href="/assets" class="btn btn-block" style="margin-top:8px;">Batal</a>
+    </form>
+</div>
+{% endblock %}

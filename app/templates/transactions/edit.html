@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Edit Transaksi{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Edit Transaksi</h1>
+    </header>
+
+    <form method="post" action="/transactions/edit/{{ tx.id }}" class="form">
+        <div class="type-tabs">
+            <input type="hidden" name="type" value="{{ tx.type.value }}">
+            {% if tx.type.value == 'EXPENSE' %}
+            <span class="type-tab active tab-expense">Pengeluaran</span>
+            {% elif tx.type.value == 'INCOME' %}
+            <span class="type-tab active tab-income">Pemasukan</span>
+            {% else %}
+            <span class="type-tab active tab-transfer">Transfer</span>
+            {% endif %}
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="amount">Nominal</label>
+            <div class="input-prefix">
+                <span class="prefix">Rp</span>
+                <input type="number" name="amount" id="amount" class="input input-lg" value="{{ tx.amount }}" min="1" required inputmode="numeric">
+            </div>
+        </div>
+
+        {% if tx.type.value != 'TRANSFER' %}
+        <div class="form-group">
+            <label class="form-label" for="category_id">Kategori</label>
+            <select name="category_id" id="category_id" class="input" required>
+                <option value="">Pilih kategori</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if tx.category_id == cat.id %}selected{% endif %}>{{ cat.icon or '' }} {{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label class="form-label" for="account_id">Akun</label>
+            <select name="account_id" id="account_id" class="input" required>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}" {% if tx.account_id == acc.id %}selected{% endif %}>{{ acc.icon or '' }} {{ acc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {% if tx.type.value == 'TRANSFER' %}
+        <div class="form-group">
+            <label class="form-label" for="transfer_to_account_id">Transfer Ke</label>
+            <select name="transfer_to_account_id" id="transfer_to_account_id" class="input" required>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}" {% if tx.transfer_to_account_id == acc.id %}selected{% endif %}>{{ acc.icon or '' }} {{ acc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div class="form-group">
+            <label class="form-label" for="date_val">Tanggal</label>
+            <input type="date" name="date_val" id="date_val" class="input" value="{{ tx.date.isoformat() }}" required>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="merchant">Merchant</label>
+            <input type="text" name="merchant" id="merchant" class="input" value="{{ tx.merchant or '' }}" placeholder="Contoh: Indomaret, GoFood" maxlength="200">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="description">Catatan</label>
+            <input type="text" name="description" id="description" class="input" value="{{ tx.description or '' }}" placeholder="Opsional" maxlength="200">
+        </div>
+
+        <div class="btn-row">
+            <button type="submit" class="btn btn-primary">Simpan</button>
+            <a href="/transactions/delete/{{ tx.id }}" class="btn btn-danger" onclick="return confirm('Hapus transaksi ini?')">Hapus</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

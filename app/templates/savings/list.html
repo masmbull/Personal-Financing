@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Tabungan{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Tabungan</h1>
+        <a href="/savings/create" class="btn btn-primary btn-sm">+ Target</a>
+    </header>
+
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-label">Total Target</div>
+            <div class="summary-value">{{ format_rupiah(total_target) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Terkumpul</div>
+            <div class="summary-value text-green">{{ format_rupiah(total_saved) }}</div>
+        </div>
+    </div>
+
+    {% if goals %}
+    <div class="section">
+        {% for g in goals %}
+        {% set pct = (g.current_amount * 100 / g.target_amount)|int if g.target_amount > 0 else 0 %}
+        <div class="card" style="margin-bottom:12px; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div>
+                    <strong>{{ g.icon or '🎯' }} {{ g.name }}</strong>
+                    <span class="tx-meta" style="margin-left:8px;">{{ format_rupiah(g.target_amount) }}</span>
+                </div>
+                <a href="/savings/delete/{{ g.id }}" class="btn-link text-red" onclick="return confirm('Hapus target ini?')">Hapus</a>
+            </div>
+            <div class="progress-bar" style="background:#e0e0e0; height:8px; border-radius:4px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; width:{{ [pct, 100]|min }}%; background:{% if pct >= 100 %}#27ae60{% elif pct >= 50 %}#3498db{% else %}#f39c12{% endif %};"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:12px; color:var(--text-secondary);">
+                <span>{{ format_rupiah(g.current_amount) }} ({{ pct }}%)</span>
+                <span>Sisa {{ format_rupiah([g.target_amount - g.current_amount, 0]|max) }}</span>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+                <form method="post" action="/savings/deposit/{{ g.id }}" style="display:flex; gap:4px; flex:1;">
+                    <input type="number" name="amount" class="form-input" min="1" placeholder="Setor" style="flex:1;">
+                    <button type="submit" class="btn btn-primary btn-sm">Setor</button>
+                </form>
+                {% if g.current_amount > 0 %}
+                <form method="post" action="/savings/withdraw/{{ g.id }}" style="display:flex; gap:4px; flex:1;">
+                    <input type="number" name="amount" class="form-input" min="1" max="{{ g.current_amount }}" placeholder="Tarik" style="flex:1;">
+                    <button type="submit" class="btn btn-sm">Tarik</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🎯</div>
+        <div class="empty-title">Belum ada target tabungan</div>
+        <div class="empty-desc">Buat target tabungan untuk mencapai tujuan keuangan</div>
+        <a href="/savings/create" class="btn btn-primary btn-block" style="max-width:200px; margin-top:12px;">+ Target</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

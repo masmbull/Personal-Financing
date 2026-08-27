@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Edit Akun{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Edit Akun</h1>
+    </header>
+
+    <form method="post" action="/accounts/edit/{{ account.id }}" class="form">
+        <div class="form-group">
+            <label class="form-label" for="name">Nama</label>
+            <input type="text" name="name" id="name" class="input" value="{{ account.name }}" required maxlength="100">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="type">Tipe</label>
+            <select name="type" id="type" class="input" required>
+                {% for t in account_types %}
+                <option value="{{ t.value }}" {% if account.type == t %}selected{% endif %}>{{ t.value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="initial_balance">Saldo Awal</label>
+            <div class="input-prefix">
+                <span class="prefix">Rp</span>
+                <input type="number" name="initial_balance" id="initial_balance" class="input" value="{{ account.initial_balance }}" min="0" inputmode="numeric">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="icon">Icon (opsional)</label>
+            <input type="text" name="icon" id="icon" class="input" value="{{ account.icon or '' }}" maxlength="5">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Simpan Perubahan</button>
+    </form>
+</div>
+{% endblock %}

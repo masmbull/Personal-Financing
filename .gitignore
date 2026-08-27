@@ -1,0 +1,14 @@
+.env
+*.db
+*.sqlite
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+data/*
+!.gitkeep
+*.pyc
+.DS_Store
+temp_*.txt
+test-receipt-upload.png
+*.log

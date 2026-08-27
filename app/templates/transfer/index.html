@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Transfer{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Transfer</h1>
+    </header>
+
+    <form method="post" action="/transfer" class="form">
+        <div class="form-group">
+            <label class="form-label" for="from_account_id">Dari Akun</label>
+            <select name="from_account_id" id="from_account_id" class="input" required>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}">{{ acc.icon or '💳' }} {{ acc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="transfer-arrow">↓</div>
+
+        <div class="form-group">
+            <label class="form-label" for="to_account_id">Ke Akun</label>
+            <select name="to_account_id" id="to_account_id" class="input" required>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}">{{ acc.icon or '💳' }} {{ acc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="amount">Jumlah</label>
+            <div class="input-prefix">
+                <span class="prefix">Rp</span>
+                <input type="number" name="amount" id="amount" class="input input-lg" placeholder="0" min="1" required inputmode="numeric">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="date_val">Tanggal</label>
+            <input type="date" name="date_val" id="date_val" class="input" value="{{ today }}" required>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="description">Catatan</label>
+            <input type="text" name="description" id="description" class="input" placeholder="Opsional" maxlength="200">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Transfer Sekarang</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}Review Struk{% endblock %}
+{% block content %}
+<div class="receipt-review">
+    <header class="rr-header">
+        <a href="/receipts" class="rr-back" aria-label="Kembali">&larr; Kembali</a>
+        <h1 class="rr-title">Review Struk</h1>
+    </header>
+
+    {% if just_uploaded %}
+    <div class="rr-flash rr-flash--ok" role="status">Struk berhasil diupload</div>
+    {% endif %}
+    {% if just_confirmed %}
+    <div class="rr-flash rr-flash--ok" role="status" id="toast-success">
+        Transaksi berhasil disimpan
+        <a class="rr-flash-link" href="/transactions/edit/{{ r.transaction_id }}">Lihat transaksi &rarr;</a>
+    </div>
+    {% elif error == 'already' %}
+    <div class="rr-flash rr-flash--warn" role="alert">Struk ini sudah menjadi transaksi.</div>
+    {% elif error %}
+    <div class="rr-flash rr-flash--warn" role="alert">{{ error }}</div>
+    {% endif %}
+
+    {% if r.duplicate_id and not r.confirmed %}
+    <div class="rr-dup">
+        <span class="rr-dup-text">Struk ini kemungkinan duplikat</span>
+        <a class="rr-dup-link" href="/receipts/{{ r.duplicate_id }}">Lihat struk sebelumnya &rarr;</a>
+    </div>
+    {% endif %}
+
+    {% if r.confirmed %}
+    <div class="rr-confirmed">
+        <div class="rr-confirmed-icon">&#10003;</div>
+        <h2 class="rr-confirmed-title">Struk sudah tercatat</h2>
+        <p class="rr-confirmed-meta">Struk ini sudah dicatat sebagai transaksi.</p>
+        {% if r.amount %}<p class="rr-confirmed-amount">{{ format_rupiah(r.amount) }}</p>{% endif %}
+        <a class="rr-btn rr-btn--primary rr-btn--block" href="/transactions/edit/{{ r.transaction_id }}">Lihat Transaksi</a>
+    </div>
+
+    {% elif r.status_value == 'processing' %}
+    <div class="rr-loading" role="status">
+        <div class="spinner" aria-hidden="true"></div>
+        <p class="rr-loading-text">Sedang membaca struk&hellip;</p>
+        <p class="rr-loading-sub">Sebentar ya, hasilnya muncul di sini.</p>
+    </div>
+
+    {% elif r.status_value == 'failed' %}
+    <div class="rr-flash rr-flash--warn" role="alert">
+        Struk gagal dibaca otomatis. Kamu tetap bisa mencatatnya secara manual di bawah.
+    </div>
+    <div class="rr-grid">
+        <div class="rr-col-img">
+            <div class="rr-img-wrap">
+                <img class="rr-img" src="/receipts/{{ r.id }}/image"
+                     alt="Foto struk {{ r.filename }}"
+                     onclick="document.getElementById('imgModal').classList.add('active')"
+                     role="button" tabindex="0" aria-label="Perbesar gambar struk">
+                <button class="rr-img-zoom" type="button"
+                        onclick="document.getElementById('imgModal').classList.add('active')"
+                        aria-label="Perbesar gambar">Perbesar</button>
+            </div>
+            <div class="rr-img-meta">
+                <span>{{ r.filename }}</span>
+                <span>{{ r.size_kb }} KB</span>
+            </div>
+        </div>
+        <div class="rr-col-review">
+            <div class="rr-card">
+                <p class="rr-card-sub">OCR gagal memproses struk ini. Isi data transaksi secara manual.</p>
+                <form method="post" action="/receipts/{{ r.id }}/confirm" class="rr-form">
+                    <input type="hidden" name="type" value="EXPENSE">
+                    <div class="rr-field"><label class="rr-label" for="merchant">Merchant</label><input class="rr-input" type="text" id="merchant" name="merchant" value="{{ r.merchant or '' }}" maxlength="200"></div>
+                    <div class="rr-field"><label class="rr-label" for="amount">Total</label><input class="rr-input rr-input--lg" type="number" inputmode="decimal" id="amount" name="amount" min="1" required placeholder="0"></div>
+                    <div class="rr-field"><label class="rr-label" for="date">Tanggal</label><input class="rr-input" type="date" id="date" name="date" value="{{ today }}" required></div>
+                    <div class="rr-field"><label class="rr-label" for="category_id">Kategori</label><select class="rr-input" id="category_id" name="category_id" required><option value="">Pilih kategori</option>{% for c in categories %}<option value="{{ c.id }}">{{ c.icon or '' }} {{ c.name }}</option>{% endfor %}</select></div>
+                    <div class="rr-field"><label class="rr-label" for="account_id">Akun</label><select class="rr-input" id="account_id" name="account_id" required><option value="">Pilih akun</option>{% for a in accounts %}<option value="{{ a.id }}">{{ a.icon or '' }} {{ a.name }}</option>{% endfor %}</select></div>
+                    <div class="rr-field"><label class="rr-label" for="description">Deskripsi</label><input class="rr-input" type="text" id="description" name="description" placeholder="Opsional" maxlength="200"></div>
+                    <button type="submit" class="rr-btn rr-btn--primary rr-btn--block rr-btn--lg">Simpan Transaksi</button>
+                </form>
+            </div>
+            <div class="rr-card rr-danger-zone">
+                <h2 class="rr-card-title rr-card-title--danger">Hapus Struk</h2>
+                <form method="post" action="/receipts/{{ r.id }}/delete" onsubmit="return confirm('Hapus struk ini?');"><button type="submit" class="rr-btn rr-btn--danger rr-btn--block">Hapus Struk</button></form>
+            </div>
+        </div>
+    </div>
+
+    {% elif r.ocr and (r.ocr.total_amount or r.ocr.merchant or r.ocr.date) %}
+    {% set conf = r.ocr.confidence or 'LOW' %}
+    <div class="rr-status">
+        {% if conf == 'HIGH' %}
+        <span class="rr-status-dot rr-status-dot--ok"></span>
+        <span class="rr-status-text">Akurasi pembacaan tinggi</span>
+        {% elif conf == 'MEDIUM' %}
+        <span class="rr-status-dot rr-status-dot--mid"></span>
+        <span class="rr-status-text">Beberapa data mungkin perlu dikoreksi</span>
+        {% else %}
+        <span class="rr-status-dot rr-status-dot--low"></span>
+        <span class="rr-status-text">Beberapa data perlu diperiksa</span>
+        {% endif %}
+    </div>
+
+    <div class="rr-grid">
+        <div class="rr-col-img">
+            <div class="rr-img-wrap">
+                <img class="rr-img" src="/receipts/{{ r.id }}/image"
+                     alt="Foto struk {{ r.filename }}"
+                     onclick="document.getElementById('imgModal').classList.add('active')"
+                     role="button" tabindex="0" aria-label="Perbesar gambar struk">
+                <button class="rr-img-zoom" type="button"
+                        onclick="document.getElementById('imgModal').classList.add('active')"
+                        aria-label="Perbesar gambar">Perbesar</button>
+            </div>
+            <div class="rr-img-meta">
+                <span>{{ r.filename }}</span>
+                <span>{{ r.size_kb }} KB</span>
+            </div>
+        </div>
+
+        <div class="rr-col-review">
+            <div class="rr-card">
+                <h2 class="rr-card-title">Hasil Scan</h2>
+                <div class="rr-summary">
+                    <div class="rr-sum-row"><span class="rr-sum-label">Merchant</span><span class="rr-sum-value">{{ r.ocr.merchant or '-' }}</span></div>
+                    <div class="rr-sum-row"><span class="rr-sum-label">Tanggal</span><span class="rr-sum-value">{% if r.ocr.date %}{% set d = r.ocr.date.split('-') %}{{ d[2]|int }} {{ ['','Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'][d[1]|int] }} {{ d[0] }}{% if r.ocr.time %} {{ r.ocr.time }}{% endif %}{% else %}-{% endif %}</span></div>
+                    <div class="rr-sum-row"><span class="rr-sum-label">Total</span><span class="rr-sum-value rr-sum-total">{% if r.ocr.total_amount %}{{ format_rupiah(r.ocr.total_amount) }}{% else %}-{% endif %}</span></div>
+                    <div class="rr-sum-row"><span class="rr-sum-label">Pembayaran</span><span class="rr-sum-value">{{ r.ocr.payment_method or '-' }}</span></div>
+                </div>
+            </div>
+
+            {% set has_detail = r.ocr.subtotal or r.ocr.discount or r.ocr.tax %}
+            {% if has_detail %}
+            <div class="rr-card">
+                <h2 class="rr-card-title">Rincian Belanja</h2>
+                <div class="rr-detail-lines">
+                    {% if r.ocr.subtotal %}<div class="rr-dl-row"><span>Subtotal</span><span>{{ format_rupiah(r.ocr.subtotal) }}</span></div>{% endif %}
+                    {% if r.ocr.discount %}<div class="rr-dl-row rr-dl-neg"><span>Diskon</span><span>-{{ format_rupiah(r.ocr.discount) }}</span></div>{% endif %}
+                    {% if r.ocr.tax %}<div class="rr-dl-row"><span>Pajak</span><span>{{ format_rupiah(r.ocr.tax) }}</span></div>{% endif %}
+                    <div class="rr-dl-row rr-dl-total"><span>Total</span><span>{% if r.ocr.total_amount %}{{ format_rupiah(r.ocr.total_amount) }}{% else %}-{% endif %}</span></div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if r.ocr.items %}
+            <details class="rr-card rr-items-toggle">
+                <summary class="rr-items-summary"><span>Item</span><span class="rr-badge">{{ r.ocr.items|length }}</span></summary>
+                <div class="rr-items-list">
+                    {% for item in r.ocr.items %}
+                    <div class="rr-item"><div class="rr-item-main"><span class="rr-item-name">{{ item.name or '-' }}</span><span class="rr-item-qty">{% if item.quantity %}x{{ item.quantity }}{% endif %}</span></div><div class="rr-item-right">{% if item.total_price %}<span class="rr-item-price">{{ format_rupiah(item.total_price) }}</span>{% endif %}</div></div>
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
+
+            <div class="rr-card">
+                <h2 class="rr-card-title">Periksa Sebelum Disimpan</h2>
+                <p class="rr-card-sub">Data dari hasil scan. Kamu bisa mengubahnya sebelum transaksi dibuat.</p>
+                <form method="post" action="/receipts/{{ r.id }}/confirm" class="rr-form">
+                    <input type="hidden" name="type" value="EXPENSE">
+                    <div class="rr-field"><label class="rr-label" for="merchant">Merchant</label><input class="rr-input" type="text" id="merchant" name="merchant" value="{{ r.ocr.merchant if r.ocr else r.merchant }}" maxlength="200"></div>
+                    <div class="rr-field"><label class="rr-label" for="amount">Total</label><input class="rr-input rr-input--lg" type="number" inputmode="decimal" id="amount" name="amount" min="1" required value="{{ r.ocr.total_amount if r.ocr else '' }}" placeholder="0"></div>
+                    <div class="rr-field"><label class="rr-label" for="date">Tanggal</label><input class="rr-input" type="date" id="date" name="date" value="{{ r.ocr.date if r.ocr else today }}" required></div>
+                    <div class="rr-field"><label class="rr-label" for="category_id">Kategori</label><select class="rr-input" id="category_id" name="category_id" required><option value="">Pilih kategori</option>{% for c in categories %}<option value="{{ c.id }}" {% if c.name == r.suggested_category %}selected{% endif %}>{{ c.icon or '' }} {{ c.name }}</option>{% endfor %}</select>{% if r.suggested_category %}<p class="rr-hint">Disarankan berdasarkan data struk</p>{% endif %}</div>
+                    <div class="rr-field"><label class="rr-label" for="account_id">Akun</label><select class="rr-input" id="account_id" name="account_id" required><option value="">Pilih akun</option>{% for a in accounts %}<option value="{{ a.id }}">{{ a.icon or '' }} {{ a.name }}</option>{% endfor %}</select></div>
+                    <div class="rr-field"><label class="rr-label" for="description">Deskripsi</label><input class="rr-input" type="text" id="description" name="description" value="{{ r.ocr.merchant if r.ocr else '' }}" placeholder="Opsional" maxlength="200"></div>
+                    <p class="rr-submit-hint">Pastikan nominal, kategori, dan akun sudah benar.</p>
+                    <button type="submit" class="rr-btn rr-btn--primary rr-btn--block rr-btn--lg">Simpan Transaksi</button>
+                </form>
+            </div>
+            <div class="rr-card rr-danger-zone">
+                <h2 class="rr-card-title rr-card-title--danger">Hapus Struk</h2>
+                <p class="rr-card-sub">Struk akan dihapus dari arsip. Transaksi tercatat tidak terpengaruh.</p>
+                <form method="post" action="/receipts/{{ r.id }}/delete" onsubmit="return confirm('Hapus struk ini? Transaksi tercatat tetap dipertahankan.');"><button type="submit" class="rr-btn rr-btn--danger rr-btn--block">Hapus Struk</button></form>
+            </div>
+        </div>
+    </div>
+
+    {% else %}
+    {# No OCR data - show image + manual form #}
+    <div class="rr-grid">
+        <div class="rr-col-img">
+            <div class="rr-img-wrap">
+                <img class="rr-img" src="/receipts/{{ r.id }}/image" alt="Foto struk {{ r.filename }}">
+            </div>
+        </div>
+        <div class="rr-col-review">
+            <div class="rr-card">
+                <p class="rr-card-sub">Belum ada data OCR. Kamu bisa mencatat transaksi secara manual di bawah.</p>
+                <form method="post" action="/receipts/{{ r.id }}/confirm" class="rr-form">
+                    <input type="hidden" name="type" value="EXPENSE">
+                    <div class="rr-field"><label class="rr-label" for="merchant">Merchant</label><input class="rr-input" type="text" id="merchant" name="merchant" value="{{ r.merchant or '' }}" maxlength="200"></div>
+                    <div class="rr-field"><label class="rr-label" for="amount">Total</label><input class="rr-input rr-input--lg" type="number" inputmode="decimal" id="amount" name="amount" min="1" required placeholder="0"></div>
+                    <div class="rr-field"><label class="rr-label" for="date">Tanggal</label><input class="rr-input" type="date" id="date" name="date" value="{{ today }}" required></div>
+                    <div class="rr-field"><label class="rr-label" for="category_id">Kategori</label><select class="rr-input" id="category_id" name="category_id" required><option value="">Pilih kategori</option>{% for c in categories %}<option value="{{ c.id }}">{{ c.icon or '' }} {{ c.name }}</option>{% endfor %}</select></div>
+                    <div class="rr-field"><label class="rr-label" for="account_id">Akun</label><select class="rr-input" id="account_id" name="account_id" required><option value="">Pilih akun</option>{% for a in accounts %}<option value="{{ a.id }}">{{ a.icon or '' }} {{ a.name }}</option>{% endfor %}</select></div>
+                    <div class="rr-field"><label class="rr-label" for="description">Deskripsi</label><input class="rr-input" type="text" id="description" name="description" placeholder="Opsional" maxlength="200"></div>
+                    <button type="submit" class="rr-btn rr-btn--primary rr-btn--block rr-btn--lg">Simpan Transaksi</button>
+                </form>
+            </div>
+            <div class="rr-card rr-danger-zone">
+                <h2 class="rr-card-title rr-card-title--danger">Hapus Struk</h2>
+                <form method="post" action="/receipts/{{ r.id }}/delete" onsubmit="return confirm('Hapus struk ini?');"><button type="submit" class="rr-btn rr-btn--danger rr-btn--block">Hapus Struk</button></form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="rr-modal" id="imgModal" role="dialog" aria-label="Gambar struk" onclick="if(event.target===this)this.classList.remove('active')">
+        <button class="rr-modal-close" onclick="document.getElementById('imgModal').classList.remove('active')" aria-label="Tutup">&times;</button>
+        <img class="rr-modal-img" src="/receipts/{{ r.id }}/image" alt="Struk ukuran penuh">
+    </div>
+    <script>document.addEventListener('keydown',function(e){if(e.key==='Escape'){var m=document.getElementById('imgModal');if(m&&m.classList.contains('active'))m.classList.remove('active');}});</script>
+</div>
+{% endblock %}
