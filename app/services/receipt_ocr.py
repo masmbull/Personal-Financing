@@ -50,6 +50,7 @@ class ReceiptScanResult:
     confidence: str = "LOW"
     status: str = "processed"           # processed | failed
     error: Optional[str] = None
+    estimated_items: Optional[int] = None
 
     def to_dict(self) -> dict:
         return {
@@ -322,78 +323,165 @@ def extract_payment_method(text) -> Optional[str]:
     return None
 
 
-# ---------------------------------------------------------------- items
 
-_ITEM_RE_COLS = re.compile(
-    r"^(?P<name>.+?)\s+(?P<qty>-?\d+)\s+(?P<unit>\d[\d.,]*)\s+(?P<total>\d[\d.,]*)\s*$"
+# ----------------------------------------------------------- item extraction
+# Structural right-to-left parser.
+_NOISE_RE = re.compile(r"[^a-zA-Z0-9.,:;() @'’\t]+")
+_SUMMARY_LINE_RE = re.compile(
+    r'(?i)^.*'
+    r'(total\s+belanja|grand\s+total|total\s+bayar|total\s+akhir|'
+    r'sub\s*total|total\s+item|total\s+disc|'
+    r'tunai|cash|kembali|bayar|belanja|hemat|'
+    r'diskon|disc|ppn|pajak|pb1|dpp|'
+    r'debit|kredit|qris|gopay|ovo|transfer|'
+    r'payment|change|amount\s+tender|'
+    r'no\.?\s*struk|nota|terima\s+kasih|struk\s+belanja|'
+    r'harga\s+jual|harga\s+total|'
+    r'ppn\s*dibebaskan|ppn\s*:)'
 )
-_ITEM_RE_X = re.compile(
-    r"^(?P<name>.+?)\s+(?P<qty>\d+)\s*[xX*]\s+(?P<unit>\d[\d.,]*)\s+(?P<total>\d[\d.,]*)\s*$"
+_NAME_SKIP_RE = re.compile(
+    r'(?i)^(total|subtotal|sub\s*total|grand|disc|diskon|ppn|pajak|pb1|'
+    r'tunai|cash|debit|kredit|kembali|bayar|belanja|hema|jumlah|qty|vo|'
+    r'payment|change|dpp|no\s*struk)'
 )
-_ITEM_RE_SIMPLE = re.compile(
-    r"^(?P<name>.+?)\s+(?P<unit>\d[\d.,]*)\s+(?P<total>\d[\d.,]*)\s*$"
-)
-_ITEM_SKIP = re.compile(
-    r"(?i)(total|subtotal|grand|disc|diskon|ppn|pajak|tunai|debit|cash|"
-    r"kembali|bayar|belanja|jumlah|qty)",
-)
+_SEP_LINE_RE = re.compile(r'^[\s.\-=*#~]+$')
+_DATE_LINE_RE = re.compile(r'^[0-9][0-9.,/:-]*[0-9][.,/:-]+[0-9]')
+_FINANCIAL_TOLERANCE = 0.05
 
 
-def extract_items(text) -> list:
-    """Best-effort line-item extraction.
+def _is_financial_token(tok):
+    t = tok.strip().strip('()')
+    t = re.sub(r'^(Rp|rp|RP)', '', t)
+    return bool(re.match(r'^\d[\d.,]*$', t))
 
-    Supports three receipt formats:
-    1. ``NAME  QTY  UNIT_PRICE  TOTAL_PRICE``  (4-column Indonesian cashier)
-    2. ``NAME  QTYx  UNIT_PRICE  TOTAL_PRICE`` (qty-x format)
-    3. ``NAME  UNIT_PRICE  TOTAL_PRICE``        (simple 2-number)
 
-    Negative-quantity / negative-total lines (returns/discounts) are skipped.
-    Summary lines (total, discount, PPN etc.) are never treated as items.
-    """
+def _parse_item_line(line):
+    if not line or _DATE_LINE_RE.match(line.strip()):
+        return None
+    if not line or _SEP_LINE_RE.match(line) or _SUMMARY_LINE_RE.match(line):
+        return None
+    normalized = _NOISE_RE.sub(' ', line)
+    normalized = re.sub(r'\s+', ' ', normalized).strip()
+    if not normalized:
+        return None
+    tokens = normalized.split()
+    if len(tokens) < 2:
+        return None
+    fin_indices = []
+    for i in range(len(tokens) - 1, -1, -1):
+        if _is_financial_token(tokens[i]):
+            fin_indices.append(i)
+        else:
+            break
+    if not fin_indices:
+        return None
+    fin_indices.reverse()
+    qty_from_x = None
+    first_fin = fin_indices[0]
+    if first_fin > 0:
+        prev = tokens[first_fin - 1].strip()
+        xmatch = re.match(r'^(\d+)\s*[xX*]$', prev)
+        if xmatch:
+            qty_from_x = int(xmatch.group(1))
+            name_tokens = tokens[:first_fin - 1]
+        else:
+            name_tokens = tokens[:first_fin]
+    else:
+        name_tokens = tokens[:first_fin]
+    name_text = ' '.join(name_tokens).strip(' .-')
+    if not name_text or _NAME_SKIP_RE.match(name_text):
+        return None
+    fin_count = len(fin_indices)
+
+    def _val(idx):
+        return parse_rupiah(tokens[idx])
+
+    def _is_neg(idx):
+        t = tokens[idx].strip()
+        return t.startswith('(') and t.endswith(')')
+
+    if _is_neg(fin_indices[-1]) and fin_count == 2:
+        return None
+    if fin_count >= 3:
+        qty = _val(fin_indices[0])
+        unit = _val(fin_indices[1])
+        total = _val(fin_indices[-1])
+        if qty and qty > 0 and unit and unit > 0 and total and total > 0:
+            expected = qty * unit
+            diff = abs(expected - total) / max(expected, total)
+            if diff <= _FINANCIAL_TOLERANCE:
+                return ReceiptItem(name=name_text, quantity=qty,
+                                   unit_price=unit, total_price=total)
+        a = _val(fin_indices[-2])
+        b = _val(fin_indices[-1])
+        if a and a > 0 and b and b > 0:
+            return ReceiptItem(name=name_text, quantity=1,
+                               unit_price=a, total_price=b)
+    if qty_from_x is not None:
+        if fin_count >= 2:
+            unit = _val(fin_indices[0])
+            total = _val(fin_indices[-1])
+            if unit and unit > 0 and total and total > 0:
+                expected = qty_from_x * unit
+                diff = abs(expected - total) / max(expected, total)
+                if diff <= _FINANCIAL_TOLERANCE:
+                    return ReceiptItem(name=name_text, quantity=qty_from_x,
+                                       unit_price=unit, total_price=total)
+        if fin_count >= 1:
+            total = _val(fin_indices[-1])
+            if total and total > 0:
+                return ReceiptItem(name=name_text, quantity=qty_from_x,
+                                   unit_price=None, total_price=total)
+    if fin_count == 2:
+        a = _val(fin_indices[0])
+        b = _val(fin_indices[1])
+        if a and a > 0 and b and b > 0:
+            return ReceiptItem(name=name_text, quantity=1,
+                               unit_price=a, total_price=b)
+    if fin_count == 1:
+        total = _val(fin_indices[0])
+        if total and total > 0:
+            return ReceiptItem(name=name_text, quantity=1,
+                               unit_price=total, total_price=total)
+    return None
+
+
+def extract_items(text):
+    all_lines = _lines(text)
     items = []
-    for ln in _lines(text):
-        m = _ITEM_RE_COLS.match(ln)
-        if m:
-            qty = int(m.group("qty"))
-            if qty < 0:
+    in_item_section = False
+    for ln in all_lines:
+        if in_item_section and _SUMMARY_LINE_RE.match(ln):
+            break
+        norm = _NOISE_RE.sub(' ', ln)
+        norm = re.sub(r'\s+', ' ', norm).strip()
+        if not in_item_section:
+            toks = norm.split()
+            fc = sum(1 for t in toks if _is_financial_token(t))
+            if fc < 2:
                 continue
-            unit = parse_rupiah(m.group("unit"))
-            total = parse_rupiah(m.group("total"))
-            if total is not None and total < 0:
-                continue
-            if not unit or not total:
-                continue
-            name = re.sub(r"\s+", " ", m.group("name")).strip(" .-")
-            if not name or _ITEM_SKIP.search(name):
-                continue
-            items.append(ReceiptItem(name=name, quantity=qty,
-                                     unit_price=unit, total_price=total))
-            continue
-        m = _ITEM_RE_X.match(ln)
-        if m:
-            unit = parse_rupiah(m.group("unit"))
-            total = parse_rupiah(m.group("total"))
-            if not unit or not total:
-                continue
-            name = re.sub(r"\s+", " ", m.group("name")).strip(" .-")
-            if not name or _ITEM_SKIP.search(name):
-                continue
-            items.append(ReceiptItem(name=name, quantity=int(m.group("qty")),
-                                     unit_price=unit, total_price=total))
-            continue
-        m = _ITEM_RE_SIMPLE.match(ln)
-        if m:
-            unit = parse_rupiah(m.group("unit"))
-            total = parse_rupiah(m.group("total"))
-            if not unit or not total:
-                continue
-            name = re.sub(r"\s+", " ", m.group("name")).strip(" .-")
-            if not name or _ITEM_SKIP.search(name):
-                continue
-            items.append(ReceiptItem(name=name, quantity=1,
-                                     unit_price=unit, total_price=total))
+            in_item_section = True
+        item = _parse_item_line(ln)
+        if item is not None:
+            items.append(item)
     return items
 
+
+def _estimate_item_lines(text):
+    count = 0
+    in_section = False
+    for ln in _lines(text):
+        if in_section and _SUMMARY_LINE_RE.match(ln):
+            break
+        norm = _NOISE_RE.sub(' ', ln)
+        norm = re.sub(r'\s+', ' ', norm).strip()
+        toks = norm.split()
+        fn = sum(1 for t in toks if _is_financial_token(t))
+        if fn >= 2:
+            in_section = True
+            if not _SUMMARY_LINE_RE.match(ln):
+                count += 1
+    return count
 
 # ---------------------------------------------------------------- category
 
@@ -426,77 +514,133 @@ def suggest_category(merchant) -> Optional[str]:
     return best
 
 
+
 # ------------------------------------------------------------ confidence
 
-def compute_confidence(total, date_t, merchant) -> str:
-    got = sum(1 for v in (total, date_t, merchant) if v is not None)
-    if got >= 3:
+
+def compute_confidence(result):
+    score = 0
+    max_score = 0
+    max_score += 25
+    if result.merchant:
+        score += 7
+    if result.date:
+        score += 7
+    if result.total_amount:
+        score += 6
+    if result.payment_method:
+        score += 3
+    if result.raw_text and len(result.raw_text) > 50:
+        score += 2
+    max_score += 40
+    est = result.estimated_items or 0
+    n = len(result.items) if result.items else 0
+    if est > 0:
+        recall = min(n / est, 1.0)
+        score += int(recall * 35)
+        if n >= est:
+            score += 5
+    elif n > 0:
+        score += 20
+    max_score += 20
+    if result.items and result.total_amount:
+        item_sum = sum(i.total_price for i in result.items if i.total_price)
+        if item_sum > 0:
+            ratio = min(item_sum, result.total_amount) / max(item_sum, result.total_amount)
+            score += int(ratio * 20)
+    elif result.total_amount:
+        score += 10
+    max_score += 15
+    if result.raw_text:
+        low = result.raw_text.lower()
+        if any(kw in low for kw in ('total belanja', 'grand total', 'total bayar')):
+            score += 8
+        if any(kw in low for kw in ('tunai', 'kembali', 'debit', 'qris', 'bayar')):
+            score += 7
+    pct = score / max_score if max_score else 0
+    if pct >= 0.70:
         return "HIGH"
-    if got >= 2:
+    if pct >= 0.40:
         return "MEDIUM"
     return "LOW"
 
 
-def parse_receipt_text(raw_text: str) -> ReceiptScanResult:
-    """Orchestrator: raw OCR text -> structured result (pure, offline)."""
+def parse_receipt_text(raw_text):
     text = (raw_text or "").strip()
-    total = extract_total(text)
-    date_t = extract_date(text)
-    merchant = extract_merchant(text)
+    items = extract_items(text)
+    est = _estimate_item_lines(text)
     result = ReceiptScanResult(
-        merchant=merchant, date=date_t, time=extract_time(text),
-        total_amount=total, subtotal=extract_subtotal(text),
-        tax=extract_tax(text), discount=extract_discount(text),
+        merchant=extract_merchant(text), date=extract_date(text),
+        time=extract_time(text), total_amount=extract_total(text),
+        subtotal=extract_subtotal(text), tax=extract_tax(text),
+        discount=extract_discount(text),
         payment_method=extract_payment_method(text),
-        items=extract_items(text), raw_text=text,
-    )
-    result.confidence = compute_confidence(total, date_t, merchant)
+        items=items, raw_text=text, estimated_items=est)
+    result.confidence = compute_confidence(result)
     return result
 
 
 # ------------------------------------------------------------ preprocessing
 
-_MAX_OCR_WIDTH = 2200  # cap huge phone photos before OCR
+_MAX_OCR_WIDTH = 2200
 
 
-def preprocess_image(image_path: Path, out_dir: Path | None = None) -> Path:
-    """EXIF orientation + grayscale + contrast + downsizing + sharpening.
-
-    Keeps the ORIGINAL upload untouched; returns the path of a processed copy.
-    Falls back to the original when Pillow is unavailable.
-    """
+def preprocess_image(image_path, out_dir=None, mode='standard'):
     try:
         from PIL import Image, ImageFilter, ImageOps
     except ImportError:
         return Path(image_path)
-
     out_dir = out_dir or Path(image_path).parent
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / (Path(image_path).stem + "_proc.png")
-
+    out_path = out_dir / (Path(image_path).stem + '_proc_' + mode + '.png')
     with Image.open(image_path) as img:
-        img = ImageOps.exif_transpose(img)          # correct camera rotation
-        img = img.convert("L")                      # grayscale
-        img = ImageOps.autocontrast(img, cutoff=1)  # contrast enhancement
-        if img.width > _MAX_OCR_WIDTH:
-            ratio = _MAX_OCR_WIDTH / img.width
-            img = img.resize((_MAX_OCR_WIDTH, int(img.height * ratio)),
-                             Image.LANCZOS)
-        img = img.filter(ImageFilter.SHARPEN)       # sharpen edges for OCR
+        img = ImageOps.exif_transpose(img)
+        if mode == 'binary':
+            img = img.convert("L")
+            img = ImageOps.autocontrast(img, cutoff=5)
+            if img.width > _MAX_OCR_WIDTH:
+                r = _MAX_OCR_WIDTH / img.width
+                img = img.resize((_MAX_OCR_WIDTH, int(img.height * r)), Image.LANCZOS)
+            img = img.point(lambda p: 255 if p > 140 else 0)
+        elif mode == 'adaptive':
+            img = img.convert("L")
+            img = ImageOps.autocontrast(img, cutoff=3)
+            if img.width > _MAX_OCR_WIDTH:
+                r = _MAX_OCR_WIDTH / img.width
+                img = img.resize((_MAX_OCR_WIDTH, int(img.height * r)), Image.LANCZOS)
+            img = img.filter(ImageFilter.SHARPEN)
+            img = img.filter(ImageFilter.SHARPEN)
+        else:
+            img = img.convert("L")
+            img = ImageOps.autocontrast(img, cutoff=1)
+            if img.width > _MAX_OCR_WIDTH:
+                r = _MAX_OCR_WIDTH / img.width
+                img = img.resize((_MAX_OCR_WIDTH, int(img.height * r)), Image.LANCZOS)
+            img = img.filter(ImageFilter.SHARPEN)
         img.save(out_path, "PNG")
     return out_path
+
+
+def _score_ocr_text(text):
+    if not text or not text.strip():
+        return 0
+    lines = _lines(text)
+    score = 0
+    score += any('total' in ln.lower() for ln in lines) * 4
+    score += (extract_date(text) is not None) * 2
+    score += min(_estimate_item_lines(text), 10)
+    score += any(kw in ln.lower() for ln in lines
+                 for kw in ('tunai', 'kembali', 'debit', 'qris', 'bayar')) * 3
+    avg_len = sum(len(ln) for ln in lines) / max(len(lines), 1)
+    if avg_len > 5:
+        score += 2
+    return score
 
 
 # ---------------------------------------------------------------- engines
 
 
 def _get_pytesseract():
-    """Lazy-import pytesseract and configure the binary path from settings.
-
-    On Windows the UB-Mannheim package installs to
-    ``C:\\Program Files\\Tesseract-OCR\\tesseract.exe`` which is NOT on PATH by
-    default, so pytesseract cannot locate it without an explicit tesseract_cmd.
-    """
     import pytesseract
     from app.config import settings
     if settings.TESSERACT_CMD:
@@ -504,7 +648,7 @@ def _get_pytesseract():
     return pytesseract
 
 
-def _tesseract_available() -> bool:
+def _tesseract_available():
     try:
         _get_pytesseract().get_tesseract_version()
         return True
@@ -512,12 +656,7 @@ def _tesseract_available() -> bool:
         return False
 
 
-def _available_langs() -> list:
-    """Return available OCR languages following the configured preference list.
-
-    Preference order: ind+eng if both exist; eng if only eng exists;
-    empty list if Tesseract has no usable language files.
-    """
+def _available_langs():
     import pytesseract
     from app.config import settings
     if settings.TESSERACT_CMD:
@@ -527,46 +666,50 @@ def _available_langs() -> list:
         langs = data.splitlines() if isinstance(data, str) else data
     except Exception:
         langs = []
-    # Build fallback chain from configured preference
     pref = settings.RECEIPT_OCR_LANG.split("+")
     ordered = [l for l in pref if l in langs]
-    if ordered:
-        return ordered
-    return ["eng"] if "eng" in langs else []
+    return ordered if ordered else (["eng"] if "eng" in langs else [])
 
 
 class TesseractReceiptScannerService(ReceiptScannerService):
-    """Tesseract vision + pure-python receipt parsing (local, CPU-only)."""
-
     def __init__(self):
         self._pytesseract = _get_pytesseract()
         self._langs = _available_langs()
 
-    def scan(self, image_path) -> ReceiptScanResult:
+    def scan(self, image_path):
         path = Path(image_path)
-        processed = preprocess_image(path)
-        try:
-            kwargs = {"lang": "+".join(self._langs)} if self._langs else {}
-            text = self._pytesseract.image_to_string(str(processed), **kwargs)
-        finally:
-            if processed != Path(image_path) and processed.exists():
+        proc_dir = path.parent
+        lang_str = "+".join(self._langs) if self._langs else ""
+        lang_kwargs = {"lang": lang_str} if lang_str else {}
+        passes = [("standard", "6"), ("binary", "4"), ("adaptive", "3")]
+        best_text = ""
+        best_score = -1
+        processed_paths = []
+        for mode, psm in passes:
+            try:
+                proc = preprocess_image(path, out_dir=proc_dir, mode=mode)
+                processed_paths.append(proc)
+                text = self._pytesseract.image_to_string(
+                    str(proc), config=f"--psm {psm}", **lang_kwargs)
+                sc = _score_ocr_text(text)
+                if sc > best_score:
+                    best_score = sc
+                    best_text = text
+            except Exception:
+                continue
+        for pp in processed_paths:
+            if pp != path and pp.exists():
                 try:
-                    processed.unlink()
+                    pp.unlink()
                 except OSError:
                     pass
-        result = parse_receipt_text(text)
+        result = parse_receipt_text(best_text)
         result.status = "processed"
         return result
 
 
-# ---------------------------------------------------------------- fallback
-
-
 class OfflineReceiptScannerService(ReceiptScannerService):
-    """Fallback when Tesseract is unavailable. Returns failed status so the
-    manual-entry flow stays intact (no OCR, no transaction)."""
-
-    def scan(self, image_path) -> ReceiptScanResult:
+    def scan(self, image_path):
         return ReceiptScanResult(status="failed", raw_text=None)
 
 
@@ -575,20 +718,20 @@ class OfflineReceiptScannerService(ReceiptScannerService):
 _scanner = None
 
 
-def build_scanner() -> ReceiptScannerService:
-    """Pick the best local engine. Never requires a cloud service."""
+def build_scanner():
     if _tesseract_available():
         return TesseractReceiptScannerService()
     return OfflineReceiptScannerService()
 
 
-def get_scanner() -> ReceiptScannerService:
+def get_scanner():
     global _scanner
     if _scanner is None:
         _scanner = build_scanner()
     return _scanner
 
 
-def set_scanner(scanner) -> None:
+def set_scanner(scanner):
     global _scanner
     _scanner = scanner
+

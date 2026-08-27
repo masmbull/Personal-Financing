@@ -1,0 +1,325 @@
+"""Local receipt OCR pipeline.
+
+* Receipt parsing is PURE PYTHON and fully offline (no network/cloud).
+* The vision engine is pluggable behind the existing ReceiptScannerService
+  abstraction: Tesseract (local, CPU-only) is selected when the binary is
+  available; otherwise an OfflineReceiptScannerService keeps the lifecycle
+  (upload -> review -> confirm -> transaction) working with manual entry.
+
+OCR NEVER creates a transaction. Only the explicit confirmation endpoint may
+do that, and the values used are always the user-edited form values.
+"""
+import json
+import re
+import tempfile
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+from app.services.receipts import ReceiptScannerService
+
+
+# ------------------------------------------------------------ result model
+
+
+@dataclass
+class ReceiptItem:
+    name: Optional[str] = None
+    quantity: Optional[int] = None
+    unit_price: Optional[int] = None
+    total_price: Optional[int] = None
+
+    def to_dict(self) -> dict:
+        return {"name": self.name, "quantity": self.quantity,
+                "unit_price": self.unit_price, "total_price": self.total_price}
+
+
+@dataclass
+class ReceiptScanResult:
+    merchant: Optional[str] = None
+    date: Optional[str] = None          # ISO yyyy-mm-dd or None
+    time: Optional[str] = None
+    total_amount: Optional[int] = None
+    subtotal: Optional[int] = None
+    tax: Optional[int] = None
+    discount: Optional[int] = None
+    payment_method: Optional[str] = None
+    items: list = field(default_factory=list)
+    raw_text: Optional[str] = None
+    confidence: str = "LOW"
+    status: str = "processed"           # processed | failed
+    error: Optional[str] = None
+    estimated_items: Optional[int] = None
+
+    def to_dict(self) -> dict:
+        return {
+            "merchant": self.merchant, "date": self.date, "time": self.time,
+            "total_amount": self.total_amount, "subtotal": self.subtotal,
+            "tax": self.tax, "discount": self.discount,
+            "payment_method": self.payment_method,
+            "items": [i.to_dict() if isinstance(i, ReceiptItem) else i
+                      for i in self.items],
+            "raw_text": self.raw_text, "confidence": self.confidence,
+            "status": self.status, "error": self.error,
+        }
+
+
+# ----------------------------------------------------- money parsing
+
+
+def parse_rupiah(value) -> Optional[int]:
+    """Parse Indonesian money text into integer rupiah.
+
+    25.000 | 25,000 | 25.000,00 | 25000 | Rp 125.000 | 1.250.000
+    '25.000' is 25 thousand; '25' is twenty-five.
+    """
+    if value is None:
+        return None
+    s = str(value).replace("Rp", "").replace("rp", "")
+    s = s.replace("\u00a0", " ").replace(" ", "")
+    s = re.sub(r"[^\d.,]", "", s)
+    if not s:
+        return None
+    if "." in s and "," in s:
+        s = s.replace(".", "").split(",")[0]      # 25.000,00 -> 25000
+    elif "," in s:
+        parts = s.split(",")
+        tail = parts[-1]
+        if len(tail) == 3 and tail.isdigit() and len(parts) > 1:
+            s = s.replace(",", "")                # 1,000 / 25,000
+        elif len(tail) in (1, 2) and tail.isdigit() and len(parts[0]) <= 7:
+            s = parts[0]                          # 25,50 -> 25
+        else:
+            s = "".join(parts)
+    elif "." in s:
+        parts = s.split(".")
+        if (len(parts[-1]) == 2 and parts[-1].isdigit()
+                and len(parts) <= 3 and all(len(p) <= 3 for p in parts[:-1])):
+            s = "".join(parts[:-1])               # 25.50 -> 25
+        else:
+            s = s.replace(".", "")                # 25.000 -> 25000
+    digits = re.sub(r"[^\d]", "", s)
+    try:
+        return int(digits) if digits else None
+    except ValueError:
+        return None
+
+
+def _lines(text) -> list:
+    return [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+
+
+def line_amount(line: str) -> Optional[int]:
+    m = re.search(r"\d[\d.,]*", line)
+    return parse_rupiah(m.group(0)) if m else None
+
+
+def line_amount_priority(line: str) -> Optional[int]:
+    """Extract an amount from a line, preferring 'Rp' prefixed values.
+
+    This handles OCR lines where a label like 'PPN (11%)' has the percentage
+    before the actual Rupiah amount: 'PPN (11%)   Rp 500' -> 500, not 11.
+    """
+    # First try to find Rp-prefixed amount
+    m = re.search(r"Rp\s*(\d[\d.,]*)", line, re.IGNORECASE)
+    if m:
+        return parse_rupiah(m.group(1))
+    # Fall back to first number
+    return line_amount(line)
+
+
+# ------------------------------------------------------------- date / time
+
+_MONTH_MAP = {
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "mei": 5, "may": 5, "jun": 6,
+    "jul": 7, "agu": 8, "aug": 8, "sep": 9, "okt": 10, "nov": 11,
+    "des": 12, "dec": 12,
+}
+_DATE_RE = re.compile(r"\b(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})\b")
+_DATE_MONTH_RE = re.compile(
+    r"\b(\d{1,2})\s+(jan|feb|mar|apr|mei|may|jun|jul|agu|aug|sep|okt|nov|des|dec)[a-z]*\.?\s+(\d{4})\b",
+    re.IGNORECASE,
+)
+_TIME_RE = re.compile(r"\b([01]?\d|2[0-3]):([0-5]\d)\b")
+
+
+def extract_date(text) -> Optional[str]:
+    """ISO yyyy-mm-dd or None. Supports dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy,
+    dd/mm/yy and yyyy-mm-dd, plus Indonesian month names."""
+    if not text:
+        return None
+    m = _DATE_MONTH_RE.search(text)
+    if m:
+        day, mon, yr = int(m.group(1)), _MONTH_MAP.get(m.group(2).lower()[:3]), m.group(3)
+        if mon:
+            try:
+                return datetime(int(yr) if int(yr) >= 100 else 2000 + int(yr),
+                                mon, day).date().isoformat()
+            except ValueError:
+                return None
+    m = _DATE_RE.search(text)
+    if m:
+        a, b, c = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        try:
+            if c >= 1000:
+                if a >= 1000:
+                    return datetime(a, b, c).date().isoformat()
+                return datetime(c, b, a).date().isoformat()
+            return datetime(2000 + c, b, a).date().isoformat()  # dd/mm/yy
+        except ValueError:
+            return None
+    return None
+
+
+def extract_time(text) -> Optional[str]:
+    if not text:
+        return None
+    m = _TIME_RE.search(text)
+    return f"{int(m.group(1)):02d}:{m.group(2)}" if m else None
+
+
+# ------------------------------------------------------------- labeled sums
+
+def _amount_for_label(lines, labels):
+    for i, ln in enumerate(lines):
+        low = ln.lower()
+        if any(l in low for l in labels):
+            amt = line_amount(ln)
+            if amt is None and i + 1 < len(lines):
+                amt = line_amount(lines[i + 1])
+            return amt
+    return None
+
+
+def _line_amount_last(line: str) -> Optional[int]:
+    """Extract the last monetary value from a line, preferring Rp-prefixed.
+
+    Handles lines like ``Total Item     1        10.900`` where the FIRST
+    number is a quantity (1) but the actual amount is the LAST (10.900).
+    Also handles ``PPN (11%)   Rp 500`` where the percentage must be ignored.
+    """
+    m = re.search(r'Rp\s*(\d[\d.,]*)', line, re.IGNORECASE)
+    if m:
+        return parse_rupiah(m.group(1))
+    numbers = list(re.finditer(r'\d[\d.,]*', line))
+    if numbers:
+        return parse_rupiah(numbers[-1].group(0))
+    return None
+
+
+def _amount_for_label_priority(lines, labels):
+    """Like _amount_for_label but extracts the LAST number on the line.
+
+    This prevents ``Total Item     1        10.900`` from returning 1.
+    """
+    for i, ln in enumerate(lines):
+        low = ln.lower()
+        if any(l in low for l in labels):
+            amt = _line_amount_last(ln)
+            if amt is None and i + 1 < len(lines):
+                amt = _line_amount_last(lines[i + 1])
+            return amt
+    return None
+
+
+# ---------------------------------------------------------------- merchant
+
+_MERCHANT_BAD = re.compile(
+    r"(total|sub ?total|grand|ppn|pajak|pb1|telp|tlp|alamat|cashier|kasir|"
+    r"kembali|tunai|debit|qris|no\.? |nota|waktu|operat|terima\s+kasih|"
+    r"petugas|jakarta|bandung|surabaya|medan|dpk|no\b|jl\b|jalan|"
+    r"^[A-Z]{1,2}\s|^\d+$|^\d{5,}$)",
+    re.IGNORECASE,
+)
+
+
+def extract_merchant(text) -> Optional[str]:
+    """Upper-section merchant name. Returns None when uncertain (no guessing)."""
+    lines = _lines(text)
+    for ln in lines:
+        if len(ln) < 3 or re.match(r"^[\d.:#\-]+$", ln):
+            continue
+        if _MERCHANT_BAD.search(ln):
+            continue
+        # Take only the first good line - subsequent lines are usually address/phone
+        merchant = ln.strip()
+        # Strip trailing phone-like patterns
+        merchant = re.sub(r"\b(telp|telepon|\d{5,})\b.*$", "", merchant, flags=re.IGNORECASE)
+        return merchant if len(merchant) >= 3 else None
+    return None
+
+
+_TOTAL_LABELS = ["grand total", "total belanja", "total bayar", "total akhir",
+                 "*total", "total", "ttl"]
+_TOTAL_EXCLUDE = ["kembali", "uang kembali", "tunai", "cash", "discount",
+                  "diskon", "ppn", "pajak", "sub ", "total item", "total disc"]
+
+
+def extract_total(text) -> Optional[int]:
+    """Most important field - prefers a *TOTAL-labeled* amount, then the
+    largest plausible amount in the bottom half, excluding change / cash /
+    discount / tax / subtotal."""
+    lines = _lines(text)
+    labeled = []
+    for i, ln in enumerate(lines):
+        low = ln.lower()
+        if any(l in low for l in _TOTAL_LABELS) and not any(
+                ex in low for ex in _TOTAL_EXCLUDE):
+            amt = line_amount(ln)
+            if amt is None and i + 1 < len(lines):
+                amt = line_amount(lines[i + 1])
+            if amt:
+                labeled.append((i, amt))
+    if labeled:
+        return max(amt for _, amt in labeled)
+
+    bottom = lines[len(lines) // 2:]
+    best = None
+    for ln in bottom:
+        low = ln.lower()
+        if any(ex in low for ex in ("kembal", "tunai", "discount", "diskon",
+                                    "ppn", "pajak", "sub")):
+            continue
+        amt = line_amount(ln)
+        if amt and amt > 0 and (best is None or amt > best):
+            best = amt
+    return best
+
+
+def extract_subtotal(text) -> Optional[int]:
+    return _amount_for_label_priority(_lines(text), ["subtotal", "sub total", "total item"])
+
+
+def extract_tax(text) -> Optional[int]:
+    """Extract tax amount (not percentage). PPN, Pajak lines often have
+    'PPN (11%)' next to the amount - we need the Rupiah value."""
+    lines = _lines(text)
+    for i, ln in enumerate(lines):
+        low = ln.lower()
+        if any(l in low for l in ["ppn", "pajak", "pb1"]):
+            # Look for amount on this line first (prefer Rp-prefixed)
+            amt = line_amount_priority(ln)
+            if amt:
+                return amt
+            # If not found, check next line
+            if i + 1 < len(lines):
+                amt = line_amount_priority(lines[i + 1])
+                if amt:
+                    return amt
+    return None
+
+
+def extract_discount(text) -> Optional[int]:
+    return _amount_for_label_priority(_lines(text), ["diskon", "disc"])
+
+
+def extract_payment_method(text) -> Optional[str]:
+    low = (text or "").lower()
+    for kw in ("qris", "debit", "kredit", "kartu", "cash", "tunai", "gopay",
+               "ovo", "e-wallet"):
+        if kw in low:
+            return kw.upper()
+    return None
+
+
