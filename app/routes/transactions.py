@@ -59,8 +59,7 @@ def list_transactions(
     categories = db.query(Category).order_by(Category.name).all()
     for tx in transactions:
         _set_tx_display(tx)
-    return templates.TemplateResponse("transactions/list.html", {
-        "request": request, "transactions": transactions,
+    return templates.TemplateResponse(request, "transactions/list.html", { "transactions": transactions,
         "accounts": accounts, "categories": categories,
         "format_rupiah": format_rupiah, "today": today_str(),
         "filters": {
@@ -75,8 +74,7 @@ def list_transactions(
 def add_transaction_form(request: Request, tx_type: str = "EXPENSE", db: Session = Depends(get_db)):
     accounts = db.query(Account).order_by(Account.name).all()
     categories = db.query(Category).filter(Category.type == TransactionType(tx_type)).order_by(Category.name).all()
-    return templates.TemplateResponse("transactions/add.html", {
-        "request": request, "accounts": accounts, "categories": categories,
+    return templates.TemplateResponse(request, "transactions/add.html", { "accounts": accounts, "categories": categories,
         "tx_type": tx_type, "today": today_str(), "TransactionType": TransactionType,
     })
 
@@ -117,8 +115,7 @@ def edit_transaction_form(tx_id: int, request: Request, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Transaction not found")
     accounts = db.query(Account).order_by(Account.name).all()
     categories = db.query(Category).order_by(Category.name).all()
-    return templates.TemplateResponse("transactions/edit.html", {
-        "request": request, "tx": tx, "accounts": accounts,
+    return templates.TemplateResponse(request, "transactions/edit.html", { "tx": tx, "accounts": accounts,
         "categories": categories, "TransactionType": TransactionType,
     })
 

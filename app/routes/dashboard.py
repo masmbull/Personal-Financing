@@ -68,8 +68,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         for g in savings_service.list_goals(db)
     ]
 
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "dashboard.html", {
         "data": data,
         "expense_breakdown": breakdown["by_category"][:5],
         "expense_total": breakdown["total"],
@@ -81,8 +80,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 @router.get("/accounts", response_class=HTMLResponse)
 def list_accounts(request: Request, db: Session = Depends(get_db)):
     groups = accounts_service.list_accounts_grouped(db)
-    return templates.TemplateResponse("accounts/list.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "accounts/list.html", {
         "groups": groups,
         "account_types": AccountType,
         "format_rupiah": format_rupiah,
@@ -91,8 +89,7 @@ def list_accounts(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/accounts/create", response_class=HTMLResponse)
 def create_account_form(request: Request):
-    return templates.TemplateResponse("accounts/create.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "accounts/create.html", {
         "account_types": AccountType,
     })
 
@@ -124,8 +121,7 @@ def edit_account_form(account_id: int, request: Request, db: Session = Depends(g
     account = accounts_service.get_account(db, account_id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    return templates.TemplateResponse("accounts/edit.html", {
-        "request": request, "account": account, "account_types": AccountType,
+    return templates.TemplateResponse(request, "accounts/edit.html", { "account": account, "account_types": AccountType,
     })
 
 

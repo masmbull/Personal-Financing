@@ -16,8 +16,7 @@ router = APIRouter()
 @router.get("/transfer", response_class=HTMLResponse)
 def transfer_form(request: Request, db: Session = Depends(get_db)):
     accounts = db.query(Account).order_by(Account.name).all()
-    return templates.TemplateResponse("transfer/index.html", {
-        "request": request, "accounts": accounts, "today": today_str(),
+    return templates.TemplateResponse(request, "transfer/index.html", { "accounts": accounts, "today": today_str(),
     })
 
 

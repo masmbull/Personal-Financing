@@ -15,8 +15,7 @@ def list_savings(request: Request, db: Session = Depends(get_db)):
     goals = savings_service.list_goals(db)
     total_target = sum(g.target_amount for g in goals)
     total_saved = sum(g.current_amount for g in goals)
-    return templates.TemplateResponse("savings/list.html", {
-        "request": request, "goals": goals,
+    return templates.TemplateResponse(request, "savings/list.html", { "goals": goals,
         "format_rupiah": format_rupiah,
         "total_target": total_target, "total_saved": total_saved,
     })

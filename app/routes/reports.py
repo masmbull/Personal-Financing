@@ -13,6 +13,5 @@ router = APIRouter()
 @router.get("/reports", response_class=HTMLResponse)
 def reports(request: Request, db: Session = Depends(get_db)):
     data = get_report_data(db)
-    return templates.TemplateResponse("reports/index.html", {
-        "request": request, "data": data, "format_rupiah": format_rupiah,
+    return templates.TemplateResponse(request, "reports/index.html", { "data": data, "format_rupiah": format_rupiah,
     })

@@ -49,8 +49,7 @@ def _view(r) -> dict:
 @router.get("/receipts", response_class=HTMLResponse)
 def receipts_list(request: Request, db: Session = Depends(get_db)):
     items = [_view(r) for r in receipts_service.list_receipts(db)]
-    return templates.TemplateResponse("receipts/list.html", {
-        "request": request, "items": items,
+    return templates.TemplateResponse(request, "receipts/list.html", { "items": items,
         "format_rupiah": format_rupiah,
     })
 
@@ -58,8 +57,7 @@ def receipts_list(request: Request, db: Session = Depends(get_db)):
 @router.get("/receipts/upload", response_class=HTMLResponse)
 def upload_form(request: Request):
     from app.config import get_settings
-    return templates.TemplateResponse("receipts/upload.html", {
-        "request": request, "max_mb": get_settings().RECEIPT_MAX_SIZE_MB,
+    return templates.TemplateResponse(request, "receipts/upload.html", { "max_mb": get_settings().RECEIPT_MAX_SIZE_MB,
     })
 
 
@@ -102,8 +100,7 @@ def receipt_detail(receipt_id: int, request: Request,
 
     categories = db.query(Category).order_by(Category.name).all()
     accounts = db.query(Account).order_by(Account.name).all()
-    return templates.TemplateResponse("receipts/detail.html", {
-        "request": request, "r": view,
+    return templates.TemplateResponse(request, "receipts/detail.html", { "r": view,
         "categories": categories, "accounts": accounts,
         "format_rupiah": format_rupiah,
         "just_uploaded": bool(uploaded),

@@ -22,6 +22,5 @@ MORE_LINKS = [
 
 @router.get("/more", response_class=HTMLResponse)
 def more_page(request: Request):
-    return templates.TemplateResponse("more.html", {
-        "request": request, "links": MORE_LINKS,
+    return templates.TemplateResponse(request, "more.html", { "links": MORE_LINKS,
     })

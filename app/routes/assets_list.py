@@ -16,8 +16,7 @@ router = APIRouter()
 def list_assets(request: Request, db: Session = Depends(get_db)):
     assets = assets_service.list_assets(db)
     total_value = sum(a.current_value for a in assets)
-    return templates.TemplateResponse("assets/list.html", {
-        "request": request, "assets": assets, "total_value": total_value,
+    return templates.TemplateResponse(request, "assets/list.html", { "assets": assets, "total_value": total_value,
         "format_rupiah": format_rupiah,
         "ASSET_TYPES": assets_service.ASSET_TYPES,
     })
@@ -25,8 +24,7 @@ def list_assets(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/assets/create", response_class=HTMLResponse)
 def create_asset_form(request: Request):
-    return templates.TemplateResponse("assets/create.html", {
-        "request": request, "today": today_str(),
+    return templates.TemplateResponse(request, "assets/create.html", { "today": today_str(),
         "ASSET_TYPES": assets_service.ASSET_TYPES,
     })
 
@@ -65,8 +63,7 @@ def edit_asset_form(asset_id: int, request: Request, db: Session = Depends(get_d
         asset = assets_service.get_asset(db, asset_id)
     except assets_service.AssetNotFound:
         raise HTTPException(status_code=404, detail="Asset not found")
-    return templates.TemplateResponse("assets/edit.html", {
-        "request": request, "asset": asset, "today": today_str(),
+    return templates.TemplateResponse(request, "assets/edit.html", { "asset": asset, "today": today_str(),
         "ASSET_TYPES": assets_service.ASSET_TYPES,
     })
 

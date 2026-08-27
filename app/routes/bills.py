@@ -16,8 +16,7 @@ router = APIRouter()
 @router.get("/bills", response_class=HTMLResponse)
 def list_bills(request: Request, db: Session = Depends(get_db)):
     upcoming = bills_service.with_next_due(db)
-    return templates.TemplateResponse("bills/list.html", {
-        "request": request, "upcoming": upcoming,
+    return templates.TemplateResponse(request, "bills/list.html", { "upcoming": upcoming,
         "format_rupiah": format_rupiah, "BillFrequency": BillFrequency,
         "today": date.today(),
     })
@@ -31,8 +30,7 @@ def create_bill_form(request: Request, db: Session = Depends(get_db)):
         .order_by(Category.name).all()
     )
     accounts = db.query(Account).order_by(Account.name).all()
-    return templates.TemplateResponse("bills/create.html", {
-        "request": request, "categories": categories, "accounts": accounts,
+    return templates.TemplateResponse(request, "bills/create.html", { "categories": categories, "accounts": accounts,
         "BillFrequency": BillFrequency,
     })
 

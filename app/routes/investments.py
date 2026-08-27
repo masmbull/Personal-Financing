@@ -25,8 +25,7 @@ def list_investments(request: Request, db: Session = Depends(get_db)):
         def __init__(self, d):
             self.__dict__.update(d)
     rows = [_Row(i) for i in items]
-    return templates.TemplateResponse("investments/list.html", {
-        "request": request, "investments": rows,
+    return templates.TemplateResponse(request, "investments/list.html", { "investments": rows,
         "total_invested": total_invested, "total_current": total_current,
         "total_return": total_return, "return_pct": pct,
         "format_rupiah": format_rupiah,
@@ -36,8 +35,7 @@ def list_investments(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/investments/create", response_class=HTMLResponse)
 def create_investment_form(request: Request):
-    return templates.TemplateResponse("investments/create.html", {
-        "request": request, "today": today_str(),
+    return templates.TemplateResponse(request, "investments/create.html", { "today": today_str(),
         "INVESTMENT_TYPES": investments_service.INVESTMENT_TYPES,
     })
 
@@ -68,8 +66,7 @@ def edit_investment_form(inv_id: int, request: Request, db: Session = Depends(ge
         inv = investments_service.get_investment(db, inv_id)
     except investments_service.InvestmentNotFound:
         raise HTTPException(status_code=404, detail="Investment not found")
-    return templates.TemplateResponse("investments/edit.html", {
-        "request": request, "inv": inv, "today": today_str(),
+    return templates.TemplateResponse(request, "investments/edit.html", { "inv": inv, "today": today_str(),
         "INVESTMENT_TYPES": investments_service.INVESTMENT_TYPES,
     })
 

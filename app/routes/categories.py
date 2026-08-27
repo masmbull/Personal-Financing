@@ -13,16 +13,14 @@ router = APIRouter()
 @router.get("/categories", response_class=HTMLResponse)
 def list_categories(request: Request, db: Session = Depends(get_db)):
     categories = db.query(Category).order_by(Category.type, Category.name).all()
-    return templates.TemplateResponse("categories/list.html", {
-        "request": request, "categories": categories,
+    return templates.TemplateResponse(request, "categories/list.html", { "categories": categories,
         "TransactionType": TransactionType,
     })
 
 
 @router.get("/categories/create", response_class=HTMLResponse)
 def create_category_form(request: Request):
-    return templates.TemplateResponse("categories/create.html", {
-        "request": request, "TransactionType": TransactionType,
+    return templates.TemplateResponse(request, "categories/create.html", { "TransactionType": TransactionType,
     })
 
 
@@ -42,8 +40,7 @@ def edit_category_form(cat_id: int, request: Request, db: Session = Depends(get_
     cat = db.query(Category).filter(Category.id == cat_id).first()
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")
-    return templates.TemplateResponse("categories/edit.html", {
-        "request": request, "category": cat, "TransactionType": TransactionType,
+    return templates.TemplateResponse(request, "categories/edit.html", { "category": cat, "TransactionType": TransactionType,
     })
 
 

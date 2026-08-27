@@ -293,20 +293,35 @@ def extract_subtotal(text) -> Optional[int]:
 
 def extract_tax(text) -> Optional[int]:
     """Extract tax amount (not percentage). PPN, Pajak lines often have
-    'PPN (11%)' next to the amount - we need the Rupiah value."""
+    'PPN (11%)' next to the amount - we need the Rupiah value.
+
+    Guards against DPP (tax base) values being mistaken for actual tax.
+    e.g. 'PPN . : DPP= 73,333 PPN= 8,800' should return 8,800, not 73,333.
+    But the final 'PPN= 1,705' line (after DIBEBASKAN) is the real tax.
+    """
     lines = _lines(text)
     for i, ln in enumerate(lines):
         low = ln.lower()
         if any(l in low for l in ["ppn", "pajak", "pb1"]):
-            # Look for amount on this line first (prefer Rp-prefixed)
+            # Skip DPP lines - DPP is the tax BASE, not the tax amount
+            if "dpp" in low:
+                continue
+            # Try explicit 'PPN= X' or 'PPN: X' pattern (avoids DPP value)
+            m = re.search(r'ppn\s*[:=]\s*(\d[\d.,]*)', ln, re.IGNORECASE)
+            if m:
+                amt = parse_rupiah(m.group(1))
+                if amt:
+                    return amt
+            # Fallback: look for Rp-prefixed amount or last number on line
             amt = line_amount_priority(ln)
             if amt:
                 return amt
-            # If not found, check next line
             if i + 1 < len(lines):
-                amt = line_amount_priority(lines[i + 1])
-                if amt:
-                    return amt
+                next_low = lines[i + 1].lower()
+                if "dpp" not in next_low:
+                    amt = line_amount_priority(lines[i + 1])
+                    if amt:
+                        return amt
     return None
 
 
@@ -320,6 +335,9 @@ def extract_payment_method(text) -> Optional[str]:
                "ovo", "e-wallet"):
         if kw in low:
             return kw.upper()
+    # OCR fuzzy match: TUNAE, TUNA, TUNAI, etc.
+    if re.search(r'tuna', low):
+        return "TUNAI"
     return None
 
 
@@ -357,6 +375,9 @@ def _is_financial_token(tok):
 
 def _parse_item_line(line):
     if not line or _DATE_LINE_RE.match(line.strip()):
+        return None
+    # Skip lines with negative amounts (returns/refunds shown as -qty or -price)
+    if re.search(r'(?:^|\s)-\d', line):
         return None
     if not line or _SEP_LINE_RE.match(line) or _SUMMARY_LINE_RE.match(line):
         return None

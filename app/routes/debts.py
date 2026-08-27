@@ -18,8 +18,7 @@ def list_debts(request: Request, db: Session = Depends(get_db)):
     receivables = debts_service.list_debts(db, DebtType.RECEIVABLE)
     payables = debts_service.list_debts(db, DebtType.PAYABLE)
     totals = debts_service.totals_for(db)
-    return templates.TemplateResponse("debts/list.html", {
-        "request": request, "receivables": receivables, "payables": payables,
+    return templates.TemplateResponse(request, "debts/list.html", { "receivables": receivables, "payables": payables,
         "total_receivable": totals["total_receivable"],
         "total_payable": totals["total_payable"],
         "format_rupiah": format_rupiah,
@@ -30,8 +29,7 @@ def list_debts(request: Request, db: Session = Depends(get_db)):
 @router.get("/debts/create", response_class=HTMLResponse)
 def create_debt_form(request: Request, debt_type: str = "PAYABLE", db: Session = Depends(get_db)):
     accounts = db.query(Account).order_by(Account.name).all()
-    return templates.TemplateResponse("debts/create.html", {
-        "request": request, "debt_type": debt_type, "accounts": accounts,
+    return templates.TemplateResponse(request, "debts/create.html", { "debt_type": debt_type, "accounts": accounts,
         "today": today_str(), "DebtType": DebtType,
     })
 
@@ -68,8 +66,7 @@ def pay_debt_form(debt_id: int, request: Request, db: Session = Depends(get_db))
     except debts_service.DebtNotFound:
         raise HTTPException(status_code=404, detail="Debt not found")
     accounts = db.query(Account).order_by(Account.name).all()
-    return templates.TemplateResponse("debts/pay.html", {
-        "request": request, "debt": debt, "accounts": accounts,
+    return templates.TemplateResponse(request, "debts/pay.html", { "debt": debt, "accounts": accounts,
         "today": today_str(), "format_rupiah": format_rupiah,
     })
 
