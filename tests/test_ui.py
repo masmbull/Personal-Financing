@@ -399,9 +399,162 @@ def test_receipt_confirm_creates_one_and_second_409():
     api = client.post(f"/api/v1/receipts/{rid}/confirm", json={
         "type": "EXPENSE", "amount": 9400, "account_id": acc,
         "category_id": cat, "date": TODAY,
-    })
+        })
     assert api.status_code == 409
 
     import os
     try: os.remove(stored)
     except OSError: pass
+
+
+# ==================== navigation regression ====================
+
+
+def test_sidebar_present_on_desktop():
+    t = client.get("/").text
+    assert 'id="sidebar"' in t
+    assert 'href="/accounts"' in t
+    assert 'href="/categories"' in t
+    assert 'href="/receipts/upload"' in t
+
+
+def test_bottom_nav_present():
+    t = client.get("/").text
+    assert 'class="bottom-nav"' in t
+    assert 'href="/receipts/upload"' in t
+    assert "nav-icon-add" in t
+
+
+def test_sidebar_toggle_button_present():
+    t = client.get("/").text
+    assert 'id="sidebarToggle"' in t
+    assert "aria-label" in t
+
+
+def test_modal_overlay_container_present():
+    t = client.get("/").text
+    assert 'class="modal-overlay"' in t
+    assert 'id="modalOverlay"' in t
+
+
+def test_theme_toggle_present():
+    t = client.get("/").text
+    assert 'class="theme-toggle"' in t
+
+
+# ==================== empty states regression ====================
+
+
+def test_accounts_empty_state():
+    t = client.get("/accounts").text
+    assert "Akun" in t
+    assert "BCA" in t or "Cash" in t
+
+
+def test_budgets_empty_state():
+    t = client.get("/budgets").text
+    assert "Belum ada budget" in t
+
+
+def test_savings_empty_state():
+    t = client.get("/savings").text
+    assert "Belum ada target tabungan" in t
+
+
+def test_assets_empty_state():
+    t = client.get("/assets").text
+    assert "Belum ada aset" in t
+
+
+def test_investments_empty_state():
+    t = client.get("/investments").text
+    assert "Belum ada investasi" in t
+
+
+def test_categories_empty_state():
+    t = client.get("/categories").text
+    assert "Pengeluaran" in t and "Pemasukan" in t
+
+
+# ==================== receipt detail regression ====================
+
+
+def test_receipt_detail_renders_review_header():
+    rid, stored = _upload_png("r-detail.png")
+    t = client.get(f"/receipts/{rid}?uploaded=1").text
+    assert "Review Struk" in t
+    assert "rr-form" in t
+    import os
+    try: os.remove(stored)
+    except OSError: pass
+
+
+def test_receipt_detail_renders_ocr_items_without_typeerror():
+    import io
+    from PIL import Image, ImageDraw
+    img = Image.new("RGB", (400, 800), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    draw.text((50, 50), "INDOMARET", fill=(0, 0, 0))
+    draw.text((50, 100), "Indomie Goreng  3500  3500", fill=(0, 0, 0))
+    draw.text((50, 150), "Total Belanja   3500", fill=(0, 0, 0))
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=85)
+    r = client.post("/receipts/upload", files={"file": ("receipt.jpg", buf.getvalue(), "image/jpeg")}, follow_redirects=False)
+    assert r.status_code == 303
+    rid = r.headers["location"].split("?")[0].rsplit("/", 1)[-1]
+    detail = client.get(f"/receipts/{rid}?uploaded=1")
+    assert detail.status_code == 200
+    assert "rr-form" in detail.text
+    assert "rr-items" in detail.text
+    assert "Review Struk" in detail.text
+
+
+# ==================== design-system CSS regression ====================
+
+
+def test_base_template_includes_style_css():
+    t = client.get("/").text
+    assert '/static/css/style.css' in t
+
+
+def test_no_empty_style_attributes_remain():
+    """Verify no style="" (empty inline style) survives template rendering."""
+    from app.main import app
+    from fastapi.testclient import TestClient
+    routes = ["/", "/transactions", "/transactions/add", "/receipts",
+              "/receipts/upload", "/reports", "/transfer", "/more", "/accounts",
+              "/categories", "/bills", "/budgets", "/savings", "/assets",
+              "/investments", "/receipts/1", "/transactions/edit/1"]
+    empty_styles = 0
+    for route in routes:
+        try:
+            r = client.get(route, follow_redirects=True)
+            if r.status_code < 400:
+                empty_styles += r.text.count('style=""')
+        except Exception:
+            pass
+    assert empty_styles == 0
+
+
+def test_all_template_classes_exist_in_css():
+    """Every class used in templates must have a matching rule in style.css."""
+    import os
+    import re
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    css = open(os.path.join(base, "app", "static", "css", "style.css"), encoding="utf-8").read()
+    # Jinja control words that appear inside class="..." text but aren't real classes
+    jinja_words = {"if", "else", "endif", "elif", "for", "endfor", "not", "in",
+                   "and", "or", "pct", "ret", "strong", "b", "conf", "item",
+                   "filter", "max", "min", "round", "int", "hidden"}
+    used = set()
+    for dirpath, _, files in os.walk(os.path.join(base, "app", "templates")):
+        for fn in files:
+            if not fn.endswith(".html"):
+                continue
+            content = open(os.path.join(dirpath, fn), encoding="utf-8").read()
+            for m in re.finditer(r'class="([^"]+)"', content):
+                for cls in m.group(1).split():
+                    if re.fullmatch(r'[a-z][a-z0-9]*(-[a-z0-9]+)*', cls) and cls not in jinja_words:
+                        used.add(cls)
+    missing = sorted(c for c in used if f".{c}" not in css)
+    assert missing == [], f"Classes used in templates but missing from style.css: {missing}"

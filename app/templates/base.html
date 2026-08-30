@@ -15,33 +15,95 @@
 </head>
 <body>
     <div class="toast-container" id="toast-container"></div>
-    <div class="app">
-        <main class="main-content">
+        <div class="app">
+        <button class="sidebar-toggle-btn" id="sidebarToggle" aria-label="Buka navigasi" aria-expanded="false">
+            <span class="nav-icon">☰</span>
+        </button>
+        <aside class="sidebar" id="sidebar" aria-label="Navigasi utama">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">💰</span>
+                    <span class="logo-text">Finance</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav" role="navigation">
+                <ul>
+                    <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}"><span class="nav-icon">🏠</span><span class="nav-label">Beranda</span></a></li>
+                    <li><a href="/transactions" class="{% if '/transactions' in request.url.path and '/edit' not in request.url.path %}active{% endif %}"><span class="nav-icon">📋</span><span class="nav-label">Transaksi</span></a></li>
+                    <li><a href="/transfer" class="{% if '/transfer' in request.url.path %}active{% endif %}"><span class="nav-icon">↔</span><span class="nav-label">Transfer</span></a></li>
+                    <li><a href="/receipts/upload" class="{% if '/receipts/upload' in request.url.path %}active{% endif %}"><span class="nav-icon">📷</span><span class="nav-label">Scan Struk</span></a></li>
+                    <li><a href="/receipts" class="{% if '/receipts/' not in request.url.path and '/receipts' in request.url.path %}active{% endif %}"><span class="nav-icon">🧾</span><span class="nav-label">Struk</span></a></li>
+                    <li><a href="/reports" class="{% if '/reports' in request.url.path %}active{% endif %}"><span class="nav-icon">📊</span><span class="nav-label">Laporan</span></a></li>
+                    <li><hr class="sidebar-divider"></li>
+                    <li><a href="/debts" class="{% if '/debts' in request.url.path %}active{% endif %}"><span class="nav-icon">💸</span><span class="nav-label">Hutang &amp; Piutang</span></a></li>
+                    <li><a href="/bills" class="{% if '/bills' in request.url.path %}active{% endif %}"><span class="nav-icon">📄</span><span class="nav-label">Tagihan</span></a></li>
+                    <li><a href="/budgets" class="{% if '/budgets' in request.url.path %}active{% endif %}"><span class="nav-icon">📊</span><span class="nav-label">Budget</span></a></li>
+                    <li><a href="/savings" class="{% if '/savings' in request.url.path %}active{% endif %}"><span class="nav-icon">🎯</span><span class="nav-label">Tabungan</span></a></li>
+                    <li><a href="/assets" class="{% if '/assets' in request.url.path %}active{% endif %}"><span class="nav-icon">🏠</span><span class="nav-label">Aset</span></a></li>
+                    <li><a href="/investments" class="{% if '/investments' in request.url.path %}active{% endif %}"><span class="nav-icon">📈</span><span class="nav-label">Investasi</span></a></li>
+                    <li><a href="/accounts" class="{% if '/accounts' in request.url.path %}active{% endif %}"><span class="nav-icon">🏦</span><span class="nav-label">Akun</span></a></li>
+                    <li><a href="/categories" class="{% if '/categories' in request.url.path %}active{% endif %}"><span class="nav-icon">🏷️</span><span class="nav-label">Kategori</span></a></li>
+                </ul>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="profile-area">
+                    <span class="avatar">👤</span>
+                    <span>Profil</span>
+                </div>
+            </div>
+                </aside>
+        <main class="main-content page-enter page-enter-active">
             {% block content %}{% endblock %}
         </main>
-        <nav class="bottom-nav" aria-label="Navigasi utama">
-            <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}">
-                <span class="nav-icon">🏠</span>
-                <span class="nav-label">Beranda</span>
-            </a>
-            <a href="/transactions" class="nav-item {% if '/transactions' in request.url.path %}active{% endif %}">
-                <span class="nav-icon">📋</span>
-                <span class="nav-label">Transaksi</span>
-            </a>
-            <a href="/receipts/upload" class="nav-item nav-add" aria-label="Scan Struk" title="Scan Struk">
-                <span class="nav-icon-add" aria-hidden="true">📷</span>
-                <span class="nav-label">Scan</span>
-            </a>
-            <a href="/reports" class="nav-item {% if '/reports' in request.url.path %}active{% endif %}">
-                <span class="nav-icon">📊</span>
-                <span class="nav-label">Laporan</span>
-            </a>
-            <a href="/more" class="nav-item {% if '/more' in request.url.path or '/accounts' in request.url.path or '/debts' in request.url.path or '/bills' in request.url.path or '/budgets' in request.url.path or '/savings' in request.url.path or '/assets' in request.url.path or '/investments' in request.url.path or '/receipts' in request.url.path and '/receipts/upload' not in request.url.path %}active{% endif %}">
-                <span class="nav-icon">☰</span>
-                <span class="nav-label">Lainnya</span>
-            </a>
-        </nav>
     </div>
+    <div class="modal-overlay" id="modalOverlay" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <button class="modal-close" id="modalClose" aria-label="Tutup">&times;</button>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+    <nav class="bottom-nav" aria-label="Navigasi utama">
+        <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Beranda</span>
+        </a>
+        <a href="/transactions" class="nav-item {% if '/transactions' in request.url.path and '/edit' not in request.url.path %}active{% endif %}">
+            <span class="nav-icon">📋</span>
+            <span class="nav-label">Transaksi</span>
+        </a>
+        <a href="/receipts/upload" class="nav-item nav-add" aria-label="Scan Struk" title="Scan Struk">
+            <span class="nav-icon-add" aria-hidden="true">📷</span>
+            <span class="nav-label">Scan</span>
+        </a>
+        <a href="/reports" class="nav-item {% if '/reports' in request.url.path %}active{% endif %}">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">Laporan</span>
+        </a>
+        <a href="/more" class="nav-item {% if '/more' in request.url.path or '/accounts' in request.url.path or '/debts' in request.url.path or '/bills' in request.url.path or '/budgets' in request.url.path or '/savings' in request.url.path or '/assets' in request.url.path or '/investments' in request.url.path or '/categories' in request.url.path or '/receipts' in request.url.path and '/receipts/upload' not in request.url.path %}active{% endif %}">
+            <span class="nav-icon">☰</span>
+            <span class="nav-label">Lainnya</span>
+        </a>
+    </nav>
     <script src="/static/js/app.js"></script>
+    <script>
+    (function(){
+      var toggle = document.getElementById('sidebarToggle');
+      var sidebar = document.getElementById('sidebar');
+      if(toggle && sidebar){
+        toggle.addEventListener('click', function(){
+          sidebar.classList.toggle('open');
+          toggle.setAttribute('aria-expanded', sidebar.classList.contains('open'));
+        });
+      }
+      var mo = document.getElementById('modalOverlay');
+      var mc = document.getElementById('modalClose');
+      var hide = function(){ if(mo){mo.classList.remove('show')} };
+      if(mo) mo.addEventListener('click', function(e){ if(e.target===mo) hide(); });
+      if(mc) mc.addEventListener('click', hide);
+      document.addEventListener('keydown', function(e){
+        if(e.key==='Escape'){ hide(); if(sidebar) sidebar.classList.remove('open'); }
+      });
+    })();
+    </script>
 </body>
 </html>

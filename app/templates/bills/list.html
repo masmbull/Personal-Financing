@@ -25,7 +25,7 @@
             </div>
             <div class="tx-right">
                 <span class="tx-amount tx-expense">{{ format_rupiah(b.amount) }}</span>
-                <form method="post" action="/bills/pay/{{ b.id }}" style="display:inline;">
+                <form method="post" action="/bills/pay/{{ b.id }}">
                     <input type="hidden" name="amount" value="{{ b.amount }}">
                     <input type="hidden" name="account_id" value="{{ b.account_id or '' }}">
                     <button type="submit" class="btn btn-primary btn-sm">Bayar</button>
@@ -40,7 +40,7 @@
         <div class="empty-icon">📄</div>
         <div class="empty-title">Belum ada tagihan rutin</div>
         <div class="empty-desc">Tambah tagihan untuk mencatat pembayaran rutin</div>
-        <a href="/bills/create" class="btn btn-primary btn-block" style="max-width:200px; margin-top:12px;">+ Tagihan</a>
+        <a href="/bills/create" class="btn btn-primary btn-block mt-xs w-200 d-block mx-auto">+ Tagihan</a>
     </div>
     {% endif %}
 </div>

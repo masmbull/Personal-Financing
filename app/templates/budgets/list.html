@@ -10,20 +10,18 @@
     <div class="section">
         {% for item in budget_data %}
         {% set b = item.budget %}
-        <div class="card" style="margin-bottom:12px; padding:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div class="card">
+            <div class="row-top">
                 <div>
                     <strong>{{ b.category.name }}</strong>
-                    <span class="tx-meta" style="margin-left:8px;">{{ format_rupiah(b.amount) }}</span>
+                    <span class="tx-meta ml-sm">{{ format_rupiah(b.amount) }}</span>
                 </div>
                 <a href="/budgets/delete/{{ b.id }}" class="btn-link text-red" onclick="return confirm('Hapus budget ini?')">Hapus</a>
             </div>
-            <div class="progress-bar" style="background:#e0e0e0; height:8px; border-radius:4px; overflow:hidden;">
-                <div style="height:100%; border-radius:4px; width:{{ [item.percentage, 100]|min }}%;
-                    background:{% if item.percentage > 100 %}#e74c3c{% elif item.percentage > 80 %}#f39c12{% else %}#27ae60{% endif %};">
-                </div>
+            <div class="progress-track">
+                <div class="progress-fill {{ 'fill-danger' if item.percentage > 100 else 'fill-warning' if item.percentage > 80 else 'fill-success' }}" style="width:{{ [item.percentage, 100]|min }}%"></div>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:12px; color:var(--text-secondary);">
+            <div class="row-between tx-meta">
                 <span>{{ format_rupiah(item.spent) }} terpakai ({{ item.percentage }}%)</span>
                 <span>Sisa {{ format_rupiah(item.remaining) }}</span>
             </div>

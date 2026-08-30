@@ -25,7 +25,7 @@
         <h2 class="section-title">Pemasukan vs Pengeluaran</h2>
         <div class="ie-compare">
             <div class="ie-item">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <div class="row-between">
                     <span class="ie-label">Pemasukan</span>
                     <span class="ie-value text-green">{{ format_rupiah(data.month_income) }}</span>
                 </div>
@@ -36,7 +36,7 @@
                 {% endif %}
             </div>
             <div class="ie-item">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <div class="row-between">
                     <span class="ie-label">Pengeluaran</span>
                     <span class="ie-value text-red">{{ format_rupiah(data.month_expense) }}</span>
                 </div>
