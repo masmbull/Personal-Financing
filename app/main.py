@@ -35,6 +35,16 @@ def seed_default_data():
                 ("Kesehatan", "\U0001f3e5", "HEALTH"),
                 ("Rumah Tangga", "\U0001f3e0", "HOUSING"),
                 ("Pendidikan", "\U0001f4da", "EDUCATION"),
+                ("Kuliner Online", "\U0001f372", "FOOD & DINING"),
+                ("Minimarket", "\U0001f6ed\ufe0f", "SHOPPING"),
+                ("SPBU & Bensin", "\u26fd", "TRANSPORTATION"),
+                ("Pulsa & Kuota", "\U0001f4f1", "UTILITIES"),
+                ("Listrik & Air", "\U0001f4a1", "UTILITIES"),
+                ("Internet & TV", "\U0001f4f6", "UTILITIES"),
+                ("Asuransi", "\u2601\ufe0f", "INSURANCE"),
+                ("Olahraga", "\U0001f3cb\ufe0f", "HEALTH"),
+                ("Kado & Donasi", "\U0001f381", "OTHER"),
+                ("Rokok", "\U0001f6ac", "OTHER"),
                 ("Lainnya", "\U0001f4cb", "OTHER"),
             ]
             income_cats = [
@@ -42,6 +52,9 @@ def seed_default_data():
                 ("Bonus", "\U0001f381", "BONUS"),
                 ("Freelance", "\U0001f4bb", "FREELANCE"),
                 ("Penjualan", "\U0001f3f7\ufe0f", "OTHER"),
+                ("Bisnis", "\U0001f4bc", "BUSINESS"),
+                ("Investasi", "\U0001f4c8", "INVESTMENT"),
+                ("Hadiah", "\U0001f389", "OTHER"),
                 ("Lainnya", "\U0001f4cb", "OTHER"),
             ]
             for name, icon, group in expense_cats:
@@ -53,10 +66,36 @@ def seed_default_data():
         if existing_accs == 0:
             defaults = [
                 ("Cash", AccountType.CASH, "\U0001f4b5", None),
+                # Bank umum (retail)
                 ("BCA", AccountType.BANK, "\U0001f3e6", "BCA"),
                 ("Mandiri", AccountType.BANK, "\U0001f3e6", "Mandiri"),
+                ("BNI", AccountType.BANK, "\U0001f3e6", "BNI"),
+                ("BRI", AccountType.BANK, "\U0001f3e6", "BRI"),
+                ("BTN", AccountType.BANK, "\U0001f3e6", "BTN"),
+                ("CIMB Niaga", AccountType.BANK, "\U0001f3e6", "CIMB Niaga"),
+                ("Danamon", AccountType.BANK, "\U0001f3e6", "Danamon"),
+                ("Permata", AccountType.BANK, "\U0001f3e6", "Permata"),
+                ("Maybank", AccountType.BANK, "\U0001f3e6", "Maybank"),
+                ("OCBC NISP", AccountType.BANK, "\U0001f3e6", "OCBC NISP"),
+                ("BTPN", AccountType.BANK, "\U0001f3e6", "BTPN"),
+                ("Mega", AccountType.BANK, "\U0001f3e6", "Bank Mega"),
+                ("Sinarmas", AccountType.BANK, "\U0001f3e6", "Bank Sinarmas"),
+                # Bank digital
+                ("Jago", AccountType.BANK, "\U0001f3e6", "Bank Jago"),
+                ("SeaBank", AccountType.BANK, "\U0001f3e6", "SeaBank"),
+                ("Blu", AccountType.BANK, "\U0001f3e6", "BCA Digital"),
+                ("Neo Commerce", AccountType.BANK, "\U0001f3e6", "Bank Neo Commerce"),
+                ("Allo Bank", AccountType.BANK, "\U0001f3e6", "Allo Bank"),
+                # Bank syariah
+                ("BSI", AccountType.BANK, "\U0001f3e6", "Bank Syariah Indonesia"),
+                ("Muamalat", AccountType.BANK, "\U0001f3e6", "Bank Muamalat"),
+                # E-wallet (uang elektronik berizin BI)
                 ("DANA", AccountType.E_WALLET, "\U0001f4f1", "DANA"),
                 ("GoPay", AccountType.E_WALLET, "\U0001f4f1", "GoPay"),
+                ("OVO", AccountType.E_WALLET, "\U0001f4f1", "OVO"),
+                ("ShopeePay", AccountType.E_WALLET, "\U0001f4f1", "ShopeePay"),
+                ("LinkAja", AccountType.E_WALLET, "\U0001f4f1", "LinkAja"),
+                ("i.Saku", AccountType.E_WALLET, "\U0001f4f1", "i.Saku"),
             ]
             for name, atype, icon, inst in defaults:
                 db.add(Account(name=name, type=atype, initial_balance=0, current_balance=0, icon=icon, institution=inst))
