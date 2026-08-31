@@ -90,13 +90,13 @@
     <div class="rr-status">
         {% if conf == 'HIGH' %}
         <span class="rr-status-dot rr-status-dot--ok"></span>
-        <span class="rr-status-text">Akurasi pembacaan tinggi</span>
+        <span class="rr-status-text rr-status-text--ok">Akurasi pembacaan tinggi</span>
         {% elif conf == 'MEDIUM' %}
         <span class="rr-status-dot rr-status-dot--mid"></span>
-        <span class="rr-status-text">Beberapa data mungkin perlu dikoreksi</span>
+        <span class="rr-status-text rr-status-text--mid">Beberapa data mungkin perlu dikoreksi</span>
         {% else %}
         <span class="rr-status-dot rr-status-dot--low"></span>
-        <span class="rr-status-text">Beberapa data perlu diperiksa</span>
+        <span class="rr-status-text rr-status-text--low">Beberapa data perlu diperiksa</span>
         {% endif %}
     </div>
 
