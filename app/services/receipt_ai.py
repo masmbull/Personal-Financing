@@ -149,21 +149,32 @@ class AIVisionReceiptScannerService:
             return ReceiptScanResult(status="failed")
 
         items = _clean_items(data.get("items"))
-        result = ReceiptScanResult(
-            merchant=_n(data.get("merchant")),
-            date=_n(data.get("date")),
-            time=_n(data.get("time")),
-            total_amount=_int(data.get("total_amount")),
-            subtotal=_int(data.get("subtotal")),
-            tax=_int(data.get("tax")),
-            discount=_int(data.get("discount")),
-            payment_method=_n(data.get("payment_method")),
-            items=items,
-            raw_text=None,
-            status="processed",
-        )
-        result.confidence = compute_confidence(result)
-        return result
+        try:
+            result = ReceiptScanResult(
+                merchant=_n(data.get("merchant")),
+                date=_n(data.get("date")),
+                time=_n(data.get("time")),
+                total_amount=_int(data.get("total_amount")),
+                subtotal=_int(data.get("subtotal")),
+                tax=_int(data.get("tax")),
+                discount=_int(data.get("discount")),
+                payment_method=_n(data.get("payment_method")),
+                items=items,
+                raw_text=None,
+                status="processed",
+            )
+            result.confidence = compute_confidence(result)
+            return result
+        except Exception:
+            # Never surface a 500: worst case degrade to a low-confidence
+            # processed result (the review UI still lets the user fix values).
+            return ReceiptScanResult(
+                merchant=_n(data.get("merchant")),
+                date=_n(data.get("date")),
+                total_amount=_int(data.get("total_amount")),
+                items=items, raw_text=None, status="processed",
+                confidence="LOW",
+            )
 
 
 def _n(v):

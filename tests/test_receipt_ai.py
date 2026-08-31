@@ -101,6 +101,47 @@ class _FakeResp:
         return self._b
 
 
+class TestNever500OnBadModelData:
+    def test_malformed_items_still_return_processed(self, monkeypatch):
+        # Model returned garbage that compute_confidence would choke on; the
+        # scanner must degrade (processed/LOW) and NEVER bubble a 500.
+        svc = ai.AIVisionReceiptScannerService(
+            base_url="http://test.invalid/v1", model="m")
+        svc._available = True
+        # items entries that survive _clean_items but break compute_confidence
+        # (e.g. a float total_price -> sum still works; force a crash by making
+        # compute_confidence raise via a member with a bad attribute type).
+        from app.services.receipt_ocr import ReceiptItem
+
+        def fake_post(url, *, json=None, timeout=None, **k):
+            content = json["messages"][1]["content"]
+
+            class R:
+                def raise_for_status(self):
+                    return None
+
+                def json(self):
+                    return {"choices": [{"message": {"content": '{"merchant": "X",'
+                                                        '"total_amount": 100,'
+                                                        '"items": [{"name": "A",'
+                                                        '"total_price": "not-a-number"}]}'}}]}
+            return R()
+
+        monkeypatch.setattr(ai.httpx, "post", fake_post)
+        monkeypatch.setattr(ai, "_image_to_b64", lambda p: "data:x")
+        # Force the result-build path to raise so the degrade branch is hit.
+        real_ci = __import__("app.services.receipt_ocr", fromlist=["compute_confidence"]).compute_confidence
+        monkeypatch.setattr(
+            __import__("app.services.receipt_ocr", fromlist=["compute_confidence"]),
+            "compute_confidence",
+            lambda r: (_ for _ in ()).throw(RuntimeError("boom")))
+
+        res = svc.scan("x.jpg")
+        assert res.status == "processed"
+        assert res.confidence == "LOW"
+
+
+
 class TestUnavailable:
     def test_probe_service_returns_none_when_offline(self):
         # No Ollama on this machine -> probe quickly fails -> None.
