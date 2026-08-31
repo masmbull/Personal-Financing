@@ -16,9 +16,18 @@
     <div class="toast-container" id="toast-container"></div>
 
     <main class="main-content page-enter page-enter-active">
+        {% if request.state.user %}
+        <div class="auth-bar">
+            <span class="auth-user">👤 {{ request.state.user.username }}</span>
+            <form method="post" action="/logout" class="inline">
+                <button type="submit" class="auth-logout">Keluar</button>
+            </form>
+        </div>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 
+    {% if request.state.user %}
     <nav class="bottom-nav" aria-label="Navigasi utama">
         <a href="/" class="nav-item {% if request.url.path == '/' %}active{% endif %}">
             <span class="nav-icon">🏠</span>
@@ -41,6 +50,7 @@
             <span class="nav-label">Lainnya</span>
         </a>
     </nav>
+    {% endif %}
 
     <div class="modal-overlay" id="modalOverlay" aria-hidden="true">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">

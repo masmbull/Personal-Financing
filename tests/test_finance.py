@@ -5,14 +5,14 @@ from app.models.models import Account, Category, TransactionType, AccountType
 from app.services.finance import create_transaction, get_dashboard_data
 
 # Shared client/DB helpers live in tests/conftest.py
-from tests.conftest import client, get_test_db  # noqa: E402,F401
+from tests.conftest import client, default_user_id, get_test_db  # noqa: E402,F401
 
 
 def test_create_expense():
     db = get_test_db()
     acc = db.query(Account).filter(Account.name == "BCA").first()
     cat = db.query(Category).filter(Category.name == "Makan & Minum").first()
-    tx = create_transaction(db, type=TransactionType.EXPENSE, amount=35000,
+    tx = create_transaction(db, user_id=default_user_id(), type=TransactionType.EXPENSE, amount=35000,
         account_id=acc.id, category_id=cat.id, date_val=date.today(), description="Nasi goreng")
     assert tx.id is not None
     assert tx.amount == 35000
@@ -26,7 +26,7 @@ def test_create_income():
     db = get_test_db()
     acc = db.query(Account).filter(Account.name == "BCA").first()
     cat = db.query(Category).filter(Category.name == "Gaji").first()
-    tx = create_transaction(db, type=TransactionType.INCOME, amount=5000000,
+    tx = create_transaction(db, user_id=default_user_id(), type=TransactionType.INCOME, amount=5000000,
         account_id=acc.id, category_id=cat.id, date_val=date.today(), description="Gaji bulanan")
     assert tx.id is not None
     assert tx.amount == 5000000
@@ -40,7 +40,7 @@ def test_account_balance():
     acc = db.query(Account).filter(Account.name == "Cash").first()
     assert acc.current_balance == 500000
     cat = db.query(Category).filter(Category.name == "Belanja").first()
-    create_transaction(db, type=TransactionType.EXPENSE, amount=200000,
+    create_transaction(db, user_id=default_user_id(), type=TransactionType.EXPENSE, amount=200000,
         account_id=acc.id, category_id=cat.id, date_val=date.today(), description="Groceries")
     db.refresh(acc)
     assert acc.current_balance == 300000
@@ -53,7 +53,7 @@ def test_transfer():
     cash = db.query(Account).filter(Account.name == "Cash").first()
     bca_before = bca.current_balance
     cash_before = cash.current_balance
-    tx = create_transaction(db, type=TransactionType.TRANSFER, amount=200000,
+    tx = create_transaction(db, user_id=default_user_id(), type=TransactionType.TRANSFER, amount=200000,
         account_id=bca.id, category_id=None, date_val=date.today(),
         description="ATM", transfer_to_account_id=cash.id)
     assert tx.id is not None
@@ -80,9 +80,9 @@ def test_dashboard_calculation():
     bca = db.query(Account).filter(Account.name == "BCA").first()
     gaji = db.query(Category).filter(Category.name == "Gaji").first()
     makan = db.query(Category).filter(Category.name == "Makan & Minum").first()
-    create_transaction(db, type=TransactionType.INCOME, amount=5000000,
+    create_transaction(db, user_id=default_user_id(), type=TransactionType.INCOME, amount=5000000,
         account_id=bca.id, category_id=gaji.id, date_val=date.today(), description="Salary")
-    create_transaction(db, type=TransactionType.EXPENSE, amount=35000,
+    create_transaction(db, user_id=default_user_id(), type=TransactionType.EXPENSE, amount=35000,
         account_id=bca.id, category_id=makan.id, date_val=date.today(), description="Lunch")
     data = get_dashboard_data(db)
     assert data["total_income"] >= 5000000
@@ -139,7 +139,7 @@ def test_transaction_appears_after_creation():
     db = get_test_db()
     acc = db.query(Account).filter(Account.name == "BCA").first()
     cat = db.query(Category).filter(Category.name == "Makan & Minum").first()
-    create_transaction(db, type=TransactionType.EXPENSE, amount=25000,
+    create_transaction(db, user_id=default_user_id(), type=TransactionType.EXPENSE, amount=25000,
         account_id=acc.id, category_id=cat.id, date_val=date.today(),
         description="Test mie ayam")
     db.close()
@@ -155,7 +155,7 @@ def test_transactions_empty_state_not_shown_with_data():
     db = get_test_db()
     acc = db.query(Account).filter(Account.name == "BCA").first()
     cat = db.query(Category).filter(Category.name == "Makan & Minum").first()
-    create_transaction(db, type=TransactionType.EXPENSE, amount=15000,
+    create_transaction(db, user_id=default_user_id(), type=TransactionType.EXPENSE, amount=15000,
         account_id=acc.id, category_id=cat.id, date_val=date.today(),
         description="Kopi")
     db.close()
@@ -266,7 +266,7 @@ def test_budget_create_and_spending():
     assert r.status_code == 303
 
     db = get_test_db()
-    create_transaction(db, type=TransactionType.EXPENSE, amount=100000,
+    create_transaction(db, user_id=default_user_id(), type=TransactionType.EXPENSE, amount=100000,
         account_id=acc_id, category_id=cat_id, date_val=today,
         description="Makan siang")
     db.close()
@@ -366,7 +366,7 @@ def test_merchant_field_on_transaction():
     db = get_test_db()
     acc = db.query(Account).filter(Account.name == "BCA").first()
     cat = db.query(Category).filter(Category.name == "Makan & Minum").first()
-    tx = create_transaction(db, type=TransactionType.EXPENSE, amount=30000,
+    tx = create_transaction(db, user_id=default_user_id(), type=TransactionType.EXPENSE, amount=30000,
         account_id=acc.id, category_id=cat.id, date_val=date.today(),
         description="Ayam geprek", merchant="Baso Aci")
     assert tx.merchant == "Baso Aci"

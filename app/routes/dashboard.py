@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.database.db import get_db
+from app.api.deps import get_current_user, CurrentUser
 from app.models.models import AccountType, TransactionType
 from app.services import accounts as accounts_service
 from app.utils import format_rupiah
@@ -12,7 +13,8 @@ router = APIRouter()
 
 
 @router.get("/", response_class=HTMLResponse)
-def dashboard(request: Request, db: Session = Depends(get_db)):
+def dashboard(request: Request, db: Session = Depends(get_db),
+              user: CurrentUser = Depends(get_current_user)):
     """Consolidated dashboard page - one call into the SAME service that
     powers GET /api/v1/dashboard, so numbers never diverge between UI/API."""
     from types import SimpleNamespace as NS
@@ -22,7 +24,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     from app.services.dashboard import build_dashboard
     from datetime import date as _date
 
-    payload = build_dashboard(db)
+    payload = build_dashboard(db, user_id=user.id)
 
     recent = []
     for t in payload["recent_transactions"]:
@@ -59,13 +61,14 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
     today = _date.today()
     breakdown = reports_service.category_breakdown(
-        db, TransactionType.EXPENSE, today.replace(day=1), today
+        db, TransactionType.EXPENSE, today.replace(day=1), today,
+        user_id=user.id,
     )
     goals = [
         {"goal": g,
          "percentage": round(g.current_amount * 100 / g.target_amount, 1)
          if g.target_amount > 0 else 0}
-        for g in savings_service.list_goals(db)
+        for g in savings_service.list_goals(db, user.id)
     ]
 
     return templates.TemplateResponse(request, "dashboard.html", {
@@ -78,8 +81,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/accounts", response_class=HTMLResponse)
-def list_accounts(request: Request, db: Session = Depends(get_db)):
-    groups = accounts_service.list_accounts_grouped(db)
+def list_accounts(request: Request, db: Session = Depends(get_db),
+                  user: CurrentUser = Depends(get_current_user)):
+    groups = accounts_service.list_accounts_grouped(db, user.id)
     return templates.TemplateResponse(request, "accounts/list.html", {
         "groups": groups,
         "account_types": AccountType,
@@ -88,7 +92,8 @@ def list_accounts(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/accounts/create", response_class=HTMLResponse)
-def create_account_form(request: Request):
+def create_account_form(request: Request,
+                        user: CurrentUser = Depends(get_current_user)):
     return templates.TemplateResponse(request, "accounts/create.html", {
         "account_types": AccountType,
     })
@@ -100,7 +105,8 @@ def create_account(
     type: str = Form(...),
     initial_balance: str = Form("0"),
     icon: str = Form(""),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     try:
         init_bal = int(initial_balance) if initial_balance else 0
@@ -108,8 +114,8 @@ def create_account(
         raise HTTPException(status_code=400, detail="Invalid initial balance")
     try:
         accounts_service.create_account(
-            db, name=name, type_=AccountType(type), initial_balance=init_bal,
-            icon=icon or None,
+            db, user_id=user.id, name=name, type_=AccountType(type),
+            initial_balance=init_bal, icon=icon or None,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -117,8 +123,10 @@ def create_account(
 
 
 @router.get("/accounts/edit/{account_id}", response_class=HTMLResponse)
-def edit_account_form(account_id: int, request: Request, db: Session = Depends(get_db)):
-    account = accounts_service.get_account(db, account_id)
+def edit_account_form(account_id: int, request: Request,
+                      db: Session = Depends(get_db),
+                      user: CurrentUser = Depends(get_current_user)):
+    account = accounts_service.get_account(db, account_id, user.id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     return templates.TemplateResponse(request, "accounts/edit.html", { "account": account, "account_types": AccountType,
@@ -128,14 +136,15 @@ def edit_account_form(account_id: int, request: Request, db: Session = Depends(g
 @router.post("/accounts/edit/{account_id}")
 def edit_account(account_id: int, name: str = Form(...), type: str = Form(...),
                  initial_balance: str = Form("0"), icon: str = Form(""),
-                 db: Session = Depends(get_db)):
+                 db: Session = Depends(get_db),
+                 user: CurrentUser = Depends(get_current_user)):
     try:
         init_bal = int(initial_balance) if initial_balance else 0
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid initial balance")
     try:
         accounts_service.update_account(
-            db, account_id, name=name.strip(), type=AccountType(type),
+            db, account_id, user.id, name=name.strip(), type=AccountType(type),
             initial_balance=init_bal, icon=icon or None,
         )
     except accounts_service.AccountNotFound:
@@ -144,9 +153,10 @@ def edit_account(account_id: int, name: str = Form(...), type: str = Form(...),
 
 
 @router.get("/accounts/delete/{account_id}")
-def delete_account(account_id: int, db: Session = Depends(get_db)):
+def delete_account(account_id: int, db: Session = Depends(get_db),
+                   user: CurrentUser = Depends(get_current_user)):
     try:
-        accounts_service.delete_account(db, account_id)
+        accounts_service.delete_account(db, account_id, user.id)
     except accounts_service.AccountNotFound:
         raise HTTPException(status_code=404, detail="Account not found")
     except ValueError:

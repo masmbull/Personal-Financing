@@ -28,15 +28,17 @@ def _update_debt_status(debt: Debt) -> None:
         debt.status = DebtStatus.OPEN
 
 
-def get_debt(db: Session, debt_id: int) -> Debt:
-    debt = db.query(Debt).filter(Debt.id == debt_id).first()
+def get_debt(db: Session, debt_id: int, user_id: int) -> Debt:
+    debt = db.query(Debt).filter(
+        Debt.id == debt_id, Debt.user_id == user_id
+    ).first()
     if not debt:
         raise DebtNotFound(f"Debt {debt_id} not found")
     return debt
 
 
-def list_debts(db: Session, type: DebtType | None = None):
-    query = db.query(Debt).order_by(Debt.created_at.desc())
+def list_debts(db: Session, type: DebtType | None = None, user_id: int = 0):
+    query = db.query(Debt).filter(Debt.user_id == user_id).order_by(Debt.created_at.desc())
     if type:
         query = query.filter(Debt.type == type)
     debts = query.all()
@@ -47,22 +49,25 @@ def list_debts(db: Session, type: DebtType | None = None):
     return debts
 
 
-def totals_for(db: Session) -> dict:
+def totals_for(db: Session, user_id: int) -> dict:
     from sqlalchemy import func
     payable = db.query(func.coalesce(func.sum(Debt.remaining_amount), 0)).filter(
+        Debt.user_id == user_id,
         Debt.type == DebtType.PAYABLE, Debt.status != DebtStatus.PAID,
     ).scalar()
     receivable = db.query(func.coalesce(func.sum(Debt.remaining_amount), 0)).filter(
+        Debt.user_id == user_id,
         Debt.type == DebtType.RECEIVABLE, Debt.status != DebtStatus.PAID,
     ).scalar()
     return {"total_payable": payable, "total_receivable": receivable}
 
 
-def create_debt(db: Session, **fields) -> Debt:
+def create_debt(db: Session, *, user_id: int, **fields) -> Debt:
     principal = int(fields["principal_amount"])
     if principal <= 0:
         raise ValueError("Amount must be positive")
     debt = Debt(
+        user_id=user_id,
         type=fields["type"],
         person_name=fields["person_name"].strip(),
         description=(fields.get("description") or "").strip() or None,
@@ -83,8 +88,8 @@ def create_debt(db: Session, **fields) -> Debt:
     return debt
 
 
-def update_debt(db: Session, debt_id: int, fields: dict) -> Debt:
-    debt = get_debt(db, debt_id)
+def update_debt(db: Session, debt_id: int, user_id: int, fields: dict) -> Debt:
+    debt = get_debt(db, debt_id, user_id)
     editable = [
         "person_name", "description", "due_date", "installment_amount",
         "installment_count", "interest_rate", "person_contact",
@@ -100,12 +105,12 @@ def update_debt(db: Session, debt_id: int, fields: dict) -> Debt:
     return debt
 
 
-def pay_debt(db: Session, debt_id: int, *, amount: int,
+def pay_debt(db: Session, debt_id: int, user_id: int, *, amount: int,
              account_id: int | None = None, payment_date: date | None = None,
              notes: str | None = None):
     """Record a payment. When account_id is provided a real expense/income
     transaction is created so account balances stay accurate."""
-    debt = get_debt(db, debt_id)
+    debt = get_debt(db, debt_id, user_id)
     amount = int(amount)
     if amount <= 0:
         raise PaymentError("Payment must be positive")
@@ -129,7 +134,8 @@ def pay_debt(db: Session, debt_id: int, *, amount: int,
         desc = (("Bayar hutang ke %s" % debt.person_name) if is_payable
                 else ("Terima piutang dari %s" % debt.person_name))
         tx = create_transaction(
-            db=db, type=cat_type, amount=amount, account_id=int(account_id),
+            db=db, user_id=user_id, type=cat_type, amount=amount,
+            account_id=int(account_id),
             category_id=cat.id, date_val=pay_date, description=desc,
         )
         tx_id = tx.id
@@ -137,7 +143,8 @@ def pay_debt(db: Session, debt_id: int, *, amount: int,
     debt.remaining_amount -= amount
     _update_debt_status(debt)
     payment = DebtPayment(
-        debt_id=debt.id, amount=amount, payment_date=pay_date,
+        user_id=user_id, debt_id=debt.id, amount=amount,
+        payment_date=pay_date,
         notes=(notes or "").strip() or None, transaction_id=tx_id,
     )
     db.add(payment)
@@ -146,7 +153,7 @@ def pay_debt(db: Session, debt_id: int, *, amount: int,
     return debt, payment
 
 
-def delete_debt(db: Session, debt_id: int) -> None:
-    debt = get_debt(db, debt_id)
+def delete_debt(db: Session, debt_id: int, user_id: int) -> None:
+    debt = get_debt(db, debt_id, user_id)
     db.delete(debt)
     db.commit()

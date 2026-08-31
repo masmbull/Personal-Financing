@@ -11,19 +11,22 @@ from app.services.finance import expense_between, income_between
 from app.services.transactions import list_transactions
 
 
-def build_dashboard(db: Session, *, bills_days_ahead: int = 7,
+def build_dashboard(db: Session, *, user_id: int,
+                    bills_days_ahead: int = 7,
                     recent_limit: int = 10) -> dict:
     today = date.today()
     month_start = today.replace(day=1)
 
-    nw = compute_net_worth(db)
-    monthly_income = income_between(db, month_start, today)
-    monthly_expense = expense_between(db, month_start, today)
+    nw = compute_net_worth(db, user_id)
+    monthly_income = income_between(db, month_start, today, user_id)
+    monthly_expense = expense_between(db, month_start, today, user_id)
 
-    budget_rows = budgets_service.list_with_spending(db, today.year, today.month)
+    budget_rows = budgets_service.list_with_spending(
+        db, today.year, today.month, user_id
+    )
 
     upcoming = []
-    for entry in bills_service.with_next_due(db, today):
+    for entry in bills_service.with_next_due(db, user_id, today):
         nd = entry["next_due"]
         if not nd:
             continue
@@ -37,7 +40,7 @@ def build_dashboard(db: Session, *, bills_days_ahead: int = 7,
     upcoming.sort(key=lambda x: x["next_due_date"] or date.max)
 
     items, _total, _p, _ps = list_transactions(
-        db, page=1, page_size=recent_limit
+        db, user_id=user_id, page=1, page_size=recent_limit
     )
 
     return {

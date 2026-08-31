@@ -28,8 +28,8 @@ def _out(acc) -> AccountResponse:
     description="All accounts with their calculated current balances.",
 )
 def list_accounts(db: Session = Depends(get_db),
-                  _user: CurrentUser = Depends(get_current_user)):
-    items = [_out(a) for a in accounts_service.list_accounts(db)]
+                  user: CurrentUser = Depends(get_current_user)):
+    items = [_out(a) for a in accounts_service.list_accounts(db, user.id)]
     return AccountListResponse(items=items, total=len(items))
 
 
@@ -42,9 +42,9 @@ def list_accounts(db: Session = Depends(get_db),
 )
 def create_account(payload: AccountCreate,
                    db: Session = Depends(get_db),
-                   _user: CurrentUser = Depends(get_current_user)):
+                   user: CurrentUser = Depends(get_current_user)):
     acc = accounts_service.create_account(
-        db, name=payload.name, type_=payload.type,
+        db, user_id=user.id, name=payload.name, type_=payload.type,
         initial_balance=payload.initial_balance, icon=payload.icon,
         institution=payload.institution, account_number=payload.account_number,
         color=payload.color,
@@ -57,8 +57,9 @@ def create_account(payload: AccountCreate,
     summary="Get one account",
     responses={404: {"description": "Account not found"}},
 )
-def get_account(account_id: int, db: Session = Depends(get_db)):
-    return _out(accounts_service.get_account_or_raise(db, account_id))
+def get_account(account_id: int, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
+    return _out(accounts_service.get_account_or_raise(db, account_id, user.id))
 
 
 @router.put(
@@ -69,9 +70,10 @@ def get_account(account_id: int, db: Session = Depends(get_db)):
     responses={404: {"description": "Account not found"}},
 )
 def update_account(account_id: int, payload: AccountUpdate,
-                   db: Session = Depends(get_db)):
+                   db: Session = Depends(get_db),
+                   user: CurrentUser = Depends(get_current_user)):
     acc = accounts_service.update_account(
-        db, account_id, **payload.model_dump(exclude_unset=True)
+        db, account_id, user.id, **payload.model_dump(exclude_unset=True)
     )
     return _out(acc)
 
@@ -85,6 +87,7 @@ def update_account(account_id: int, payload: AccountUpdate,
         409: {"description": "Account still referenced by transactions"},
     },
 )
-def delete_account(account_id: int, db: Session = Depends(get_db)):
-    accounts_service.delete_account(db, account_id)
+def delete_account(account_id: int, db: Session = Depends(get_db),
+                   user: CurrentUser = Depends(get_current_user)):
+    accounts_service.delete_account(db, account_id, user.id)
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)

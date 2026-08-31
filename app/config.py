@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     # Security (required before any real auth is added; not used yet)
     SECRET_KEY: str = "change-me-in-production"
 
+    # ---- Authentication ----
+    # Bootstrap admin created on first startup when both vars are set.
+    # Never commit real credentials to the repo; provide via .env/environment.
+    AUTH_BOOTSTRAP_USERNAME: str = ""
+    AUTH_BOOTSTRAP_PASSWORD: str = ""
+    AUTH_SESSION_TTL_DAYS: int = 30
+
     # CORS: comma-separated list of allowed origins. Never use "*" in production.
     CORS_ORIGINS: str = "http://localhost:8080,http://localhost:3000,http://127.0.0.1:8080"
 

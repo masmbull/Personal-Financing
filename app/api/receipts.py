@@ -35,9 +35,9 @@ def _out(receipt) -> ReceiptResponse:
 )
 def upload_receipt(file: UploadFile,
                    db: Session = Depends(get_db),
-                   _user: CurrentUser = Depends(get_current_user)):
+                   user: CurrentUser = Depends(get_current_user)):
     try:
-        receipt = receipts_service.save_receipt(db, file)
+        receipt = receipts_service.save_receipt(db, file, user.id)
     except receipts_service.ReceiptValidationError as e:
         from app.api.errors import ApiError
         code = "RECEIPT_INVALID"
@@ -47,7 +47,7 @@ def upload_receipt(file: UploadFile,
         elif "too large" in msg:
             code = "FILE_TOO_LARGE"
         raise ApiError(400, code, str(e))
-    receipt = receipts_service.run_ocr(db, receipt.id)  # PROCESSING -> READY/FAILED
+    receipt = receipts_service.run_ocr(db, receipt.id, user.id)  # PROCESSING -> READY/FAILED
     return _out(receipt)
 
 
@@ -57,8 +57,9 @@ def upload_receipt(file: UploadFile,
 )
 def list_receipts(limit: int = Query(50, ge=1, le=200),
                   offset: int = Query(0, ge=0),
-                  db: Session = Depends(get_db)):
-    return [_out(r) for r in receipts_service.list_receipts(db, limit, offset)]
+                  db: Session = Depends(get_db),
+                  user: CurrentUser = Depends(get_current_user)):
+    return [_out(r) for r in receipts_service.list_receipts(db, user.id, limit, offset)]
 
 
 @router.get(
@@ -68,8 +69,9 @@ def list_receipts(limit: int = Query(50, ge=1, le=200),
                 "pending -> processed once an engine is attached.",
     responses={404: {"description": "Not found"}},
 )
-def get_receipt(receipt_id: int, db: Session = Depends(get_db)):
-    return _out(receipts_service.get_receipt(db, receipt_id))
+def get_receipt(receipt_id: int, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
+    return _out(receipts_service.get_receipt(db, receipt_id, user.id))
 
 
 @router.post(
@@ -89,10 +91,11 @@ def get_receipt(receipt_id: int, db: Session = Depends(get_db)):
     },
 )
 def confirm_receipt(receipt_id: int, payload: ReceiptConfirmRequest,
-                    db: Session = Depends(get_db)):
+                    db: Session = Depends(get_db),
+                    user: CurrentUser = Depends(get_current_user)):
     try:
         receipt, _tx = receipts_service.confirm_receipt(
-            db, receipt_id,
+            db, receipt_id, user.id,
             type=payload.type, amount=payload.amount,
             account_id=payload.account_id, category_id=payload.category_id,
             tx_date=payload.date or date.today(),
@@ -112,6 +115,7 @@ def confirm_receipt(receipt_id: int, payload: ReceiptConfirmRequest,
     responses={404: {"description": "Not found"}},
 )
 def delete_receipt(receipt_id: int, remove_file: bool = Query(False),
-                   db: Session = Depends(get_db)):
-    receipts_service.delete_receipt(db, receipt_id, remove_file=remove_file)
+                   db: Session = Depends(get_db),
+                   user: CurrentUser = Depends(get_current_user)):
+    receipts_service.delete_receipt(db, receipt_id, user.id, remove_file=remove_file)
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)

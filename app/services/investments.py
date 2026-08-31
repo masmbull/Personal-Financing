@@ -15,15 +15,22 @@ INVESTMENT_TYPES = [
 ]
 
 
-def get_investment(db: Session, inv_id: int) -> Investment:
-    inv = db.query(Investment).filter(Investment.id == inv_id).first()
+def get_investment(db: Session, inv_id: int, user_id: int) -> Investment:
+    inv = db.query(Investment).filter(
+        Investment.id == inv_id, Investment.user_id == user_id
+    ).first()
     if not inv:
         raise InvestmentNotFound(f"Investment {inv_id} not found")
     return inv
 
 
-def list_investments(db: Session):
-    return db.query(Investment).order_by(Investment.name).all()
+def list_investments(db: Session, user_id: int):
+    return (
+        db.query(Investment)
+        .filter(Investment.user_id == user_id)
+        .order_by(Investment.name)
+        .all()
+    )
 
 
 def to_response_dict(inv: Investment) -> dict:
@@ -41,12 +48,13 @@ def to_response_dict(inv: Investment) -> dict:
     }
 
 
-def create_investment(db: Session, **fields) -> Investment:
+def create_investment(db: Session, *, user_id: int, **fields) -> Investment:
     invested = int(fields["amount_invested"])
     current = int(fields["current_value"])
     if invested <= 0:
         raise ValueError("Amount must be positive")
     inv = Investment(
+        user_id=user_id,
         name=(fields["name"] or "").strip(),
         investment_type=fields["investment_type"],
         amount_invested=invested, current_value=current,
@@ -60,8 +68,8 @@ def create_investment(db: Session, **fields) -> Investment:
     return inv
 
 
-def update_investment(db: Session, inv_id: int, fields: dict) -> Investment:
-    inv = get_investment(db, inv_id)
+def update_investment(db: Session, inv_id: int, user_id: int, fields: dict) -> Investment:
+    inv = get_investment(db, inv_id, user_id)
     for key in ("name", "investment_type", "amount_invested", "current_value",
                 "purchase_date", "icon", "notes"):
         value = fields.get(key)
@@ -72,14 +80,14 @@ def update_investment(db: Session, inv_id: int, fields: dict) -> Investment:
     return inv
 
 
-def delete_investment(db: Session, inv_id: int) -> None:
-    inv = get_investment(db, inv_id)
+def delete_investment(db: Session, inv_id: int, user_id: int) -> None:
+    inv = get_investment(db, inv_id, user_id)
     db.delete(inv)
     db.commit()
 
 
-def totals(db: Session) -> dict:
-    items = [to_response_dict(i) for i in list_investments(db)]
+def totals(db: Session, user_id: int) -> dict:
+    items = [to_response_dict(i) for i in list_investments(db, user_id)]
     return {
         "items": items,
         "total_invested": sum(i["amount_invested"] for i in items),

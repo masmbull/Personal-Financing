@@ -3,7 +3,7 @@ from datetime import date
 
 from app.models.models import Account, Category, Receipt, Transaction
 from tests.conftest import PNG_BYTES as PNG
-from tests.conftest import client, get_test_db
+from tests.conftest import client, default_user_id, get_test_db
 
 TODAY = date.today().isoformat()
 
@@ -324,6 +324,7 @@ def test_receipt_detail_failed_status_shows_manual_form():
     import json
     db = get_test_db()
     r = Receipt(
+        user_id=default_user_id(),
         original_filename="failed.jpg",
         stored_path="data/receipts/fake.jpg",
         mime_type="image/jpeg",

@@ -15,15 +15,19 @@ class SavingsOperationError(ValueError):
     pass
 
 
-def get_goal(db: Session, goal_id: int) -> SavingsGoal:
-    goal = db.query(SavingsGoal).filter(SavingsGoal.id == goal_id).first()
+def get_goal(db: Session, goal_id: int, user_id: int) -> SavingsGoal:
+    goal = db.query(SavingsGoal).filter(
+        SavingsGoal.id == goal_id, SavingsGoal.user_id == user_id
+    ).first()
     if not goal:
         raise GoalNotFound(f"Savings goal {goal_id} not found")
     return goal
 
 
-def list_goals(db: Session, active_only: bool = True):
-    query = db.query(SavingsGoal).order_by(SavingsGoal.created_at.desc())
+def list_goals(db: Session, user_id: int, active_only: bool = True):
+    query = db.query(SavingsGoal).filter(
+        SavingsGoal.user_id == user_id
+    ).order_by(SavingsGoal.created_at.desc())
     if active_only:
         query = query.filter(SavingsGoal.active == True)  # noqa: E712
     return query.all()
@@ -43,11 +47,12 @@ def to_response_dict(goal: SavingsGoal) -> dict:
     }
 
 
-def create_goal(db: Session, **fields) -> SavingsGoal:
+def create_goal(db: Session, *, user_id: int, **fields) -> SavingsGoal:
     target = int(fields["target_amount"])
     if target <= 0:
         raise ValueError("Amount must be positive")
     goal = SavingsGoal(
+        user_id=user_id,
         name=(fields["name"] or "").strip(),
         target_amount=target, current_amount=0,
         icon=(fields.get("icon") or "").strip() or None,
@@ -60,8 +65,8 @@ def create_goal(db: Session, **fields) -> SavingsGoal:
     return goal
 
 
-def update_goal(db: Session, goal_id: int, fields: dict) -> SavingsGoal:
-    goal = get_goal(db, goal_id)
+def update_goal(db: Session, goal_id: int, user_id: int, fields: dict) -> SavingsGoal:
+    goal = get_goal(db, goal_id, user_id)
     for key in ("name", "target_amount", "icon", "color", "notes", "active"):
         value = fields.get(key)
         if value is not None:
@@ -71,16 +76,16 @@ def update_goal(db: Session, goal_id: int, fields: dict) -> SavingsGoal:
     return goal
 
 
-def deposit(db: Session, goal_id: int, *, amount: int,
+def deposit(db: Session, goal_id: int, *, user_id: int, amount: int,
             related_account_id: int | None = None,
             notes: str | None = None) -> SavingsGoal:
-    goal = get_goal(db, goal_id)
+    goal = get_goal(db, goal_id, user_id)
     amount = int(amount)
     if amount <= 0:
         raise SavingsOperationError("Amount must be positive")
     goal.current_amount += amount
     tx = SavingsGoalTransaction(
-        goal_id=goal.id, amount=amount,
+        user_id=user_id, goal_id=goal.id, amount=amount,
         notes=(notes or "").strip() or None,
         related_account_id=int(related_account_id) if related_account_id else None,
     )
@@ -90,10 +95,10 @@ def deposit(db: Session, goal_id: int, *, amount: int,
     return goal
 
 
-def withdraw(db: Session, goal_id: int, *, amount: int,
+def withdraw(db: Session, goal_id: int, *, user_id: int, amount: int,
              related_account_id: int | None = None,
              notes: str | None = None) -> SavingsGoal:
-    goal = get_goal(db, goal_id)
+    goal = get_goal(db, goal_id, user_id)
     amount = int(amount)
     if amount <= 0:
         raise SavingsOperationError("Amount must be positive")
@@ -101,7 +106,7 @@ def withdraw(db: Session, goal_id: int, *, amount: int,
         raise SavingsOperationError("Withdrawal exceeds saved amount")
     goal.current_amount -= amount
     tx = SavingsGoalTransaction(
-        goal_id=goal.id, amount=-amount,
+        user_id=user_id, goal_id=goal.id, amount=-amount,
         notes=(notes or "").strip() or None,
         related_account_id=int(related_account_id) if related_account_id else None,
     )
@@ -111,7 +116,7 @@ def withdraw(db: Session, goal_id: int, *, amount: int,
     return goal
 
 
-def delete_goal(db: Session, goal_id: int) -> None:
-    goal = get_goal(db, goal_id)
+def delete_goal(db: Session, goal_id: int, user_id: int) -> None:
+    goal = get_goal(db, goal_id, user_id)
     db.delete(goal)
     db.commit()

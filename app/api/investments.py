@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Response, status as http_status
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user, CurrentUser
 from app.database.db import get_db
 from app.schemas.investment import (
     InvestmentCreate, InvestmentListResponse, InvestmentResponse, InvestmentUpdate,
@@ -19,8 +20,9 @@ def _out(inv) -> InvestmentResponse:
     summary="List investments with totals",
     description="Items include gain_loss and return_percentage; response carries grand totals.",
 )
-def list_investments(db: Session = Depends(get_db)):
-    data = investments_service.totals(db)
+def list_investments(db: Session = Depends(get_db),
+                     user: CurrentUser = Depends(get_current_user)):
+    data = investments_service.totals(db, user.id)
     return InvestmentListResponse(
         items=[InvestmentResponse(**i) for i in data["items"]],
         total=len(data["items"]),
@@ -35,9 +37,10 @@ def list_investments(db: Session = Depends(get_db)):
     status_code=http_status.HTTP_201_CREATED,
     summary="Record an investment holding",
 )
-def create_investment(payload: InvestmentCreate, db: Session = Depends(get_db)):
+def create_investment(payload: InvestmentCreate, db: Session = Depends(get_db),
+                      user: CurrentUser = Depends(get_current_user)):
     inv = investments_service.create_investment(
-        db, name=payload.name, investment_type=payload.investment_type,
+        db, user_id=user.id, name=payload.name, investment_type=payload.investment_type,
         amount_invested=payload.amount_invested,
         current_value=payload.current_value,
         purchase_date=payload.purchase_date,
@@ -51,8 +54,9 @@ def create_investment(payload: InvestmentCreate, db: Session = Depends(get_db)):
     summary="Get one investment",
     responses={404: {"description": "Not found"}},
 )
-def get_investment(investment_id: int, db: Session = Depends(get_db)):
-    return _out(investments_service.get_investment(db, investment_id))
+def get_investment(investment_id: int, db: Session = Depends(get_db),
+                   user: CurrentUser = Depends(get_current_user)):
+    return _out(investments_service.get_investment(db, investment_id, user.id))
 
 
 @router.put(
@@ -62,9 +66,10 @@ def get_investment(investment_id: int, db: Session = Depends(get_db)):
     responses={404: {"description": "Not found"}},
 )
 def update_investment(investment_id: int, payload: InvestmentUpdate,
-                      db: Session = Depends(get_db)):
+                      db: Session = Depends(get_db),
+                      user: CurrentUser = Depends(get_current_user)):
     inv = investments_service.update_investment(
-        db, investment_id, payload.model_dump(exclude_unset=True)
+        db, investment_id, user.id, payload.model_dump(exclude_unset=True)
     )
     return _out(inv)
 
@@ -74,6 +79,7 @@ def update_investment(investment_id: int, payload: InvestmentUpdate,
     summary="Delete an investment record",
     responses={404: {"description": "Not found"}},
 )
-def delete_investment(investment_id: int, db: Session = Depends(get_db)):
-    investments_service.delete_investment(db, investment_id)
+def delete_investment(investment_id: int, db: Session = Depends(get_db),
+                      user: CurrentUser = Depends(get_current_user)):
+    investments_service.delete_investment(db, investment_id, user.id)
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)

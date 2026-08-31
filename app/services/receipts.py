@@ -88,7 +88,7 @@ def _validate_image_bytes(mime: str, content: bytes) -> None:
         raise ReceiptValidationError("Berkas bukan gambar yang valid")
 
 
-def save_receipt(db: Session, upload: UploadFile) -> Receipt:
+def save_receipt(db: Session, upload: UploadFile, user_id: int) -> Receipt:
     """Validate MIME type + size + image bytes, store the file safely,
     compute the duplicate-detection hash, persist metadata."""
     mime = (upload.content_type or "").lower()
@@ -120,6 +120,7 @@ def save_receipt(db: Session, upload: UploadFile) -> Receipt:
     stored_path.write_bytes(content)
 
     receipt = Receipt(
+        user_id=user_id,
         original_filename=upload.filename,
         stored_path=str(stored_path),
         mime_type=mime,
@@ -133,29 +134,33 @@ def save_receipt(db: Session, upload: UploadFile) -> Receipt:
     return receipt
 
 
-def duplicate_for(db: Session, receipt: Receipt) -> Optional[Receipt]:
-    """Return an earlier receipt with the same file hash, or None."""
+def duplicate_for(db: Session, receipt: Receipt, user_id: int) -> Optional[Receipt]:
+    """Return an earlier receipt with the same file hash (same user), or None."""
     if not receipt.file_hash:
         return None
     return (
         db.query(Receipt)
         .filter(Receipt.file_hash == receipt.file_hash,
+                Receipt.user_id == user_id,
                 Receipt.id != receipt.id)
         .order_by(Receipt.id)
         .first()
     )
 
 
-def get_receipt(db: Session, receipt_id: int) -> Receipt:
-    receipt = db.query(Receipt).filter(Receipt.id == receipt_id).first()
+def get_receipt(db: Session, receipt_id: int, user_id: int) -> Receipt:
+    receipt = db.query(Receipt).filter(
+        Receipt.id == receipt_id, Receipt.user_id == user_id
+    ).first()
     if not receipt:
         raise ReceiptNotFound(f"Receipt {receipt_id} not found")
     return receipt
 
 
-def list_receipts(db: Session, limit: int = 50, offset: int = 0):
+def list_receipts(db: Session, user_id: int, limit: int = 50, offset: int = 0):
     return (
         db.query(Receipt)
+        .filter(Receipt.user_id == user_id)
         .order_by(Receipt.created_at.desc())
         .offset(offset)
         .limit(min(limit, 200))
@@ -163,7 +168,7 @@ def list_receipts(db: Session, limit: int = 50, offset: int = 0):
     )
 
 
-def confirm_receipt(db: Session, receipt_id: int, *, type, amount: int,
+def confirm_receipt(db: Session, receipt_id: int, user_id: int, *, type, amount: int,
                     account_id: int, category_id: int | None,
                     tx_date, description: str | None = None,
                     merchant: str | None = None,
@@ -175,14 +180,14 @@ def confirm_receipt(db: Session, receipt_id: int, *, type, amount: int,
     """
     from app.services.finance import create_transaction
 
-    receipt = get_receipt(db, receipt_id)
+    receipt = get_receipt(db, receipt_id, user_id)
     if receipt.transaction_id is not None:
         raise ReceiptAlreadyConfirmed(
             f"Receipt {receipt_id} already confirmed as transaction "
             f"{receipt.transaction_id}"
         )
     tx = create_transaction(
-        db=db, type=type, amount=amount, account_id=account_id,
+        db=db, user_id=user_id, type=type, amount=amount, account_id=account_id,
         category_id=category_id, date_val=tx_date,
         description=description, merchant=merchant, notes=notes,
     )
@@ -196,9 +201,9 @@ def confirm_receipt(db: Session, receipt_id: int, *, type, amount: int,
 # --------------------------------------------------------------- OCR running
 
 
-def mark_processing(db: Session, receipt_id: int) -> Receipt:
+def mark_processing(db: Session, receipt_id: int, user_id: int) -> Receipt:
     """Explicit UPLOADED -> PROCESSING transition (observable for tests/UI)."""
-    receipt = get_receipt(db, receipt_id)
+    receipt = get_receipt(db, receipt_id, user_id)
     if receipt.transaction_id is not None:
         return receipt
     receipt.ocr_status = ReceiptStatus.PROCESSING
@@ -207,7 +212,8 @@ def mark_processing(db: Session, receipt_id: int) -> Receipt:
     return receipt
 
 
-def run_ocr(db: Session, receipt_id: int, scanner=None) -> Receipt:
+def run_ocr(db: Session, receipt_id: int, user_id: int,
+            scanner=None) -> Receipt:
     """UPLOADED -> PROCESSING -> READY (PROCESSED) or FAILED.
 
     Runs the configured OCR engine and stores its structured output in
@@ -216,7 +222,7 @@ def run_ocr(db: Session, receipt_id: int, scanner=None) -> Receipt:
     """
     from app.services.receipt_ocr import ReceiptScanResult
 
-    receipt = get_receipt(db, receipt_id)
+    receipt = get_receipt(db, receipt_id, user_id)
     if receipt.transaction_id is not None:
         return receipt
     receipt.ocr_status = ReceiptStatus.PROCESSING
@@ -240,11 +246,11 @@ def run_ocr(db: Session, receipt_id: int, scanner=None) -> Receipt:
     return receipt
 
 
-def delete_receipt(db: Session, receipt_id: int,
+def delete_receipt(db: Session, receipt_id: int, user_id: int,
                    *, remove_file: bool = False) -> None:
     """Delete receipt metadata; optionally the stored file, but ONLY if it
     lives inside the configured upload directory (never arbitrary paths)."""
-    receipt = get_receipt(db, receipt_id)
+    receipt = get_receipt(db, receipt_id, user_id)
     stored = Path(receipt.stored_path).resolve()
     db.delete(receipt)
     db.commit()
@@ -258,13 +264,13 @@ def delete_receipt(db: Session, receipt_id: int,
             pass
 
 
-def read_receipt_file(db: Session, receipt_id: int):
+def read_receipt_file(db: Session, receipt_id: int, user_id: int):
     """Return a Path to the stored image for safe serving, or None.
 
     Containment is enforced against the configured upload directory so a
     tampered DB path can never expose arbitrary filesystem content.
     """
-    receipt = get_receipt(db, receipt_id)
+    receipt = get_receipt(db, receipt_id, user_id)
     try:
         stored = Path(receipt.stored_path).resolve()
     except (OSError, ValueError):

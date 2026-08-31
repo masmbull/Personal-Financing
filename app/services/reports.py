@@ -17,18 +17,19 @@ def _default_range(date_from: date | None, date_to: date | None):
     return (date_from or today.replace(day=1), date_to or today)
 
 
-def cash_flow(db: Session, date_from: date | None = None,
+def cash_flow(db: Session, user_id: int, date_from: date | None = None,
               date_to: date | None = None) -> dict:
     start, end = _default_range(date_from, date_to)
-    income = income_between(db, start, end)
-    expense = expense_between(db, start, end)
+    income = income_between(db, start, end, user_id)
+    expense = expense_between(db, start, end, user_id)
     return {"date_from": start, "date_to": end,
             "income": income, "expense": expense, "net": income - expense}
 
 
 def category_breakdown(db: Session, tx_type: TransactionType,
                        date_from: date | None = None,
-                       date_to: date | None = None) -> dict:
+                       date_to: date | None = None,
+                       user_id: int | None = None) -> dict:
     start, end = _default_range(date_from, date_to)
     rows = (
         db.query(
@@ -38,10 +39,11 @@ def category_breakdown(db: Session, tx_type: TransactionType,
         .join(Category, Transaction.category_id == Category.id)
         .filter(Transaction.type == tx_type,
                 Transaction.date >= start, Transaction.date <= end)
-        .group_by(Category.id)
-        .order_by(func.sum(Transaction.amount).desc())
-        .all()
     )
+    if user_id is not None:
+        rows = rows.filter(Transaction.user_id == user_id)
+    rows = rows.group_by(Category.id) \
+        .order_by(func.sum(Transaction.amount).desc()).all()
     grand = sum(r.total for r in rows)
     by_category = [
         {
@@ -57,7 +59,8 @@ def category_breakdown(db: Session, tx_type: TransactionType,
 
 def monthly_series(db: Session, months: int = 6,
                    date_from: date | None = None,
-                   date_to: date | None = None) -> list[dict]:
+                   date_to: date | None = None,
+                   user_id: int = 0) -> list[dict]:
     """Income/expense per month. Uses the explicit range when provided,
     otherwise the trailing `months` months including the current one."""
     series = []
@@ -83,8 +86,8 @@ def monthly_series(db: Session, months: int = 6,
     for year, month in series:
         first = date(year, month, 1)
         last = min(_month_end(year, month), today)
-        inc = income_between(db, first, last)
-        exp = expense_between(db, first, last)
+        inc = income_between(db, first, last, user_id)
+        exp = expense_between(db, first, last, user_id)
         out.append({
             "year": year, "month": month,
             "label": first.strftime("%b %Y"),
@@ -93,8 +96,8 @@ def monthly_series(db: Session, months: int = 6,
     return out
 
 
-def net_worth_snapshot(db: Session) -> dict:
-    nw = compute_net_worth(db)
+def net_worth_snapshot(db: Session, user_id: int) -> dict:
+    nw = compute_net_worth(db, user_id)
     return {
         "as_of": date.today(),
         "net_worth": nw["net_worth"],
@@ -106,19 +109,22 @@ def net_worth_snapshot(db: Session) -> dict:
 # ---------- Net-worth history (daily snapshots) ----------
 
 
-def record_daily_snapshot(db: Session) -> "NetWorthSnapshot":
-    """Upsert today's snapshot. Safe to call repeatedly - one row per day."""
+def record_daily_snapshot(db: Session, user_id: int) -> "NetWorthSnapshot":
+    """Upsert today's snapshot. Safe to call repeatedly - one row per day,
+    per user."""
     from app.models.models import NetWorthSnapshot
 
-    nw = compute_net_worth(db)
+    nw = compute_net_worth(db, user_id)
     today = date.today()
     row = (
         db.query(NetWorthSnapshot)
-        .filter(NetWorthSnapshot.snapshot_date == today)
+        .filter(NetWorthSnapshot.snapshot_date == today,
+                NetWorthSnapshot.user_id == user_id)
         .first()
     )
     if row is None:
         row = NetWorthSnapshot(
+            user_id=user_id,
             snapshot_date=today,
             total_assets=nw["total_assets"],
             total_liabilities=nw["total_liabilities"],
@@ -134,10 +140,13 @@ def record_daily_snapshot(db: Session) -> "NetWorthSnapshot":
     return row
 
 
-def net_worth_history(db: Session, date_from=None, date_to=None) -> list[dict]:
+def net_worth_history(db: Session, user_id: int, date_from=None,
+                      date_to=None) -> list[dict]:
     from app.models.models import NetWorthSnapshot
 
-    query = db.query(NetWorthSnapshot).order_by(NetWorthSnapshot.snapshot_date)
+    query = db.query(NetWorthSnapshot).filter(
+        NetWorthSnapshot.user_id == user_id
+    ).order_by(NetWorthSnapshot.snapshot_date)
     if date_from:
         query = query.filter(NetWorthSnapshot.snapshot_date >= date_from)
     if date_to:

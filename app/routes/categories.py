@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.database.db import get_db
+from app.api.deps import get_current_user, CurrentUser
 from app.models.models import Category, TransactionType
 from app.services.finance import has_transactions_for_category
 from fastapi.templating import Jinja2Templates
@@ -11,7 +12,8 @@ router = APIRouter()
 
 
 @router.get("/categories", response_class=HTMLResponse)
-def list_categories(request: Request, db: Session = Depends(get_db)):
+def list_categories(request: Request, db: Session = Depends(get_db),
+                    user: CurrentUser = Depends(get_current_user)):
     categories = db.query(Category).order_by(Category.type, Category.name).all()
     return templates.TemplateResponse(request, "categories/list.html", { "categories": categories,
         "TransactionType": TransactionType,
@@ -19,14 +21,16 @@ def list_categories(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/categories/create", response_class=HTMLResponse)
-def create_category_form(request: Request):
+def create_category_form(request: Request,
+                         user: CurrentUser = Depends(get_current_user)):
     return templates.TemplateResponse(request, "categories/create.html", { "TransactionType": TransactionType,
     })
 
 
 @router.post("/categories/create")
 def create_category(name: str = Form(...), type: str = Form(...), icon: str = Form(""),
-                    db: Session = Depends(get_db)):
+                    db: Session = Depends(get_db),
+                    user: CurrentUser = Depends(get_current_user)):
     if not name.strip():
         raise HTTPException(status_code=400, detail="Category name required")
     cat = Category(name=name.strip(), type=TransactionType(type), icon=icon or None)
@@ -36,7 +40,9 @@ def create_category(name: str = Form(...), type: str = Form(...), icon: str = Fo
 
 
 @router.get("/categories/edit/{cat_id}", response_class=HTMLResponse)
-def edit_category_form(cat_id: int, request: Request, db: Session = Depends(get_db)):
+def edit_category_form(cat_id: int, request: Request,
+                       db: Session = Depends(get_db),
+                       user: CurrentUser = Depends(get_current_user)):
     cat = db.query(Category).filter(Category.id == cat_id).first()
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -46,7 +52,8 @@ def edit_category_form(cat_id: int, request: Request, db: Session = Depends(get_
 
 @router.post("/categories/edit/{cat_id}")
 def edit_category(cat_id: int, name: str = Form(...), type: str = Form(...),
-                  icon: str = Form(""), db: Session = Depends(get_db)):
+                  icon: str = Form(""), db: Session = Depends(get_db),
+                  user: CurrentUser = Depends(get_current_user)):
     cat = db.query(Category).filter(Category.id == cat_id).first()
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -58,7 +65,8 @@ def edit_category(cat_id: int, name: str = Form(...), type: str = Form(...),
 
 
 @router.get("/categories/delete/{cat_id}")
-def delete_category(cat_id: int, db: Session = Depends(get_db)):
+def delete_category(cat_id: int, db: Session = Depends(get_db),
+                    user: CurrentUser = Depends(get_current_user)):
     cat = db.query(Category).filter(Category.id == cat_id).first()
     if not cat:
         raise HTTPException(status_code=404, detail="Category not found")

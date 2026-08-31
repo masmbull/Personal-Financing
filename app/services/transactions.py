@@ -37,7 +37,7 @@ def _to_response(tx: Transaction) -> dict:
 
 
 def list_transactions(
-    db: Session, *,
+    db: Session, *, user_id: int,
     type: Optional[str] = None,
     account_id: Optional[int] = None,
     category_id: Optional[int] = None,
@@ -53,7 +53,7 @@ def list_transactions(
         joinedload(Transaction.account),
         joinedload(Transaction.category),
         joinedload(Transaction.transfer_to_account),
-    )
+    ).filter(Transaction.user_id == user_id)
     if type:
         query = query.filter(Transaction.type == TransactionType(type.upper()))
     if account_id:
@@ -87,11 +87,12 @@ def list_transactions(
     return [_to_response(t) for t in items], total, page, page_size
 
 
-def get_transaction(db: Session, tx_id: int) -> dict:
+def get_transaction(db: Session, tx_id: int, user_id: int) -> dict:
+    """Ownership-checked lookup: id AND owner in one query."""
     tx = (
         db.query(Transaction)
         .options(joinedload(Transaction.account), joinedload(Transaction.category))
-        .filter(Transaction.id == tx_id)
+        .filter(Transaction.id == tx_id, Transaction.user_id == user_id)
         .first()
     )
     if not tx:
@@ -99,10 +100,12 @@ def get_transaction(db: Session, tx_id: int) -> dict:
     return _to_response(tx)
 
 
-def update_transaction(db: Session, tx_id: int, fields: dict) -> dict:
+def update_transaction(db: Session, tx_id: int, fields: dict, user_id: int) -> dict:
     """Partial update. Reuses delete+create semantics from the HTML edit flow so
     balance recalculation and validation stay in one code path."""
-    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    tx = db.query(Transaction).filter(
+        Transaction.id == tx_id, Transaction.user_id == user_id
+    ).first()
     if not tx:
         raise TransactionNotFound(f"Transaction {tx_id} not found")
 
@@ -119,10 +122,10 @@ def update_transaction(db: Session, tx_id: int, fields: dict) -> dict:
             "transfer_to_account_id", tx.transfer_to_account_id
         ),
     }
-    delete_transaction(db, tx_id)
+    delete_transaction(db, tx_id, user_id)
     try:
         new_tx = create_transaction(
-            db=db,
+            db=db, user_id=user_id,
             type=merged["type"] if isinstance(merged["type"], TransactionType)
             else TransactionType(str(merged["type"]).upper()),
             amount=int(merged["amount"]),
@@ -140,4 +143,4 @@ def update_transaction(db: Session, tx_id: int, fields: dict) -> dict:
     except ValueError as e:
         db.rollback()
         raise ValueError(str(e)) from e
-    return get_transaction(db, new_tx.id)
+    return get_transaction(db, new_tx.id, user_id)

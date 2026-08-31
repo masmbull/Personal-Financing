@@ -12,15 +12,17 @@ class BillNotFound(Exception):
     pass
 
 
-def get_bill(db: Session, bill_id: int) -> Bill:
-    bill = db.query(Bill).filter(Bill.id == bill_id).first()
+def get_bill(db: Session, bill_id: int, user_id: int) -> Bill:
+    bill = db.query(Bill).filter(
+        Bill.id == bill_id, Bill.user_id == user_id
+    ).first()
     if not bill:
         raise BillNotFound(f"Bill {bill_id} not found")
     return bill
 
 
-def list_bills(db: Session, active_only: bool = True):
-    query = db.query(Bill).order_by(Bill.name)
+def list_bills(db: Session, user_id: int, active_only: bool = True):
+    query = db.query(Bill).filter(Bill.user_id == user_id).order_by(Bill.name)
     if active_only:
         query = query.filter(Bill.active == True)  # noqa: E712
     return query.all()
@@ -56,18 +58,19 @@ def _safe_date(year: int, month: int, day: int) -> date | None:
     return date(year, month, day)
 
 
-def with_next_due(db: Session, today: date | None = None) -> list[dict]:
+def with_next_due(db: Session, user_id: int, today: date | None = None) -> list[dict]:
     return [
         {"bill": b, "next_due": compute_next_due_date(b, today)}
-        for b in list_bills(db)
+        for b in list_bills(db, user_id)
     ]
 
 
-def create_bill(db: Session, **fields) -> Bill:
+def create_bill(db: Session, *, user_id: int, **fields) -> Bill:
     amount = int(fields["amount"])
     if amount <= 0:
         raise ValueError("Amount must be positive")
     bill = Bill(
+        user_id=user_id,
         name=(fields["name"] or "").strip(),
         amount=amount,
         frequency=fields.get("frequency", BillFrequency.MONTHLY),
@@ -83,8 +86,8 @@ def create_bill(db: Session, **fields) -> Bill:
     return bill
 
 
-def update_bill(db: Session, bill_id: int, fields: dict) -> Bill:
-    bill = get_bill(db, bill_id)
+def update_bill(db: Session, bill_id: int, user_id: int, fields: dict) -> Bill:
+    bill = get_bill(db, bill_id, user_id)
     for key in ("name", "amount", "frequency", "category_id", "account_id",
                 "due_day", "active", "notes"):
         value = fields.get(key)
@@ -95,10 +98,10 @@ def update_bill(db: Session, bill_id: int, fields: dict) -> Bill:
     return bill
 
 
-def pay_bill(db: Session, bill_id: int, *, amount: int | None = None,
+def pay_bill(db: Session, bill_id: int, user_id: int, *, amount: int | None = None,
              account_id: int | None = None, pay_date: date | None = None):
     """Record a payment; optionally creates a real expense transaction."""
-    bill = get_bill(db, bill_id)
+    bill = get_bill(db, bill_id, user_id)
     pay_amount = int(amount) if amount else bill.amount
     pay_date = pay_date or date.today()
     tx_id = None
@@ -118,14 +121,15 @@ def pay_bill(db: Session, bill_id: int, *, amount: int | None = None,
                 db.flush()
             category_id = cat.id
         tx = create_transaction(
-            db=db, type=TransactionType.EXPENSE,
+            db=db, user_id=user_id, type=TransactionType.EXPENSE,
             amount=pay_amount, account_id=int(effective_account),
             category_id=category_id, date_val=pay_date,
             description="Bayar %s" % bill.name,
         )
         tx_id = tx.id
     payment = BillPayment(
-        bill_id=bill.id, amount=pay_amount, paid_date=pay_date,
+        user_id=user_id, bill_id=bill.id, amount=pay_amount,
+        paid_date=pay_date,
         transaction_id=tx_id,
     )
     db.add(payment)
@@ -134,7 +138,7 @@ def pay_bill(db: Session, bill_id: int, *, amount: int | None = None,
     return bill, payment
 
 
-def delete_bill(db: Session, bill_id: int) -> None:
-    bill = get_bill(db, bill_id)
+def delete_bill(db: Session, bill_id: int, user_id: int) -> None:
+    bill = get_bill(db, bill_id, user_id)
     db.delete(bill)
     db.commit()

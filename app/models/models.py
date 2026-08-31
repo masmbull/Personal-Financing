@@ -50,10 +50,39 @@ class BillStatus(str, enum.Enum):
     PAID = "PAID"
 
 
+class User(Base):
+    """Application user. Plaintext passwords are NEVER stored here."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), nullable=False, unique=True, index=True)
+    password_hash = Column(String(256), nullable=False)  # PBKDF2 string
+    is_active = Column(Integer, nullable=False, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class UserSession(Base):
+    """Server-side session record; the cookie only carries an opaque token
+    whose SHA-256 hash is stored here. Logout revokes the row."""
+    __tablename__ = "user_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    revoked_at = Column(DateTime, nullable=True)
+
+    user = relationship("User")
+
+
 class Account(Base):
     __tablename__ = "accounts"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True,
+                     comment="NULL = global master data (seeded banks/e-wallets)")
     name = Column(String(100), nullable=False)
     type = Column(Enum(AccountType), nullable=False, default=AccountType.OTHER)
     institution = Column(String(100), nullable=True)
@@ -88,6 +117,7 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     type = Column(Enum(TransactionType), nullable=False)
     amount = Column(Integer, nullable=False)  # in rupiah, integer
     description = Column(Text, nullable=True)
@@ -109,6 +139,7 @@ class Debt(Base):
     __tablename__ = "debts"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     type = Column(Enum(DebtType), nullable=False)
     person_name = Column(String(100), nullable=False)
     person_contact = Column(String(100), nullable=True)
@@ -134,6 +165,7 @@ class DebtPayment(Base):
     __tablename__ = "debt_payments"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     debt_id = Column(Integer, ForeignKey("debts.id"), nullable=False)
     amount = Column(Integer, nullable=False)
     payment_date = Column(Date, nullable=False, default=date.today)
@@ -149,6 +181,7 @@ class Bill(Base):
     __tablename__ = "bills"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     amount = Column(Integer, nullable=False)
     frequency = Column(Enum(BillFrequency), nullable=False, default=BillFrequency.MONTHLY)
@@ -169,6 +202,7 @@ class BillPayment(Base):
     __tablename__ = "bill_payments"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     bill_id = Column(Integer, ForeignKey("bills.id"), nullable=False)
     amount = Column(Integer, nullable=False)
     paid_date = Column(Date, nullable=False, default=date.today)
@@ -183,6 +217,7 @@ class SavingsGoal(Base):
     __tablename__ = "savings_goals"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     target_amount = Column(Integer, nullable=False)
     current_amount = Column(Integer, nullable=False, default=0)
@@ -201,6 +236,7 @@ class SavingsGoalTransaction(Base):
     __tablename__ = "savings_goal_transactions"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     goal_id = Column(Integer, ForeignKey("savings_goals.id"), nullable=False)
     amount = Column(Integer, nullable=False)
     notes = Column(Text, nullable=True)
@@ -215,6 +251,7 @@ class Budget(Base):
     __tablename__ = "budgets"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     amount = Column(Integer, nullable=False)
     month = Column(Integer, nullable=False)
@@ -229,6 +266,7 @@ class AssetRecord(Base):
     __tablename__ = "asset_records"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     asset_type = Column(String(50), nullable=False)
     current_value = Column(Integer, nullable=False)
@@ -244,6 +282,7 @@ class Investment(Base):
     __tablename__ = "investments"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     name = Column(String(100), nullable=False)
     investment_type = Column(String(50), nullable=False)
     amount_invested = Column(Integer, nullable=False)
@@ -269,6 +308,7 @@ class Receipt(Base):
     __tablename__ = "receipts"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     original_filename = Column(String(255), nullable=True)
     stored_path = Column(String(500), nullable=False)
     mime_type = Column(String(100), nullable=False)
@@ -289,6 +329,7 @@ class NetWorthSnapshot(Base):
     __tablename__ = "net_worth_snapshots"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     snapshot_date = Column(Date, nullable=False, index=True)
     total_assets = Column(Integer, nullable=False)
     total_liabilities = Column(Integer, nullable=False)

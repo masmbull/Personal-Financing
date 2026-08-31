@@ -16,15 +16,22 @@ ASSET_TYPES = [
 ]
 
 
-def get_asset(db: Session, asset_id: int) -> AssetRecord:
-    asset = db.query(AssetRecord).filter(AssetRecord.id == asset_id).first()
+def get_asset(db: Session, asset_id: int, user_id: int) -> AssetRecord:
+    asset = db.query(AssetRecord).filter(
+        AssetRecord.id == asset_id, AssetRecord.user_id == user_id
+    ).first()
     if not asset:
         raise AssetNotFound(f"Asset {asset_id} not found")
     return asset
 
 
-def list_assets(db: Session):
-    return db.query(AssetRecord).order_by(AssetRecord.name).all()
+def list_assets(db: Session, user_id: int):
+    return (
+        db.query(AssetRecord)
+        .filter(AssetRecord.user_id == user_id)
+        .order_by(AssetRecord.name)
+        .all()
+    )
 
 
 def to_response_dict(asset: AssetRecord) -> dict:
@@ -42,8 +49,9 @@ def to_response_dict(asset: AssetRecord) -> dict:
     return d
 
 
-def create_asset(db: Session, **fields) -> AssetRecord:
+def create_asset(db: Session, *, user_id: int, **fields) -> AssetRecord:
     asset = AssetRecord(
+        user_id=user_id,
         name=(fields["name"] or "").strip(),
         asset_type=fields["asset_type"],
         current_value=int(fields["current_value"]),
@@ -58,8 +66,8 @@ def create_asset(db: Session, **fields) -> AssetRecord:
     return asset
 
 
-def update_asset(db: Session, asset_id: int, fields: dict) -> AssetRecord:
-    asset = get_asset(db, asset_id)
+def update_asset(db: Session, asset_id: int, user_id: int, fields: dict) -> AssetRecord:
+    asset = get_asset(db, asset_id, user_id)
     for key in ("name", "asset_type", "current_value", "purchase_value",
                 "purchase_date", "icon", "notes"):
         value = fields.get(key)
@@ -70,7 +78,7 @@ def update_asset(db: Session, asset_id: int, fields: dict) -> AssetRecord:
     return asset
 
 
-def delete_asset(db: Session, asset_id: int) -> None:
-    asset = get_asset(db, asset_id)
+def delete_asset(db: Session, asset_id: int, user_id: int) -> None:
+    asset = get_asset(db, asset_id, user_id)
     db.delete(asset)
     db.commit()

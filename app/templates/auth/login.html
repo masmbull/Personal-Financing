@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Masuk - Finance{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+    <div class="card auth-card">
+        <div class="auth-head">
+            <div class="auth-logo" aria-hidden="true">💰</div>
+            <h1 class="auth-title">Masuk</h1>
+            <p class="auth-sub">Personal-Financing</p>
+        </div>
+
+        {% if error %}
+        <div class="auth-error" role="alert">Username atau password salah.</div>
+        {% endif %}
+
+        <form method="post" action="/login" class="form auth-form" id="login-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="next" value="{{ next }}">
+
+            <div class="form-group">
+                <label class="form-label" for="username">Username</label>
+                <input type="text" name="username" id="username" class="input"
+                       placeholder="username" required autocomplete="username"
+                       autofocus maxlength="50">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" name="password" id="password" class="input"
+                       placeholder="••••••••" required autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                <span>Masuk</span>
+                <span class="btn-spinner hidden" aria-hidden="true"></span>
+            </button>
+        </form>
+
+        <p class="auth-alt">Belum punya akun? <a href="/register" class="link-more">Daftar</a></p>
+    </div>
+</div>
+
+<script>
+(function () {
+    var form = document.getElementById('login-form');
+    if (!form) return;
+    form.addEventListener('submit', function () {
+        var btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+        btn.querySelector('.btn-spinner').classList.remove('hidden');
+    });
+})();
+</script>
+{% endblock %}

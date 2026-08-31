@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from app.database.db import get_db
+from app.api.deps import get_current_user, CurrentUser
 from app.models.models import Transaction, Account, Category, TransactionType
 from app.services.finance import create_transaction, delete_transaction
 from app.utils import format_rupiah, today_str
@@ -25,6 +26,13 @@ def _set_tx_display(tx):
         tx.category_icon = ""
 
 
+def _visible_accounts(db: Session, user_id: int):
+    """Own accounts + global master accounts (user_id NULL)."""
+    return db.query(Account).filter(
+        or_(Account.user_id == user_id, Account.user_id.is_(None))
+    ).order_by(Account.name).all()
+
+
 @router.get("/transactions", response_class=HTMLResponse)
 def list_transactions(
     request: Request,
@@ -34,12 +42,13 @@ def list_transactions(
     filter_category: str = "",
     search: str = "",
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     query = db.query(Transaction).options(
         joinedload(Transaction.account),
         joinedload(Transaction.category),
         joinedload(Transaction.transfer_to_account),
-    )
+    ).filter(Transaction.user_id == user.id)
     if filter_date_from:
         query = query.filter(Transaction.date >= date.fromisoformat(filter_date_from))
     if filter_date_to:
@@ -55,7 +64,7 @@ def list_transactions(
         )
 
     transactions = query.order_by(desc(Transaction.date), desc(Transaction.id)).limit(200).all()
-    accounts = db.query(Account).order_by(Account.name).all()
+    accounts = _visible_accounts(db, user.id)
     categories = db.query(Category).order_by(Category.name).all()
     for tx in transactions:
         _set_tx_display(tx)
@@ -71,8 +80,10 @@ def list_transactions(
 
 
 @router.get("/transactions/add", response_class=HTMLResponse)
-def add_transaction_form(request: Request, tx_type: str = "EXPENSE", db: Session = Depends(get_db)):
-    accounts = db.query(Account).order_by(Account.name).all()
+def add_transaction_form(request: Request, tx_type: str = "EXPENSE",
+                         db: Session = Depends(get_db),
+                         user: CurrentUser = Depends(get_current_user)):
+    accounts = _visible_accounts(db, user.id)
     categories = db.query(Category).filter(Category.type == TransactionType(tx_type)).order_by(Category.name).all()
     return templates.TemplateResponse(request, "transactions/add.html", { "accounts": accounts, "categories": categories,
         "tx_type": tx_type, "today": today_str(), "TransactionType": TransactionType,
@@ -86,6 +97,7 @@ def add_transaction(
     date_val: str = Form(...), description: str = Form(""),
     merchant: str = Form(""),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     try:
         amount_int = int(amount)
@@ -96,7 +108,7 @@ def add_transaction(
         raise HTTPException(status_code=400, detail="Amount must be positive")
     try:
         create_transaction(
-            db=db, type=TransactionType(type), amount=amount_int,
+            db=db, user_id=user.id, type=TransactionType(type), amount=amount_int,
             account_id=int(account_id),
             category_id=int(category_id) if category_id else None,
             date_val=tx_date, description=description.strip() if description else None,
@@ -109,11 +121,15 @@ def add_transaction(
 
 
 @router.get("/transactions/edit/{tx_id}", response_class=HTMLResponse)
-def edit_transaction_form(tx_id: int, request: Request, db: Session = Depends(get_db)):
-    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+def edit_transaction_form(tx_id: int, request: Request,
+                          db: Session = Depends(get_db),
+                          user: CurrentUser = Depends(get_current_user)):
+    tx = db.query(Transaction).filter(
+        Transaction.id == tx_id, Transaction.user_id == user.id
+    ).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    accounts = db.query(Account).order_by(Account.name).all()
+    accounts = _visible_accounts(db, user.id)
     categories = db.query(Category).order_by(Category.name).all()
     return templates.TemplateResponse(request, "transactions/edit.html", { "tx": tx, "accounts": accounts,
         "categories": categories, "TransactionType": TransactionType,
@@ -127,8 +143,11 @@ def edit_transaction(
     transfer_to_account_id: str = Form(""), date_val: str = Form(...),
     description: str = Form(""), merchant: str = Form(""),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
-    tx = db.query(Transaction).filter(Transaction.id == tx_id).first()
+    tx = db.query(Transaction).filter(
+        Transaction.id == tx_id, Transaction.user_id == user.id
+    ).first()
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
     try:
@@ -136,9 +155,9 @@ def edit_transaction(
         tx_date = date.fromisoformat(date_val)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid input")
-    delete_transaction(db, tx_id)
+    delete_transaction(db, tx_id, user.id)
     create_transaction(
-        db=db, type=TransactionType(type), amount=amount_int,
+        db=db, user_id=user.id, type=TransactionType(type), amount=amount_int,
         account_id=int(account_id),
         category_id=int(category_id) if category_id else None,
         date_val=tx_date, description=description.strip() if description else None,
@@ -149,6 +168,8 @@ def edit_transaction(
 
 
 @router.get("/transactions/delete/{tx_id}")
-def delete_tx(tx_id: int, db: Session = Depends(get_db)):
-    delete_transaction(db, tx_id)
+def delete_tx(tx_id: int, db: Session = Depends(get_db),
+              user: CurrentUser = Depends(get_current_user)):
+    if not delete_transaction(db, tx_id, user.id):
+        raise HTTPException(status_code=404, detail="Transaction not found")
     return RedirectResponse(url="/transactions", status_code=status.HTTP_303_SEE_OTHER)

@@ -3,8 +3,10 @@ import logging
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.exc import IntegrityError
+
+from app.auth.errors import NotAuthenticated
 
 logger = logging.getLogger("app.api.errors")
 
@@ -66,6 +68,7 @@ def _map_exceptions():
 
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(ApiError, _handle_api_error)
+    app.add_exception_handler(NotAuthenticated, _handle_not_authenticated)
     app.add_exception_handler(RequestValidationError, _handle_validation)
     app.add_exception_handler(IntegrityError, _handle_integrity)
     app.add_exception_handler(ValueError, _handle_value_error)
@@ -81,6 +84,15 @@ def register_exception_handlers(app: FastAPI) -> None:
 
 def _handle_api_error(request: Request, exc: ApiError) -> JSONResponse:
     return _error(exc.status_code, exc.code, exc.message)
+
+
+def _handle_not_authenticated(request: Request, exc: NotAuthenticated):
+    """HTML pages redirect to /login; API endpoints get a 401 JSON envelope."""
+    if request.url.path.startswith("/api/"):
+        return _error(401, "UNAUTHENTICATED", "Authentication required")
+    from urllib.parse import quote
+    next_path = quote(request.url.path)
+    return RedirectResponse(url=f"/login?next={next_path}", status_code=303)
 
 
 def _handle_validation(request: Request, exc: RequestValidationError) -> JSONResponse:

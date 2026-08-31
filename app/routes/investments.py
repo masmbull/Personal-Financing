@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.database.db import get_db
+from app.api.deps import get_current_user, CurrentUser
 from app.services import investments as investments_service
 from app.utils import format_rupiah, today_str
 from fastapi.templating import Jinja2Templates
@@ -13,9 +14,10 @@ router = APIRouter()
 
 
 @router.get("/investments", response_class=HTMLResponse)
-def list_investments(request: Request, db: Session = Depends(get_db)):
+def list_investments(request: Request, db: Session = Depends(get_db),
+                     user: CurrentUser = Depends(get_current_user)):
     items = [investments_service.to_response_dict(i)
-             for i in investments_service.list_investments(db)]
+             for i in investments_service.list_investments(db, user.id)]
     total_invested = sum(i["amount_invested"] for i in items)
     total_current = sum(i["current_value"] for i in items)
     total_return = total_current - total_invested
@@ -34,7 +36,8 @@ def list_investments(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/investments/create", response_class=HTMLResponse)
-def create_investment_form(request: Request):
+def create_investment_form(request: Request,
+                           user: CurrentUser = Depends(get_current_user)):
     return templates.TemplateResponse(request, "investments/create.html", { "today": today_str(),
         "INVESTMENT_TYPES": investments_service.INVESTMENT_TYPES,
     })
@@ -46,10 +49,11 @@ def create_investment(
     amount_invested: str = Form(...), current_value: str = Form(...),
     purchase_date: str = Form(""), notes: str = Form(""),
     icon: str = Form(""), db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     try:
         investments_service.create_investment(
-            db, name=name, investment_type=investment_type,
+            db, user_id=user.id, name=name, investment_type=investment_type,
             amount_invested=int(amount_invested),
             current_value=int(current_value),
             purchase_date=date.fromisoformat(purchase_date) if purchase_date else None,
@@ -61,9 +65,11 @@ def create_investment(
 
 
 @router.get("/investments/edit/{inv_id}", response_class=HTMLResponse)
-def edit_investment_form(inv_id: int, request: Request, db: Session = Depends(get_db)):
+def edit_investment_form(inv_id: int, request: Request,
+                         db: Session = Depends(get_db),
+                         user: CurrentUser = Depends(get_current_user)):
     try:
-        inv = investments_service.get_investment(db, inv_id)
+        inv = investments_service.get_investment(db, inv_id, user.id)
     except investments_service.InvestmentNotFound:
         raise HTTPException(status_code=404, detail="Investment not found")
     return templates.TemplateResponse(request, "investments/edit.html", { "inv": inv, "today": today_str(),
@@ -77,9 +83,10 @@ def edit_investment(
     amount_invested: str = Form(...), current_value: str = Form(...),
     purchase_date: str = Form(""), notes: str = Form(""),
     icon: str = Form(""), db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     try:
-        investments_service.update_investment(db, inv_id, {
+        investments_service.update_investment(db, inv_id, user.id, {
             "name": name.strip(), "investment_type": investment_type,
             "amount_invested": int(amount_invested),
             "current_value": int(current_value),
@@ -95,9 +102,10 @@ def edit_investment(
 
 
 @router.get("/investments/delete/{inv_id}")
-def delete_investment(inv_id: int, db: Session = Depends(get_db)):
+def delete_investment(inv_id: int, db: Session = Depends(get_db),
+                      user: CurrentUser = Depends(get_current_user)):
     try:
-        investments_service.delete_investment(db, inv_id)
+        investments_service.delete_investment(db, inv_id, user.id)
     except investments_service.InvestmentNotFound:
         raise HTTPException(status_code=404, detail="Investment not found")
     return RedirectResponse(url="/investments", status_code=status.HTTP_303_SEE_OTHER)

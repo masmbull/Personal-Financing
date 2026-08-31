@@ -10,6 +10,8 @@ from app.models.models import Account, Category, AccountType, TransactionType
 from app.routes import dashboard, transactions, categories, reports, transfer, debts, bills, budgets, savings, assets_list, investments, receipts_ui, misc
 from app.api.router import api_v1_router
 from app.api.errors import register_exception_handlers
+from app.auth.router import router as auth_router
+from app.middleware import UserContextMiddleware
 from app.config import get_settings
 
 settings = get_settings()
@@ -106,13 +108,28 @@ def seed_default_data():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.models.models import User
+
     Base.metadata.create_all(bind=engine)
+    # Legacy DB safety: add user_id columns where missing (idempotent),
+    # then claim legacy rows for the bootstrap admin when one exists.
+    from app.migrations import claim_legacy_rows, run_migrations
+    legacy_altered = run_migrations(engine)
     seed_default_data()
     from app.database.db import SessionLocal as _SL
-    from app.services.reports import record_daily_snapshot
+    from app.services.users import bootstrap_admin
     _db = _SL()
     try:
-        record_daily_snapshot(_db)
+        admin = bootstrap_admin(_db)
+        if legacy_altered and admin is not None:
+            claim_legacy_rows(_db, admin.id)
+        # Per-user daily net-worth snapshot for the oldest active user.
+        first_user = _db.query(User).filter(
+            User.is_active == 1
+        ).order_by(User.id).first()
+        if first_user is not None:
+            from app.services.reports import record_daily_snapshot
+            record_daily_snapshot(_db, first_user.id)
     finally:
         _db.close()
     yield
@@ -138,6 +155,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
+# Soft session context for templates (enforcement happens in route deps).
+app.add_middleware(UserContextMiddleware)
 
 register_exception_handlers(app)
 
@@ -145,6 +164,9 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # REST API - primary interface
 app.include_router(api_v1_router)
+
+# Authentication pages
+app.include_router(auth_router)
 
 # Legacy Jinja web UI - kept for backward compatibility
 app.include_router(dashboard.router)

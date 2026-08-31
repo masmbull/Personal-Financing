@@ -33,9 +33,11 @@ def list_transactions(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     items, total, page, page_size = tx_service.list_transactions(
-        db, type=type.value if type else None,
+        db, user_id=user.id,
+        type=type.value if type else None,
         account_id=account_id, category_id=category_id,
         date_from=date_from, date_to=date_to,
         merchant=merchant, search=search,
@@ -58,10 +60,12 @@ def list_transactions(
     responses={201: {"description": "Created"}, 400: {"description": "Invalid input"}},
 )
 def create_transaction_endpoint(payload: TransactionCreate,
-                                db: Session = Depends(get_db)):
+                                db: Session = Depends(get_db),
+                                user: CurrentUser = Depends(get_current_user)):
     try:
         tx = create_transaction(
-            db=db, type=payload.type, amount=payload.amount,
+            db=db, user_id=user.id,
+            type=payload.type, amount=payload.amount,
             account_id=payload.account_id,
             category_id=payload.category_id,
             date_val=payload.date or date.today(),
@@ -79,8 +83,9 @@ def create_transaction_endpoint(payload: TransactionCreate,
     summary="Get one transaction",
     responses={404: {"description": "Not found"}},
 )
-def get_transaction(transaction_id: int, db: Session = Depends(get_db)):
-    return TransactionResponse(**tx_service.get_transaction(db, transaction_id))
+def get_transaction(transaction_id: int, db: Session = Depends(get_db),
+                    user: CurrentUser = Depends(get_current_user)):
+    return TransactionResponse(**tx_service.get_transaction(db, transaction_id, user.id))
 
 
 @router.put(
@@ -90,11 +95,12 @@ def get_transaction(transaction_id: int, db: Session = Depends(get_db)):
     responses={404: {"description": "Not found"}, 400: {"description": "Invalid input"}},
 )
 def update_transaction(transaction_id: int, payload: TransactionUpdate,
-                       db: Session = Depends(get_db)):
+                       db: Session = Depends(get_db),
+                       user: CurrentUser = Depends(get_current_user)):
     fields = payload.model_dump(exclude_unset=True)
     if "type" in fields and fields["type"] is not None:
         fields["type"] = fields["type"]
-    return TransactionResponse(**tx_service.update_transaction(db, transaction_id, fields))
+    return TransactionResponse(**tx_service.update_transaction(db, transaction_id, fields, user.id))
 
 
 @router.delete(
@@ -102,7 +108,8 @@ def update_transaction(transaction_id: int, payload: TransactionUpdate,
     summary="Delete a transaction",
     responses={404: {"description": "Not found"}},
 )
-def delete_transaction_endpoint(transaction_id: int, db: Session = Depends(get_db)):
-    tx_service.get_transaction(db, transaction_id)  # 404 when missing
-    delete_transaction(db, transaction_id)
+def delete_transaction_endpoint(transaction_id: int, db: Session = Depends(get_db),
+                                user: CurrentUser = Depends(get_current_user)):
+    tx_service.get_transaction(db, transaction_id, user.id)  # 404 when missing or not owned
+    delete_transaction(db, transaction_id, user.id)
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)

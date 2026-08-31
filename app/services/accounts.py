@@ -36,22 +36,44 @@ class AccountInUse(Exception):
     """Deleting would break existing transaction references -> HTTP 409."""
 
 
-def get_account(db: Session, account_id: int) -> Account | None:
-    return db.query(Account).filter(Account.id == account_id).first()
+def _visible_account_query(db: Session, user_id: int):
+    """Own accounts + global master accounts (user_id NULL)."""
+    return db.query(Account).filter(
+        (Account.user_id == user_id) | (Account.user_id.is_(None))
+    )
 
 
-def get_account_or_raise(db: Session, account_id: int) -> Account:
-    acc = get_account(db, account_id)
+def get_account(db: Session, account_id: int, user_id: int) -> Account | None:
+    return (
+        _visible_account_query(db, user_id)
+        .filter(Account.id == account_id)
+        .first()
+    )
+
+
+def get_account_or_raise(db: Session, account_id: int, user_id: int) -> Account:
+    acc = get_account(db, account_id, user_id)
     if not acc:
         raise AccountNotFound(f"Account {account_id} not found")
     return acc
 
 
-def list_accounts(db: Session):
-    return db.query(Account).order_by(Account.name).all()
+def get_own_account(db: Session, account_id: int, user_id: int) -> Account | None:
+    """Strictly OWN account - used by update/delete so master rows stay safe."""
+    return db.query(Account).filter(
+        Account.id == account_id, Account.user_id == user_id
+    ).first()
 
 
-def create_account(db: Session, *, name: str, type_: AccountType,
+def list_accounts(db: Session, user_id: int):
+    return (
+        _visible_account_query(db, user_id)
+        .order_by(Account.name)
+        .all()
+    )
+
+
+def create_account(db: Session, *, user_id: int, name: str, type_: AccountType,
                    initial_balance: int = 0, icon: str | None = None,
                    institution: str | None = None,
                    account_number: str | None = None,
@@ -59,7 +81,7 @@ def create_account(db: Session, *, name: str, type_: AccountType,
     if not name or not name.strip():
         raise ValueError("Account name required")
     acct = Account(
-        name=name.strip(), type=type_,
+        user_id=user_id, name=name.strip(), type=type_,
         initial_balance=initial_balance, current_balance=initial_balance,
         icon=icon or None, institution=institution,
         account_number=account_number, color=color,
@@ -70,8 +92,11 @@ def create_account(db: Session, *, name: str, type_: AccountType,
     return acct
 
 
-def update_account(db: Session, account_id: int, **fields) -> Account:
-    acc = get_account_or_raise(db, account_id)
+def update_account(db: Session, account_id: int, user_id: int, **fields) -> Account:
+    """Update only OWN accounts; master/global accounts are immutable."""
+    acc = get_own_account(db, account_id, user_id)
+    if not acc:
+        raise AccountNotFound(f"Account {account_id} not found")
     initial_changed = False
     for key, value in fields.items():
         if value is None:
@@ -85,15 +110,18 @@ def update_account(db: Session, account_id: int, **fields) -> Account:
             setattr(acc, key, value)
     db.commit()
     if initial_changed:
-        recalculate_account_balance(db, account_id)
+        recalculate_account_balance(db, account_id, user_id)
     db.refresh(acc)
     return acc
 
 
-def delete_account(db: Session, account_id: int) -> None:
+def delete_account(db: Session, account_id: int, user_id: int) -> None:
     from app.models.models import Transaction
-    acc = get_account_or_raise(db, account_id)
+    acc = get_own_account(db, account_id, user_id)
+    if not acc:
+        raise AccountNotFound(f"Account {account_id} not found")
     used = db.query(Transaction.id).filter(
+        Transaction.user_id == user_id,
         (Transaction.account_id == account_id) |
         (Transaction.transfer_to_account_id == account_id)
     ).first()
@@ -103,9 +131,9 @@ def delete_account(db: Session, account_id: int) -> None:
     db.commit()
 
 
-def list_accounts_grouped(db: Session) -> list[dict]:
+def list_accounts_grouped(db: Session, user_id: int) -> list[dict]:
     """Group accounts by category with per-group totals (HTML accounts page)."""
-    accounts = list_accounts(db)
+    accounts = list_accounts(db, user_id)
     groups = []
     for group_name, types in ACCOUNT_GROUPS:
         members = [a for a in accounts if a.type in types]
@@ -117,8 +145,8 @@ def list_accounts_grouped(db: Session) -> list[dict]:
     return groups
 
 
-def compute_net_worth(db: Session) -> dict:
-    """Single source of truth for net-worth math.
+def compute_net_worth(db: Session, user_id: int) -> dict:
+    """Single source of truth for net-worth math - strictly per-user.
 
     total_assets      = balances of asset-side accounts + asset records +
                         investment holdings
@@ -130,17 +158,23 @@ def compute_net_worth(db: Session) -> dict:
 
     from app.models.models import AssetRecord, Investment
 
-    accounts = db.query(Account).all()
+    accounts = db.query(Account).filter(Account.user_id == user_id).all()
     total_assets = sum(
         a.current_balance for a in accounts if a.type in ASSET_ACCOUNT_TYPES
     )
-    total_assets += db.query(func.coalesce(func.sum(AssetRecord.current_value), 0)).scalar()
-    total_assets += db.query(func.coalesce(func.sum(Investment.current_value), 0)).scalar()
+    total_assets += db.query(func.coalesce(func.sum(AssetRecord.current_value), 0)).filter(
+        AssetRecord.user_id == user_id
+    ).scalar()
+    total_assets += db.query(func.coalesce(func.sum(Investment.current_value), 0)).filter(
+        Investment.user_id == user_id
+    ).scalar()
 
     unpaid_debt = db.query(func.coalesce(func.sum(Debt.remaining_amount), 0)).filter(
+        Debt.user_id == user_id,
         Debt.type == DebtType.PAYABLE, Debt.status != DebtStatus.PAID,
     ).scalar()
     total_receivables = db.query(func.coalesce(func.sum(Debt.remaining_amount), 0)).filter(
+        Debt.user_id == user_id,
         Debt.type == DebtType.RECEIVABLE, Debt.status != DebtStatus.PAID,
     ).scalar()
 

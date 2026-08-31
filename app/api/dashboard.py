@@ -27,10 +27,11 @@ def dashboard(
     bills_days_ahead: int = Query(7, ge=0, le=60),
     recent_limit: int = Query(10, ge=1, le=50),
     db: Session = Depends(get_db),
-    _user: CurrentUser = Depends(get_current_user),
+    user: CurrentUser = Depends(get_current_user),
 ):
     payload = build_dashboard(
-        db, bills_days_ahead=bills_days_ahead, recent_limit=recent_limit
+        db, user_id=user.id, bills_days_ahead=bills_days_ahead,
+        recent_limit=recent_limit
     )
     core = {
         k: v for k, v in payload.items()

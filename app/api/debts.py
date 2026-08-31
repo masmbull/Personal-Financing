@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Response, status as http_status
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user, CurrentUser
 from app.database.db import get_db
 from app.models.models import DebtType
 from app.schemas.debt import (
@@ -42,8 +43,9 @@ def _debt_out(d) -> DebtResponse:
                 "Overdue open items are flagged automatically.",
 )
 def list_debts(type: Optional[DebtType] = Query(None),
-               db: Session = Depends(get_db)):
-    items = [_debt_out(d) for d in debts_service.list_debts(db, type)]
+               db: Session = Depends(get_db),
+               user: CurrentUser = Depends(get_current_user)):
+    items = [_debt_out(d) for d in debts_service.list_debts(db, type, user.id)]
     return DebtListResponse(items=items, total=len(items))
 
 
@@ -52,9 +54,10 @@ def list_debts(type: Optional[DebtType] = Query(None),
     summary="Record a new debt",
     responses={400: {"description": "Invalid input"}},
 )
-def create_debt(payload: DebtCreate, db: Session = Depends(get_db)):
+def create_debt(payload: DebtCreate, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
     debt = debts_service.create_debt(
-        db, type=payload.type, person_name=payload.person_name,
+        db, user_id=user.id, type=payload.type, person_name=payload.person_name,
         principal_amount=payload.principal_amount,
         description=payload.description or "",
         due_date=payload.due_date,
@@ -73,8 +76,9 @@ def create_debt(payload: DebtCreate, db: Session = Depends(get_db)):
     summary="Get one debt (with payment history)",
     responses={404: {"description": "Not found"}},
 )
-def get_debt(debt_id: int, db: Session = Depends(get_db)):
-    return _debt_out(debts_service.get_debt(db, debt_id))
+def get_debt(debt_id: int, db: Session = Depends(get_db),
+             user: CurrentUser = Depends(get_current_user)):
+    return _debt_out(debts_service.get_debt(db, debt_id, user.id))
 
 
 @router.put(
@@ -83,9 +87,10 @@ def get_debt(debt_id: int, db: Session = Depends(get_db)):
     description="Editable metadata only; amounts are mutated via payments.",
     responses={404: {"description": "Not found"}},
 )
-def update_debt(debt_id: int, payload: DebtUpdate, db: Session = Depends(get_db)):
+def update_debt(debt_id: int, payload: DebtUpdate, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
     debt = debts_service.update_debt(
-        db, debt_id, payload.model_dump(exclude_unset=True)
+        db, debt_id, user.id, payload.model_dump(exclude_unset=True)
     )
     return _debt_out(debt)
 
@@ -95,8 +100,9 @@ def update_debt(debt_id: int, payload: DebtUpdate, db: Session = Depends(get_db)
     summary="Delete a debt",
     responses={404: {"description": "Not found"}},
 )
-def delete_debt(debt_id: int, db: Session = Depends(get_db)):
-    debts_service.delete_debt(db, debt_id)
+def delete_debt(debt_id: int, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
+    debts_service.delete_debt(db, debt_id, user.id)
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
@@ -117,10 +123,11 @@ def delete_debt(debt_id: int, db: Session = Depends(get_db)):
     },
 )
 def pay_debt(debt_id: int, payload: DebtPaymentCreate,
-             db: Session = Depends(get_db)):
+             db: Session = Depends(get_db),
+             user: CurrentUser = Depends(get_current_user)):
     from datetime import date
     debt, _payment = debts_service.pay_debt(
-        db, debt_id, amount=payload.amount,
+        db, debt_id, user.id, amount=payload.amount,
         account_id=payload.account_id,
         payment_date=payload.payment_date or date.today(),
         notes=payload.notes,

@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from app.database.db import get_db
+from app.api.deps import get_current_user, CurrentUser
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
@@ -21,6 +22,6 @@ MORE_LINKS = [
 
 
 @router.get("/more", response_class=HTMLResponse)
-def more_page(request: Request):
+def more_page(request: Request, user: CurrentUser = Depends(get_current_user)):
     return templates.TemplateResponse(request, "more.html", { "links": MORE_LINKS,
     })

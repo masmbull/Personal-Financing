@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.database.db import get_db
+from app.api.deps import get_current_user, CurrentUser
 from app.services import savings as savings_service
 from app.utils import format_rupiah
 from fastapi.templating import Jinja2Templates
@@ -11,8 +12,9 @@ router = APIRouter()
 
 
 @router.get("/savings", response_class=HTMLResponse)
-def list_savings(request: Request, db: Session = Depends(get_db)):
-    goals = savings_service.list_goals(db)
+def list_savings(request: Request, db: Session = Depends(get_db),
+                 user: CurrentUser = Depends(get_current_user)):
+    goals = savings_service.list_goals(db, user.id)
     total_target = sum(g.target_amount for g in goals)
     total_saved = sum(g.current_amount for g in goals)
     return templates.TemplateResponse(request, "savings/list.html", { "goals": goals,
@@ -22,7 +24,8 @@ def list_savings(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/savings/create", response_class=HTMLResponse)
-def create_savings_form(request: Request):
+def create_savings_form(request: Request,
+                        user: CurrentUser = Depends(get_current_user)):
     return templates.TemplateResponse("savings/create.html", {"request": request})
 
 
@@ -31,10 +34,11 @@ def create_savings(
     name: str = Form(...), target_amount: str = Form(...),
     icon: str = Form(""), notes: str = Form(""),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     try:
         savings_service.create_goal(
-            db, name=name, target_amount=target_amount,
+            db, user_id=user.id, name=name, target_amount=target_amount,
             icon=icon, notes=notes,
         )
     except ValueError as e:
@@ -46,10 +50,11 @@ def create_savings(
 def deposit_savings(
     goal_id: int, amount: str = Form(...), notes: str = Form(""),
     related_account_id: str = Form(""), db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     try:
         savings_service.deposit(
-            db, goal_id, amount=int(amount),
+            db, goal_id, user_id=user.id, amount=int(amount),
             related_account_id=int(related_account_id) if related_account_id else None,
             notes=notes,
         )
@@ -64,10 +69,11 @@ def deposit_savings(
 def withdraw_savings(
     goal_id: int, amount: str = Form(...), notes: str = Form(""),
     related_account_id: str = Form(""), db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     try:
         savings_service.withdraw(
-            db, goal_id, amount=int(amount),
+            db, goal_id, user_id=user.id, amount=int(amount),
             related_account_id=int(related_account_id) if related_account_id else None,
             notes=notes,
         )
@@ -79,9 +85,10 @@ def withdraw_savings(
 
 
 @router.get("/savings/delete/{goal_id}")
-def delete_savings(goal_id: int, db: Session = Depends(get_db)):
+def delete_savings(goal_id: int, db: Session = Depends(get_db),
+                   user: CurrentUser = Depends(get_current_user)):
     try:
-        savings_service.delete_goal(db, goal_id)
+        savings_service.delete_goal(db, goal_id, user.id)
     except savings_service.GoalNotFound:
         raise HTTPException(status_code=404, detail="Goal not found")
     return RedirectResponse(url="/savings", status_code=status.HTTP_303_SEE_OTHER)

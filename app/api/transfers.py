@@ -3,6 +3,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, status as http_status
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user, CurrentUser
 from app.database.db import get_db
 from app.models.models import TransactionType
 from app.schemas.transfer import TransferCreate, TransferResponse
@@ -25,9 +26,10 @@ router = APIRouter(prefix="/transfers", tags=["transfers"])
         400: {"description": "Invalid transfer (same account, unknown account, bad amount)"},
     },
 )
-def create_transfer(payload: TransferCreate, db: Session = Depends(get_db)):
+def create_transfer(payload: TransferCreate, db: Session = Depends(get_db),
+                    user: CurrentUser = Depends(get_current_user)):
     tx = create_transaction(
-        db=db, type=TransactionType.TRANSFER, amount=payload.amount,
+        db=db, user_id=user.id, type=TransactionType.TRANSFER, amount=payload.amount,
         account_id=payload.from_account_id, category_id=None,
         date_val=payload.date or date.today(),
         description=payload.description,

@@ -4,15 +4,21 @@ import shutil
 
 # Point uploads at a scratch dir BEFORE app.config is imported anywhere.
 os.environ.setdefault("RECEIPT_UPLOAD_DIR", "data/receipts_test")
+# Fast test hashing - production default (600k iterations) is untouched.
+os.environ.setdefault("PF_PBKDF2_ITERATIONS", "2000")
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.api.deps import CurrentUser, get_current_user
+from app.auth.security import hash_password
 from app.database.db import Base, get_db
 from app.main import app
-from app.models.models import Account, Category, AccountType, TransactionType
+from app.models.models import (
+    Account, AccountType, Category, TransactionType, User,
+)
 
 TEST_DB_URL = "sqlite:///./test.db"
 engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
@@ -32,6 +38,27 @@ client = TestClient(app)
 
 RECEIPT_TEST_DIR = "data/receipts_test"
 
+# Default users used by the shared test client. PBKDF2 is intentionally
+# hashed ONCE at import to keep the suite fast; real login flows in
+# tests/test_auth.py re-verify against this same hash.
+DEFAULT_USER = "bob"
+DEFAULT_USER_2 = "alice"
+TEST_PASSWORD = "testpass-123"
+TEST_PASSWORD_HASH = hash_password(TEST_PASSWORD)
+
+
+def _default_user_ctx(user_id: int) -> CurrentUser:
+    return CurrentUser(id=user_id, username=DEFAULT_USER,
+                       display_name="Bob (test)")
+
+
+def default_user_id() -> int:
+    """Resolve the default test user's id against the CURRENT fresh DB."""
+    db = TestingSessionLocal()
+    uid = db.query(User).filter(User.username == DEFAULT_USER).first().id
+    db.close()
+    return uid
+
 
 @pytest.fixture(autouse=True)
 def setup_db():
@@ -39,19 +66,28 @@ def setup_db():
     Base.metadata.create_all(bind=engine)
     shutil.rmtree(RECEIPT_TEST_DIR, ignore_errors=True)
     db = TestingSessionLocal()
+    bob = User(username=DEFAULT_USER, password_hash=TEST_PASSWORD_HASH, is_active=1)
+    alice = User(username=DEFAULT_USER_2, password_hash=TEST_PASSWORD_HASH, is_active=1)
+    db.add_all([bob, alice])
+    db.flush()
+    _bob_id = bob.id  # capture before commit/close; ORM attrs die with the session
     db.add(Category(name="Makan & Minum", type=TransactionType.EXPENSE, icon="X"))
     db.add(Category(name="Transportasi", type=TransactionType.EXPENSE, icon="X"))
     db.add(Category(name="Belanja", type=TransactionType.EXPENSE, icon="X"))
     db.add(Category(name="Gaji", type=TransactionType.INCOME, icon="Y"))
     db.add(Category(name="Freelance", type=TransactionType.INCOME, icon="Y"))
-    db.add(Account(name="BCA", type=AccountType.BANK,
+    db.add(Account(name="BCA", user_id=bob.id, type=AccountType.BANK,
                    initial_balance=1_000_000, current_balance=1_000_000))
-    db.add(Account(name="Cash", type=AccountType.CASH,
+    db.add(Account(name="Cash", user_id=bob.id, type=AccountType.CASH,
                    initial_balance=500_000, current_balance=500_000))
-    db.add(Account(name="DANA", type=AccountType.E_WALLET,
+    db.add(Account(name="DANA", user_id=bob.id, type=AccountType.E_WALLET,
                    initial_balance=0, current_balance=0))
     db.commit()
     db.close()
+
+    # Existing tests were written pre-auth; keep them green by letting the
+    # whole suite run as the default user. test_auth.py exercises REAL auth.
+    app.dependency_overrides[get_current_user] = lambda: _default_user_ctx(_bob_id)
     yield
     shutil.rmtree(RECEIPT_TEST_DIR, ignore_errors=True)
 

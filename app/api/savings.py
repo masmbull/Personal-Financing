@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Response, status as http_status
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user, CurrentUser
 from app.database.db import get_db
 from app.schemas.savings import (
     SavingsGoalCreate, SavingsGoalListResponse, SavingsGoalResponse,
@@ -20,8 +21,9 @@ def _out(goal) -> SavingsGoalResponse:
     "", response_model=SavingsGoalListResponse,
     summary="List savings goals",
 )
-def list_goals(active_only: bool = True, db: Session = Depends(get_db)):
-    items = [_out(g) for g in savings_service.list_goals(db, active_only)]
+def list_goals(active_only: bool = True, db: Session = Depends(get_db),
+               user: CurrentUser = Depends(get_current_user)):
+    items = [_out(g) for g in savings_service.list_goals(db, user.id, active_only)]
     return SavingsGoalListResponse(items=items, total=len(items))
 
 
@@ -30,9 +32,10 @@ def list_goals(active_only: bool = True, db: Session = Depends(get_db)):
     status_code=http_status.HTTP_201_CREATED,
     summary="Create a savings goal",
 )
-def create_goal(payload: SavingsGoalCreate, db: Session = Depends(get_db)):
+def create_goal(payload: SavingsGoalCreate, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
     goal = savings_service.create_goal(
-        db, name=payload.name, target_amount=payload.target_amount,
+        db, user_id=user.id, name=payload.name, target_amount=payload.target_amount,
         icon=payload.icon, color=payload.color, notes=payload.notes or "",
     )
     return _out(goal)
@@ -43,8 +46,9 @@ def create_goal(payload: SavingsGoalCreate, db: Session = Depends(get_db)):
     summary="Get one goal with progress",
     responses={404: {"description": "Not found"}},
 )
-def get_goal(goal_id: int, db: Session = Depends(get_db)):
-    return _out(savings_service.get_goal(db, goal_id))
+def get_goal(goal_id: int, db: Session = Depends(get_db),
+             user: CurrentUser = Depends(get_current_user)):
+    return _out(savings_service.get_goal(db, goal_id, user.id))
 
 
 @router.put(
@@ -53,9 +57,10 @@ def get_goal(goal_id: int, db: Session = Depends(get_db)):
     responses={404: {"description": "Not found"}},
 )
 def update_goal(goal_id: int, payload: SavingsGoalUpdate,
-                db: Session = Depends(get_db)):
+                db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
     goal = savings_service.update_goal(
-        db, goal_id, payload.model_dump(exclude_unset=True)
+        db, goal_id, user.id, payload.model_dump(exclude_unset=True)
     )
     return _out(goal)
 
@@ -65,8 +70,9 @@ def update_goal(goal_id: int, payload: SavingsGoalUpdate,
     summary="Delete a goal",
     responses={404: {"description": "Not found"}},
 )
-def delete_goal(goal_id: int, db: Session = Depends(get_db)):
-    savings_service.delete_goal(db, goal_id)
+def delete_goal(goal_id: int, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
+    savings_service.delete_goal(db, goal_id, user.id)
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
@@ -80,9 +86,10 @@ def delete_goal(goal_id: int, db: Session = Depends(get_db)):
     responses={400: {"description": "Invalid amount"}, 404: {"description": "Not found"}},
 )
 def deposit(goal_id: int, payload: SavingsOperationRequest,
-            db: Session = Depends(get_db)):
+            db: Session = Depends(get_db),
+            user: CurrentUser = Depends(get_current_user)):
     goal = savings_service.deposit(
-        db, goal_id, amount=payload.amount,
+        db, goal_id, user_id=user.id, amount=payload.amount,
         related_account_id=payload.related_account_id, notes=payload.notes,
     )
     return _out(goal)
@@ -95,9 +102,10 @@ def deposit(goal_id: int, payload: SavingsOperationRequest,
     responses={400: {"description": "Exceeds saved amount"}, 404: {"description": "Not found"}},
 )
 def withdraw(goal_id: int, payload: SavingsOperationRequest,
-             db: Session = Depends(get_db)):
+             db: Session = Depends(get_db),
+             user: CurrentUser = Depends(get_current_user)):
     goal = savings_service.withdraw(
-        db, goal_id, amount=payload.amount,
+        db, goal_id, user_id=user.id, amount=payload.amount,
         related_account_id=payload.related_account_id, notes=payload.notes,
     )
     return _out(goal)

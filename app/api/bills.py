@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Response, status as http_status
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_current_user, CurrentUser
 from app.database.db import get_db
 from app.schemas.bill import (
     BillCreate, BillListResponse, BillPayRequest, BillPaymentResponse,
@@ -32,8 +33,9 @@ def _bill_out(bill) -> BillResponse:
     description="Each bill includes its calculated next_due_date.",
 )
 def list_bills(active_only: bool = Query(True),
-               db: Session = Depends(get_db)):
-    items = [_bill_out(b) for b in bills_service.list_bills(db, active_only)]
+               db: Session = Depends(get_db),
+               user: CurrentUser = Depends(get_current_user)):
+    items = [_bill_out(b) for b in bills_service.list_bills(db, user.id, active_only)]
     return BillListResponse(items=items, total=len(items))
 
 
@@ -41,9 +43,10 @@ def list_bills(active_only: bool = Query(True),
     "", response_model=BillResponse, status_code=http_status.HTTP_201_CREATED,
     summary="Create a recurring bill",
 )
-def create_bill(payload: BillCreate, db: Session = Depends(get_db)):
+def create_bill(payload: BillCreate, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
     bill = bills_service.create_bill(
-        db, name=payload.name, amount=payload.amount,
+        db, user_id=user.id, name=payload.name, amount=payload.amount,
         frequency=payload.frequency, category_id=payload.category_id,
         account_id=payload.account_id, due_day=payload.due_day,
         auto_create=payload.auto_create, notes=payload.notes or "",
@@ -55,8 +58,9 @@ def create_bill(payload: BillCreate, db: Session = Depends(get_db)):
     "/{bill_id}", response_model=BillResponse,
     summary="Get one bill", responses={404: {"description": "Not found"}},
 )
-def get_bill(bill_id: int, db: Session = Depends(get_db)):
-    return _bill_out(bills_service.get_bill(db, bill_id))
+def get_bill(bill_id: int, db: Session = Depends(get_db),
+             user: CurrentUser = Depends(get_current_user)):
+    return _bill_out(bills_service.get_bill(db, bill_id, user.id))
 
 
 @router.put(
@@ -64,9 +68,10 @@ def get_bill(bill_id: int, db: Session = Depends(get_db)):
     summary="Update a bill (partial)",
     responses={404: {"description": "Not found"}},
 )
-def update_bill(bill_id: int, payload: BillUpdate, db: Session = Depends(get_db)):
+def update_bill(bill_id: int, payload: BillUpdate, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
     bill = bills_service.update_bill(
-        db, bill_id, payload.model_dump(exclude_unset=True)
+        db, bill_id, user.id, payload.model_dump(exclude_unset=True)
     )
     return _bill_out(bill)
 
@@ -82,9 +87,10 @@ def update_bill(bill_id: int, payload: BillUpdate, db: Session = Depends(get_db)
     ),
     responses={201: {"description": "Paid"}, 404: {"description": "Not found"}},
 )
-def pay_bill(bill_id: int, payload: BillPayRequest, db: Session = Depends(get_db)):
+def pay_bill(bill_id: int, payload: BillPayRequest, db: Session = Depends(get_db),
+             user: CurrentUser = Depends(get_current_user)):
     _bill, payment = bills_service.pay_bill(
-        db, bill_id, amount=payload.amount, account_id=payload.account_id,
+        db, bill_id, user.id, amount=payload.amount, account_id=payload.account_id,
         pay_date=payload.pay_date or date.today(),
     )
     return BillPaymentResponse(
@@ -98,6 +104,7 @@ def pay_bill(bill_id: int, payload: BillPayRequest, db: Session = Depends(get_db
     summary="Delete a bill",
     responses={404: {"description": "Not found"}},
 )
-def delete_bill(bill_id: int, db: Session = Depends(get_db)):
-    bills_service.delete_bill(db, bill_id)
+def delete_bill(bill_id: int, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
+    bills_service.delete_bill(db, bill_id, user.id)
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)

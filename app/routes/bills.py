@@ -4,18 +4,21 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.database.db import get_db
+from app.api.deps import get_current_user, CurrentUser
 from app.models.models import BillFrequency, Category, Account, TransactionType
 from app.services import bills as bills_service
 from app.utils import format_rupiah, today_str
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import or_
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
 
 
 @router.get("/bills", response_class=HTMLResponse)
-def list_bills(request: Request, db: Session = Depends(get_db)):
-    upcoming = bills_service.with_next_due(db)
+def list_bills(request: Request, db: Session = Depends(get_db),
+               user: CurrentUser = Depends(get_current_user)):
+    upcoming = bills_service.with_next_due(db, user.id)
     return templates.TemplateResponse(request, "bills/list.html", { "upcoming": upcoming,
         "format_rupiah": format_rupiah, "BillFrequency": BillFrequency,
         "today": date.today(),
@@ -23,13 +26,16 @@ def list_bills(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/bills/create", response_class=HTMLResponse)
-def create_bill_form(request: Request, db: Session = Depends(get_db)):
+def create_bill_form(request: Request, db: Session = Depends(get_db),
+                     user: CurrentUser = Depends(get_current_user)):
     categories = (
         db.query(Category)
         .filter(Category.type == TransactionType.EXPENSE)
         .order_by(Category.name).all()
     )
-    accounts = db.query(Account).order_by(Account.name).all()
+    accounts = db.query(Account).filter(
+        (Account.user_id == user.id) | (Account.user_id.is_(None))
+    ).order_by(Account.name).all()
     return templates.TemplateResponse(request, "bills/create.html", { "categories": categories, "accounts": accounts,
         "BillFrequency": BillFrequency,
     })
@@ -41,10 +47,11 @@ def create_bill(
     frequency: str = Form("MONTHLY"), due_day: str = Form(""),
     category_id: str = Form(""), account_id: str = Form(""),
     notes: str = Form(""), db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     try:
         bills_service.create_bill(
-            db, name=name, amount=int(amount), frequency=BillFrequency(frequency),
+            db, user_id=user.id, name=name, amount=int(amount), frequency=BillFrequency(frequency),
             due_day=int(due_day) if due_day else None,
             category_id=int(category_id) if category_id else None,
             account_id=int(account_id) if account_id else None,
@@ -59,10 +66,11 @@ def create_bill(
 def mark_bill_paid(
     bill_id: int, amount: str = Form(""), account_id: str = Form(""),
     date_val: str = Form(""), db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     try:
         bills_service.pay_bill(
-            db, bill_id,
+            db, bill_id, user.id,
             amount=int(amount) if amount else None,
             account_id=int(account_id) if account_id else None,
             pay_date=date.fromisoformat(date_val) if date_val else None,
@@ -75,9 +83,10 @@ def mark_bill_paid(
 
 
 @router.get("/bills/delete/{bill_id}")
-def delete_bill(bill_id: int, db: Session = Depends(get_db)):
+def delete_bill(bill_id: int, db: Session = Depends(get_db),
+                user: CurrentUser = Depends(get_current_user)):
     try:
-        bills_service.delete_bill(db, bill_id)
+        bills_service.delete_bill(db, bill_id, user.id)
     except bills_service.BillNotFound:
         raise HTTPException(status_code=404, detail="Bill not found")
     return RedirectResponse(url="/bills", status_code=status.HTTP_303_SEE_OTHER)

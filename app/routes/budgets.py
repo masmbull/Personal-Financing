@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.database.db import get_db
+from app.api.deps import get_current_user, CurrentUser
 from app.services import budgets as budgets_service
 from app.utils import format_rupiah
 from datetime import date
@@ -12,9 +13,10 @@ router = APIRouter()
 
 
 @router.get("/budgets", response_class=HTMLResponse)
-def list_budgets(request: Request, db: Session = Depends(get_db)):
+def list_budgets(request: Request, db: Session = Depends(get_db),
+                 user: CurrentUser = Depends(get_current_user)):
     today = date.today()
-    budget_data = budgets_service.list_with_spending(db, today.year, today.month)
+    budget_data = budgets_service.list_with_spending(db, today.year, today.month, user.id)
     expense_cats = budgets_service.expense_categories(db)
     return templates.TemplateResponse(request, "budgets/list.html", { "budget_data": budget_data,
         "format_rupiah": format_rupiah, "expense_cats": expense_cats,
@@ -27,10 +29,11 @@ def create_budget(
     category_id: str = Form(...), amount: str = Form(...),
     month: str = Form(...), year: str = Form(...),
     db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
 ):
     try:
         budgets_service.set_budget(
-            db, category_id=int(category_id), amount=int(amount),
+            db, user_id=user.id, category_id=int(category_id), amount=int(amount),
             month=int(month), year=int(year),
         )
     except ValueError as e:
@@ -39,9 +42,10 @@ def create_budget(
 
 
 @router.get("/budgets/delete/{budget_id}")
-def delete_budget(budget_id: int, db: Session = Depends(get_db)):
+def delete_budget(budget_id: int, db: Session = Depends(get_db),
+                  user: CurrentUser = Depends(get_current_user)):
     try:
-        budgets_service.delete_budget(db, budget_id)
+        budgets_service.delete_budget(db, budget_id, user.id)
     except budgets_service.BudgetNotFound:
         raise HTTPException(status_code=404, detail="Budget not found")
     return RedirectResponse(url="/budgets", status_code=status.HTTP_303_SEE_OTHER)
