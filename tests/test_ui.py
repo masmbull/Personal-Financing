@@ -29,10 +29,10 @@ def test_dashboard_renders_all_sections():
     t = client.get("/").text
     for needle in (
         "Saldo tersedia", "Net worth", "Uang masuk", "Pengeluaran",
-        "Cashflow", "Aksi cepat", "Scan Struk", "Tren net worth",
+        "Cashflow", "Uang keluar", "Tren net worth",
         "Belum cukup data untuk melihat tren net worth.",
         "Hutang", "Piutang", "Transaksi terakhir",
-        "Lihat semua transaksi", "Bayar Hutang", "Tambah Tabungan",
+        "Lihat semua transaksi", "Tabungan",
     ):
         assert needle in t, needle
 

@@ -264,6 +264,8 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .tab-income.active{color:var(--green)}
 .tab-transfer.active{color:var(--purple)}
 .chip-row{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:var(--r-pill);background:var(--bg-card);border:1px solid var(--line-strong);font-weight:600;font-size:.87rem;color:var(--ink-2)}
+.chip.active{background:var(--ink);color:var(--bg-card);border-color:var(--ink)}
 
 /* ---- bottom nav ---- */
 .bottom-nav{
