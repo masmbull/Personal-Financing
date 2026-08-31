@@ -411,11 +411,14 @@ def test_receipt_confirm_creates_one_and_second_409():
 
 
 def test_sidebar_present_on_desktop():
+    # sidebar diganti bottom-nav mobile-first (tidak ada sidebar lagi)
     t = client.get("/").text
-    assert 'id="sidebar"' in t
-    assert 'href="/accounts"' in t
-    assert 'href="/categories"' in t
+    assert 'class="bottom-nav"' in t
     assert 'href="/receipts/upload"' in t
+    # menu tambahan tersedia di halaman /more
+    m = client.get("/more").text
+    assert 'href="/accounts"' in m
+    assert 'href="/categories"' in m
 
 
 def test_bottom_nav_present():
@@ -426,9 +429,10 @@ def test_bottom_nav_present():
 
 
 def test_sidebar_toggle_button_present():
+    # toggle sidebar dihapus; diganti tombol scan di bottom-nav +
     t = client.get("/").text
-    assert 'id="sidebarToggle"' in t
-    assert "aria-label" in t
+    assert "nav-add" in t
+    assert 'aria-label="Scan Struk"' in t
 
 
 def test_modal_overlay_container_present():

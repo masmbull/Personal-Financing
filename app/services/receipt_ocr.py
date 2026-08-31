@@ -611,6 +611,12 @@ def preprocess_image(image_path, out_dir=None, mode='standard'):
         from PIL import Image, ImageFilter, ImageOps
     except ImportError:
         return Path(image_path)
+    # HEIC/HEIF support (iPhone receipts) - register opener before Image.open
+    try:
+        from pillow_heif import register_heif_opener
+        register_heif_opener()
+    except Exception:
+        pass
     out_dir = out_dir or Path(image_path).parent
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / (Path(image_path).stem + '_proc_' + mode + '.png')
