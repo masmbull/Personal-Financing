@@ -1,0 +1,14 @@
+{% set viewer_src = "/receipts/" + r.id|string + "/image" %}
+<div class="rr-col-img">
+  <div class="rr-viewer">
+    <div class="skeleton rr-viewer-ghost" role="status" aria-label="Memuat struk"></div>
+    <img class="rr-viewer-img" src="{{ viewer_src }}"
+         alt="Foto struk {{ r.filename }}" loading="lazy" data-rr-zoom>
+    <button type="button" class="rr-viewer-zoom rr-btn rr-btn--ghost rr-btn--sm"
+            aria-label="Perbesar gambar" data-rr-zoom>Perbesar</button>
+  </div>
+  <div class="rr-img-meta">
+    <span>{{ r.filename }}</span>
+    <span>{{ r.size_kb }} KB</span>
+  </div>
+</div>

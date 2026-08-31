@@ -17,6 +17,8 @@ def _out(cat) -> CategoryResponse:
     return CategoryResponse(
         id=cat.id, name=cat.name, type=cat.type,
         group=cat.group, icon=cat.icon, is_default=cat.is_default,
+        parent_id=cat.parent_id,
+        has_children=bool(getattr(cat, "children", [])),
     )
 
 
@@ -28,6 +30,13 @@ def list_categories(type: Optional[str] = Query(None, description="EXPENSE | INC
     return CategoryListResponse(items=items, total=len(items))
 
 
+@router.get("/tree", response_model=list[dict], summary="Category tree")
+def category_tree(type: Optional[str] = Query(None, description="EXPENSE | INCOME"),
+                  db: Session = Depends(get_db),
+                  user: CurrentUser = Depends(get_current_user)):
+    return categories_service.tree(db, type)
+
+
 @router.post(
     "", response_model=CategoryResponse, status_code=http_status.HTTP_201_CREATED,
     summary="Create a category",
@@ -37,6 +46,7 @@ def create_category(payload: CategoryCreate, db: Session = Depends(get_db),
     return _out(categories_service.create_category(
         db, name=payload.name, type_=payload.type,
         group=payload.group, icon=payload.icon,
+        parent_id=payload.parent_id,
     ))
 
 

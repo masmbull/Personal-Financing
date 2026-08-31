@@ -1,0 +1,60 @@
+{# Form & helpers reused across all receipt-review entry states.
+   Macros are isolated: every external value is passed as an arg. #}
+{% macro confirm_form(rid, merchant_val, total_val, date_val, cats, accs, desc_val) %}
+<form method="post" action="/receipts/{{ rid }}/confirm" class="rr-form">
+      <input type="hidden" name="type" value="EXPENSE">
+  <div>
+    <div class="rr-field">
+      <label class="rr-label" for="merchant">Merchant</label>
+      <input class="rr-input" type="text" id="merchant" name="merchant"
+             value="{{ merchant_val or '' }}" maxlength="200">
+    </div>
+    <div class="rr-field">
+      <label class="rr-label" for="amount">Total</label>
+      <input class="rr-input rr-input--lg" type="number" inputmode="decimal" id="amount"
+             name="amount" min="1" required value="{{ total_val if total_val else '' }}"
+             placeholder="0">
+    </div>
+    <div class="rr-field">
+      <label class="rr-label" for="date">Tanggal</label>
+      <input class="rr-input" type="date" id="date" name="date"
+             value="{{ date_val or '' }}" required>
+    </div>
+    <div class="rr-field">
+      <label class="rr-label" for="category_id">Kategori</label>
+      <select class="rr-input" id="category_id" name="category_id" required>
+        <option value="">Pilih kategori</option>
+        {{ category_options(cats, none, 0) }}
+      </select>
+    </div>
+    <div class="rr-field">
+      <label class="rr-label" for="account_id">Akun</label>
+      <select class="rr-input" id="account_id" name="account_id" required>
+        <option value="">Pilih akun</option>
+        {% for a in accs %}<option value="{{ a.id }}">{{ a.icon or '' }} {{ a.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="rr-field">
+      <label class="rr-label" for="description">Deskripsi</label>
+      <input class="rr-input" type="text" id="description" name="description"
+             value="{{ desc_val or '' }}" placeholder="Opsional" maxlength="200">
+    </div>
+  </div>
+  <div class="rr-submit-hint">
+    <span>Periksa nominal, tanggal, dan kategori sebelum menyimpan.</span>
+  </div>
+  <div class="rr-actions">
+    <button type="submit" class="rr-btn rr-btn--primary rr-btn--block rr-btn--lg" data-rr-save>
+      <span class="rr-btn-label">Simpan Transaksi</span>
+      <span class="rr-spinner" aria-hidden="true"></span>
+    </button>
+  </div>
+</form>
+{% endmacro %}
+
+{% macro category_options(cats, pid, depth) %}
+{% for c in cats if c.parent_id == pid %}
+<option value="{{ c.id }}" data-depth="{{ depth }}">{% for _ in range(depth) %}&#160;{% endfor %}{{ c.icon or '' }} {{ c.name }}</option>
+{{ category_options(cats, c.id, depth + 1) }}
+{% endfor %}
+{% endmacro %}

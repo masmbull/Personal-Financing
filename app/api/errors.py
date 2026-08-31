@@ -35,7 +35,9 @@ _NOT_FOUND_MAP = []
 def _map_exceptions():
     from app.services.transactions import TransactionNotFound
     from app.services.accounts import AccountNotFound, AccountInUse
-    from app.services.categories import CategoryNotFound, CategoryInUse
+    from app.services.categories import (
+        CategoryNotFound, CategoryInUse, CategoryInvalidParent,
+    )
     from app.services.debts import DebtNotFound, PaymentError
     from app.services.bills import BillNotFound
     from app.services.budgets import BudgetNotFound
@@ -58,6 +60,7 @@ def _map_exceptions():
         InvestmentNotFound: (404, "INVESTMENT_NOT_FOUND"),
         AccountInUse: (409, "ACCOUNT_IN_USE"),
         CategoryInUse: (409, "CATEGORY_IN_USE"),
+        CategoryInvalidParent: (400, "CATEGORY_INVALID_PARENT"),
         PaymentError: (400, "PAYMENT_INVALID"),
         SavingsOperationError: (400, "SAVINGS_OPERATION_INVALID"),
         ReceiptValidationError: (400, "RECEIPT_INVALID"),

@@ -11,6 +11,7 @@ class CategoryCreate(BaseModel):
     type: TransactionType = Field(description="EXPENSE or INCOME")
     group: Optional[str] = Field(None, max_length=50)
     icon: Optional[str] = Field(None, max_length=10)
+    parent_id: Optional[int] = Field(None, description="Parent category id (NULL for root)")
 
 
 class CategoryUpdate(BaseModel):
@@ -18,6 +19,7 @@ class CategoryUpdate(BaseModel):
     type: Optional[TransactionType] = None
     group: Optional[str] = Field(None, max_length=50)
     icon: Optional[str] = Field(None, max_length=10)
+    parent_id: Optional[int] = Field(None, description="Parent category id (NULL for root)")
 
 
 class CategoryResponse(CategoryCreate):
@@ -25,6 +27,8 @@ class CategoryResponse(CategoryCreate):
 
     id: int
     is_default: Optional[int] = None
+    parent_id: Optional[int] = None
+    has_children: Optional[bool] = None
 
 
 class CategoryListResponse(BaseModel):

@@ -104,13 +104,17 @@ class Category(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     type = Column(Enum(TransactionType), nullable=False)
+    slug = Column(String(100), nullable=True, index=True)
     group = Column(String(50), nullable=True)
+    parent_id = Column(Integer, ForeignKey('categories.id'), nullable=True, index=True)
     icon = Column(String(10), nullable=True)
     is_default = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     transactions = relationship("Transaction", back_populates="category")
+    parent = relationship('Category', remote_side='Category.id', back_populates='children')
+    children = relationship('Category', back_populates='parent', order_by='Category.name')
 
 
 class Transaction(Base):
@@ -335,3 +339,4 @@ class NetWorthSnapshot(Base):
     total_liabilities = Column(Integer, nullable=False)
     net_worth = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+

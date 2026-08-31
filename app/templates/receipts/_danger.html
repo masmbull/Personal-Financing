@@ -1,0 +1,8 @@
+<div class="rr-danger-zone">
+  <h2 class="rr-card-title rr-card-title--danger">Hapus Struk</h2>
+  <form method="post" action="/receipts/{{ r.id }}/delete"
+        onsubmit="return confirm('Hapus struk ini? Transaksi tercatat tidak terpengaruh.');">
+    <p class="rr-confirm-body">Struk akan dihapus dari arsip. Transaksi tercatat tidak terpengaruh.</p>
+    <button type="submit" class="rr-btn rr-btn--danger rr-btn--block">Hapus Struk</button>
+  </form>
+</div>

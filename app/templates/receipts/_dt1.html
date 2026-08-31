@@ -1,0 +1,69 @@
+{# OCR review partial: summary + items + confirm form (included by detail.html). #}
+{% set conf = r.ocr.confidence or 'LOW' %}
+<div class="rr-status" role="status">
+  {% if conf == 'HIGH' %}
+  <span class="rr-status-dot rr-status-dot--ok"></span>
+  <span class="rr-status-text rr-status-text--ok">Akurasi pembacaan tinggi</span>
+  {% elif conf == 'MEDIUM' %}
+  <span class="rr-status-dot rr-status-dot--mid"></span>
+  <span class="rr-status-text rr-status-text--mid">Beberapa data mungkin perlu dikoreksi</span>
+  {% else %}
+  <span class="rr-status-dot rr-status-dot--low"></span>
+  <span class="rr-status-text rr-status-text--low">Beberapa data perlu diperiksa</span>
+  {% endif %}
+</div>
+
+<div class="rr-grid">
+  {% include "receipts/_viewer.html" %}
+  <div class="rr-col-review">
+    <div class="rr-card">
+      <h2 class="rr-card-title">Hasil Scan</h2>
+      <div class="rr-summary">
+        <h3 class="rr-merchant">{{ r.ocr.merchant or 'Struk' }}</h3>
+        <div class="rr-sum-row"><span class="rr-sum-label">Merchant</span><span class="rr-sum-value">{{ r.ocr.merchant or '-' }}</span></div>
+        {% if r.ocr.date %}
+        <div class="rr-sum-row"><span class="rr-sum-label">Tanggal</span><span class="rr-sum-value">{{ r.ocr.date }}</span></div>
+        {% endif %}
+        {% if r.ocr.subtotal %}
+        <div class="rr-sum-row"><span class="rr-sum-label">Subtotal</span><span class="rr-sum-value">{{ format_rupiah(r.ocr.subtotal) }}</span></div>
+        {% endif %}
+        {% if r.ocr.discount %}
+        <div class="rr-sum-row"><span class="rr-sum-label">Diskon</span><span class="rr-sum-value rr-dl-neg">-{{ format_rupiah(r.ocr.discount) }}</span></div>
+        {% endif %}
+        {% if r.ocr.tax %}
+        <div class="rr-sum-row"><span class="rr-sum-label">Pajak</span><span class="rr-sum-value">{{ format_rupiah(r.ocr.tax) }}</span></div>
+        {% endif %}
+        {% if r.ocr.total_amount %}
+        <div class="rr-sum-row"><span class="rr-sum-label">Total</span><span class="rr-sum-total">{{ format_rupiah(r.ocr.total_amount) }}</span></div>
+        {% endif %}
+        {% if r.ocr.payment_method %}
+        <div class="rr-sum-row"><span class="rr-sum-label">Pembayaran</span><span class="rr-sum-value">{{ r.ocr.payment_method }}</span></div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if r.ocr.items %}
+    <details class="rr-card rr-items-toggle" data-rr-accordion>
+      <summary class="rr-items-summary"><span>Item</span><span class="rr-badge">{{ r.ocr.items|length }}</span></summary>
+      <div class="rr-items-list">
+        {% for item in r.ocr.items %}
+        <div class="rr-item">
+          <div class="rr-item-main">
+            <span class="rr-item-name">{{ item.name or '-' }}</span>
+            {% if item.quantity %}<span class="rr-item-qty">x{{ item.quantity }}</span>{% endif %}
+          </div>
+          <div class="rr-item-right">{% if item.total_price %}<span class="rr-item-price">{{ format_rupiah(item.total_price) }}</span>{% endif %}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
+
+    <div class="rr-card">
+      <h2 class="rr-card-title">Periksa Sebelum Disimpan</h2>
+      <p class="rr-card-sub">Data dari hasil scan. Kamu bisa mengubahnya sebelum transaksi dibuat.</p>
+      {{ rrform.confirm_form(r.id, r.ocr.merchant or r.merchant or '', r.ocr.total_amount, r.ocr.date or today, categories, accounts, r.ocr.merchant or '') }}
+    </div>
+    {% include "receipts/_danger.html" %}
+  </div>
+</div>

@@ -26,44 +26,8 @@ logger = logging.getLogger("app.main")
 def seed_default_data():
     db = SessionLocal()
     try:
-        existing_cats = db.query(Category).count()
-        if existing_cats == 0:
-            expense_cats = [
-                ("Makan & Minum", "\U0001f35c", "FOOD & DINING"),
-                ("Transportasi", "\u26fd", "TRANSPORTATION"),
-                ("Belanja", "\U0001f6d2", "SHOPPING"),
-                ("Tagihan", "\U0001f4c4", "HOUSING"),
-                ("Hiburan", "\U0001f3ac", "ENTERTAINMENT"),
-                ("Kesehatan", "\U0001f3e5", "HEALTH"),
-                ("Rumah Tangga", "\U0001f3e0", "HOUSING"),
-                ("Pendidikan", "\U0001f4da", "EDUCATION"),
-                ("Kuliner Online", "\U0001f372", "FOOD & DINING"),
-                ("Minimarket", "\U0001f6ed\ufe0f", "SHOPPING"),
-                ("SPBU & Bensin", "\u26fd", "TRANSPORTATION"),
-                ("Pulsa & Kuota", "\U0001f4f1", "UTILITIES"),
-                ("Listrik & Air", "\U0001f4a1", "UTILITIES"),
-                ("Internet & TV", "\U0001f4f6", "UTILITIES"),
-                ("Asuransi", "\u2601\ufe0f", "INSURANCE"),
-                ("Olahraga", "\U0001f3cb\ufe0f", "HEALTH"),
-                ("Kado & Donasi", "\U0001f381", "OTHER"),
-                ("Rokok", "\U0001f6ac", "OTHER"),
-                ("Lainnya", "\U0001f4cb", "OTHER"),
-            ]
-            income_cats = [
-                ("Gaji", "\U0001f4b0", "SALARY"),
-                ("Bonus", "\U0001f381", "BONUS"),
-                ("Freelance", "\U0001f4bb", "FREELANCE"),
-                ("Penjualan", "\U0001f3f7\ufe0f", "OTHER"),
-                ("Bisnis", "\U0001f4bc", "BUSINESS"),
-                ("Investasi", "\U0001f4c8", "INVESTMENT"),
-                ("Hadiah", "\U0001f389", "OTHER"),
-                ("Lainnya", "\U0001f4cb", "OTHER"),
-            ]
-            for name, icon, group in expense_cats:
-                db.add(Category(name=name, type=TransactionType.EXPENSE, icon=icon, group=group, is_default=1))
-            for name, icon, group in income_cats:
-                db.add(Category(name=name, type=TransactionType.INCOME, icon=icon, group=group, is_default=1))
-            db.commit()
+        from app.services.seed_categories import seed_categories
+        seed_categories(db)
         existing_accs = db.query(Account).count()
         if existing_accs == 0:
             defaults = [
@@ -113,8 +77,9 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     # Legacy DB safety: add user_id columns where missing (idempotent),
     # then claim legacy rows for the bootstrap admin when one exists.
-    from app.migrations import claim_legacy_rows, run_migrations
+    from app.migrations import claim_legacy_rows, run_migrations, run_category_hierarchy_migration
     legacy_altered = run_migrations(engine)
+    run_category_hierarchy_migration(engine)
     seed_default_data()
     from app.database.db import SessionLocal as _SL
     from app.services.users import bootstrap_admin
