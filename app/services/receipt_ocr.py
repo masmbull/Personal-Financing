@@ -746,7 +746,22 @@ _scanner = None
 
 
 def build_scanner():
-    if _tesseract_available():
+    """Preferred: AI vision (Ollama) -> Tesseract -> offline placeholder.
+
+    AI wins when a local Ollama endpoint serves the configured vision model,
+    since it reads the image directly and is far more accurate than OCR+regex.
+    Falls back to Tesseract when AI is unreachable (or explicitly disabled),
+    and to the offline placeholder when no local OCR binary exists.
+    """
+    from app.config import settings
+    try:
+        from app.services.receipt_ai import _probe_service
+        ai = _probe_service()
+        if ai is not None:
+            return ai
+    except Exception:
+        pass
+    if settings.RECEIPT_AI_FALLBACK_TESSERACT and _tesseract_available():
         return TesseractReceiptScannerService()
     return OfflineReceiptScannerService()
 

@@ -35,6 +35,20 @@ class Settings(BaseSettings):
     # OCR language fallback chain: ind+eng -> eng -> none
     RECEIPT_OCR_LANG: str = os.environ.get("RECEIPT_OCR_LANG", "ind+eng")
 
+    # Optional AI vision OCR engine (Ollama, OpenAI-compatible). Preferred over
+    # Tesseract when the endpoint+model respond; otherwise local path is kept.
+    RECEIPT_AI_BASE_URL: str = os.environ.get(
+        "RECEIPT_AI_BASE_URL", "http://localhost:11434/v1")
+    RECEIPT_AI_MODEL: str = os.environ.get(
+        "RECEIPT_AI_MODEL", "llama3.2-vision")
+    RECEIPT_AI_TIMEOUT_SEC: float = float(
+        os.environ.get("RECEIPT_AI_TIMEOUT_SEC", "120"))
+    RECEIPT_AI_FALLBACK_TESSERACT: bool = os.environ.get(
+        "RECEIPT_AI_FALLBACK_TESSERACT", "1").lower() in ("1", "true", "yes")
+    RECEIPT_AI_MAX_IMAGE_WIDTH: int = int(
+        os.environ.get("RECEIPT_AI_MAX_IMAGE_WIDTH", "1600"))
+
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
