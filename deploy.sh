@@ -12,6 +12,9 @@ APP_DIR="/opt/finance"
 APP_PORT="8000"
 SERVICE_NAME="finance"
 REPO_URL="https://github.com/masmbull/Personal-Financing.git"
+# Kalau repo PRIVATE, set ini ke token lo: https://<TOKEN>@github.com/...
+# Kosongkan kalau repo public.
+GIT_TOKEN=""
 
 echo "🚀 Finance App Deploy"
 echo "====================="
@@ -49,7 +52,12 @@ cd $APP_DIR
 if [ -d .git ]; then
     sudo -u $USER git pull origin main || true
 else
-    sudo -u $USER git clone "$REPO_URL" .
+    if [ -n "$GIT_TOKEN" ]; then
+        AUTH_URL=$(echo "$REPO_URL" | sed "s|https://|https://${GIT_TOKEN}@|")
+        sudo -u $USER git clone "$AUTH_URL" .
+    else
+        sudo -u $USER git clone "$REPO_URL" .
+    fi
 fi
 
 # 4. Setup venv
