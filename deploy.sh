@@ -75,12 +75,17 @@ fi
 
 echo "✅ Using $($PYTHON_BIN --version) at $(command -v $PYTHON_BIN)"
 
-# Ensure venv + pip available for the chosen Python
+# Ensure venv module available. For source-built Python (prefix /usr/local)
+# the venv module ships with the build; only apt-managed Pythons need the
+# separate -venv package.
 PYV=$($PYTHON_BIN -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-PYPKG="python${PYV}-venv"
-if ! dpkg -s $PYPKG &> /dev/null; then
-    echo "📦 Installing $PYPKG..."
-    sudo apt install -y $PYPKG
+PYPREFIX=$($PYTHON_BIN -c 'import sys; print(sys.prefix)')
+if [ "$PYPREFIX" = "/usr" ]; then
+    PYPKG="python${PYV}-venv"
+    if ! dpkg -s $PYPKG &> /dev/null; then
+        echo "📦 Installing $PYPKG..."
+        sudo apt install -y $PYPKG
+    fi
 fi
 
 # 1b. Ensure git installed (needed for clone)
