@@ -41,6 +41,14 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
+# 1b. Ensure git installed (needed for clone)
+if ! command -v git &> /dev/null; then
+    echo "📦 Installing git..."
+    sudo apt update
+    sudo apt install -y git
+fi
+git --version
+
 # 2. Create app directory
 echo "📁 Creating app directory..."
 sudo mkdir -p $APP_DIR
