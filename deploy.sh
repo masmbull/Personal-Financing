@@ -60,12 +60,39 @@ PYTHON_BIN=$(pick_python || true)
 
 if [ -z "$PYTHON_BIN" ]; then
     echo "⚠️  No Python >= ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR} found. Installing python3.11..."
-    sudo apt update
-    sudo apt install -y software-properties-common
-    sudo add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
-    sudo apt update
-    sudo apt install -y python3.11 python3.11-venv python3.11-distutils
-    PYTHON_BIN=python3.11
+
+    # Try deadsnakes PPA first (Ubuntu < 22.04)
+    if ! apt-cache show python3.11 &> /dev/null; then
+        sudo apt install -y software-properties-common 2>/dev/null || true
+        sudo add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
+        sudo apt update 2>/dev/null || true
+    fi
+
+    # Try apt install for available versions
+    for v in 3.13 3.12 3.11 3.10 3.9; do
+        if apt-cache show python${v} &> /dev/null; then
+            echo "📦 Installing python${v} via apt..."
+            sudo apt install -y python${v} python${v}-venv
+            PYTHON_BIN=python${v}
+            break
+        fi
+    done
+
+    # Fallback: build from source (10-15 min, works everywhere)
+    if [ -z "$PYTHON_BIN" ]; then
+        echo "🔨 Building Python 3.11 from source (10-15 minutes, reliable)..."
+        sudo apt install -y build-essential libssl-dev zlib1g-dev libffi-dev libsqlite3-dev
+        cd /tmp
+        wget -q https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tgz
+        tar xzf Python-3.11.9.tgz
+        cd Python-3.11.9
+        ./configure --enable-optimizations --prefix=/usr/local --quiet
+        make -j$(nproc) --quiet
+        sudo make install > /dev/null
+        cd $APP_DIR
+        rm -rf /tmp/Python-3.11.9 /tmp/Python-3.11.9.tgz
+        PYTHON_BIN=python3.11
+    fi
 fi
 
 echo "✅ Using $($PYTHON_BIN --version) at $(command -v $PYTHON_BIN)"
