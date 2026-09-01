@@ -1,5 +1,5 @@
 """Category service - minimal CRUD + usage guard + optional hierarchy."""
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.models import Category, Transaction, TransactionType
 
@@ -21,7 +21,9 @@ def get_category(db: Session, category_id: int) -> Category | None:
 
 
 def list_categories(db: Session, type: str | None = None):
-    query = db.query(Category).order_by(Category.name)
+    query = db.query(Category).options(
+        selectinload(Category.children)
+    ).order_by(Category.name)
     if type:
         query = query.filter(Category.type == TransactionType(type.upper()))
     return query.all()
