@@ -15,6 +15,9 @@ REPO_URL="https://github.com/masmbull/Personal-Financing.git"
 # Kalau repo PRIVATE, set ini ke token lo: https://<TOKEN>@github.com/...
 # Kosongkan kalau repo public.
 GIT_TOKEN=""
+# Minimum Python version. App butuh 3.9+ (Pydantic 2.10).
+MIN_PYTHON_MAJOR=3
+MIN_PYTHON_MINOR=9
 
 echo "🚀 Finance App Deploy"
 echo "====================="
@@ -35,16 +38,49 @@ echo ""
 
 # 1. Check Python
 echo "📋 Checking Python..."
-python3 --version
-if ! command -v python3 &> /dev/null; then
-    echo "❌ Install dulu: sudo apt update && sudo apt install -y python3 python3-pip python3-venv"
-    exit 1
+
+pick_python() {
+    # Prefer newest 3.x available on PATH
+    for cand in python3.13 python3.12 python3.11 python3.10 python3; do
+        if command -v $cand &> /dev/null; then
+            local ver=$($cand -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+            local major=$(echo $ver | cut -d. -f1)
+            local minor=$(echo $ver | cut -d. -f2)
+            if [ "$major" -gt "$MIN_PYTHON_MAJOR" ] || \
+               { [ "$major" -eq "$MIN_PYTHON_MAJOR" ] && [ "$minor" -ge "$MIN_PYTHON_MINOR" ]; }; then
+                echo $cand
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+PYTHON_BIN=$(pick_python || true)
+
+if [ -z "$PYTHON_BIN" ]; then
+    echo "⚠️  No Python >= ${MIN_PYTHON_MAJOR}.${MIN_PYTHON_MINOR} found. Installing python3.11..."
+    sudo apt update
+    sudo apt install -y software-properties-common
+    sudo add-apt-repository -y ppa:deadsnakes/ppa 2>/dev/null || true
+    sudo apt update
+    sudo apt install -y python3.11 python3.11-venv python3.11-distutils
+    PYTHON_BIN=python3.11
+fi
+
+echo "✅ Using $($PYTHON_BIN --version) at $(command -v $PYTHON_BIN)"
+
+# Ensure venv + pip available for the chosen Python
+PYV=$($PYTHON_BIN -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+PYPKG="python${PYV}-venv"
+if ! dpkg -s $PYPKG &> /dev/null; then
+    echo "📦 Installing $PYPKG..."
+    sudo apt install -y $PYPKG
 fi
 
 # 1b. Ensure git installed (needed for clone)
 if ! command -v git &> /dev/null; then
     echo "📦 Installing git..."
-    sudo apt update
     sudo apt install -y git
 fi
 git --version
@@ -69,8 +105,13 @@ else
 fi
 
 # 4. Setup venv
-echo "🐍 Setting up Python venv..."
-sudo -u $USER python3 -m venv venv
+echo "🐍 Setting up Python venv (using $PYTHON_BIN)..."
+# Clean broken venv from previous failed run
+if [ -d venv ] && [ ! -x venv/bin/python3 ]; then
+    echo "🧹 Removing broken venv from previous attempt..."
+    rm -rf venv
+fi
+sudo -u $USER $PYTHON_BIN -m venv venv
 
 # 5. Install deps
 echo "📦 Installing dependencies..."
