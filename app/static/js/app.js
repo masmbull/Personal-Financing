@@ -10,6 +10,8 @@
     try { localStorage.setItem('theme', theme); } catch (e) {}
   }
   window.toggleTheme = function () {
+    var btn = document.querySelector('.theme-toggle');
+    if (btn) { btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin'); }
     applyTheme(document.documentElement.getAttribute('data-theme') === 'dark'
       ? 'light' : 'dark');
   };
@@ -47,6 +49,8 @@
     var svg = document.getElementById('nw-chart');
     var empty = document.getElementById('nw-empty');
     var deltaEl = document.getElementById('nw-delta');
+    var sk = document.getElementById('nw-skeleton');
+    if (sk) sk.remove();
     if (!svg || !empty) return;
 
     var pts = (data.points || []).slice(-14);
@@ -108,6 +112,8 @@
       .catch(function () {
         var e = document.getElementById('nw-empty');
         if (e) e.classList.remove('hidden');
+        var sk = document.getElementById('nw-skeleton');
+        if (sk) sk.remove();
       });
   }
   /* ---------- Receipt upload preview / validation ---------- */
@@ -189,7 +195,39 @@
       });
   }
 
+  /* ---------- scroll reveal (global, auto-tag + IntersectionObserver) ---------- */
+  var REVEAL_SEL = '.top-bar,.page-header,.balance-card,.worth-grid,.quick-actions,.summary-cards,.section,.transaction-item,.account-card,.more-row,.budget-row,.bill-row,.debt-tile';
+  function initReveal() {
+    var existing = [].slice.call(document.querySelectorAll('.reveal'));
+    var fresh = [].slice.call(document.querySelectorAll(REVEAL_SEL))
+      .filter(function (el) { return !el.classList.contains('reveal'); });
+    fresh.forEach(function (el) { el.classList.add('reveal'); });
+    var els = existing.concat(fresh);
+    if (!els.length) return;
+    if (!('IntersectionObserver' in window)) {
+      els.forEach(function (el) { el.classList.add('in'); });
+      return;
+    }
+    els.forEach(function (el, i) { el.style.setProperty('--d', (i % 8) * 55 + 'ms'); });
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.06, rootMargin: '0px 0px -40px 0px' });
+    els.forEach(function (el) { io.observe(el); });
+  }
+
+  /* ---------- top loadbar ---------- */
+  function runLoadbar() {
+    var b = document.getElementById('loadbar');
+    if (!b) return;
+    b.classList.add('running');
+    setTimeout(function () { b.classList.remove('running'); }, 1100);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
+    runLoadbar();
+    initReveal();
     initNetWorthChart();
     initReceiptUpload();
     initQuickCats();

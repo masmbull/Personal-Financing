@@ -2,30 +2,64 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <script>document.documentElement.classList.add('js-ready');</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#f7f7f5">
+    <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>{% block title %}Finance{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=3">
+    <link rel="stylesheet" href="/static/css/style.css?v=9">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 </head>
 <body>
+    <div class="loadbar" id="loadbar" aria-hidden="true"></div>
     <div class="toast-container" id="toast-container"></div>
 
-    <main class="main-content page-enter page-enter-active">
+    <div class="app">
         {% if request.state.user %}
-        <div class="auth-bar">
-            <span class="auth-user">👤 {{ request.state.user.username }}</span>
-            <form method="post" action="/logout" class="inline">
-                <button type="submit" class="auth-logout">Keluar</button>
-            </form>
-        </div>
+        <aside class="sidebar">
+            <div class="sidebar-logo">💰 Keuangan</div>
+            <nav class="sidebar-nav">
+                <a href="/" class="sidebar-nav-item {% if request.url.path == '/' %}active{% endif %}">
+                    <span class="icon">🏠</span>
+                    <span>Beranda</span>
+                </a>
+                <a href="/transactions" class="sidebar-nav-item {% if '/transactions' in request.url.path and '/edit' not in request.url.path %}active{% endif %}">
+                    <span class="icon">📋</span>
+                    <span>Transaksi</span>
+                </a>
+                <a href="/reports" class="sidebar-nav-item {% if '/reports' in request.url.path %}active{% endif %}">
+                    <span class="icon">📊</span>
+                    <span>Laporan</span>
+                </a>
+                <a href="/more" class="sidebar-nav-item {% if '/more' in request.url.path or '/accounts' in request.url.path or '/debts' in request.url.path or '/bills' in request.url.path or '/budgets' in request.url.path or '/savings' in request.url.path or '/assets' in request.url.path or '/investments' in request.url.path or '/categories' in request.url.path or '/receipts' in request.url.path and '/receipts/upload' not in request.url.path %}active{% endif %}">
+                    <span class="icon">⋯</span>
+                    <span>Lainnya</span>
+                </a>
+            </nav>
+            <div class="sidebar-bottom">
+                <div class="sidebar-user">👤 {{ request.state.user.username }}</div>
+                <form method="post" action="/logout" class="inline">
+                    <button type="submit" class="sidebar-logout">🚪 Keluar</button>
+                </form>
+            </div>
+        </aside>
         {% endif %}
-        {% block content %}{% endblock %}
-    </main>
+
+        <main class="main-content page-enter page-enter-active">
+            {% if request.state.user %}
+            <div class="auth-bar">
+                <span class="auth-user">👤 {{ request.state.user.username }}</span>
+                <form method="post" action="/logout" class="inline">
+                    <button type="submit" class="auth-logout">Keluar</button>
+                </form>
+            </div>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
 
     {% if request.state.user %}
     <nav class="bottom-nav" aria-label="Navigasi utama">

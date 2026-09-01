@@ -2,7 +2,7 @@
 {% block title %}Finance - Beranda{% endblock %}
 {% block content %}
 <div class="page">
-    <div class="top-bar">
+    <div class="top-bar reveal">
         <div>
             <div class="greeting">Selamat datang 👋</div>
             <h1 class="page-title-large">Beranda</h1>
@@ -10,7 +10,7 @@
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="Ganti tema">🌙</button>
     </div>
 
-    <section class="balance-card hero" aria-label="Saldo tersedia">
+    <section class="balance-card hero reveal" aria-label="Saldo tersedia">
         <div class="balance-label">Saldo tersedia</div>
         <div class="balance-amount">{{ format_rupiah(data.available_cash) }}</div>
         <div class="balance-trend {% if data.monthly_cashflow >= 0 %}up{% else %}down{% endif %}">
@@ -19,7 +19,7 @@
         </div>
     </section>
 
-    <section class="worth-grid" aria-label="Kekayaan bersih">
+    <section class="worth-grid reveal" aria-label="Kekayaan bersih">
         <a href="/assets" class="worth-tile">
             <span class="worth-label">Total aset</span>
             <span class="worth-value">{{ format_rupiah(data.total_assets) }}</span>
@@ -34,12 +34,12 @@
         </div>
     </section>
 
-    <div class="quick-actions">
+    <div class="quick-actions reveal">
         <a href="/transactions/add?tx_type=EXPENSE" class="quick-action qa-expense"><span>−</span> Uang keluar</a>
         <a href="/transactions/add?tx_type=INCOME" class="quick-action qa-income"><span>+</span> Uang masuk</a>
     </div>
 
-    <section class="summary-cards">
+    <section class="summary-cards reveal">
         <div class="summary-card">
             <div class="summary-label">Uang masuk</div>
             <div class="summary-value text-green">{{ format_rupiah(data.monthly_income) }}</div>
@@ -57,20 +57,26 @@
         </div>
     </section>
 
-    <section class="section">
+    <section class="section reveal">
         <div class="section-header">
             <h2 class="section-title">Tren net worth</h2>
             <span id="nw-delta" class="badge" hidden></span>
         </div>
         <div id="nw-chart-wrap" class="chart-card"
              data-history-url="/api/v1/reports/net-worth/history">
+            <div id="nw-skeleton" class="chart-skeleton" aria-hidden="true">
+                <span class="skeleton" style="width:42%"></span>
+                <span class="skeleton" style="width:68%"></span>
+                <span class="skeleton" style="width:55%"></span>
+                <span class="skeleton" style="width:78%"></span>
+            </div>
             <p id="nw-empty" class="empty-text hidden">Belum cukup data untuk melihat tren net worth.</p>
             <svg id="nw-chart" viewBox="0 0 320 140" preserveAspectRatio="none"
                  role="img" aria-label="Grafik tren net worth" class="hidden"></svg>
         </div>
     </section>
 
-    <section class="section">
+    <section class="section reveal">
         <div class="section-header">
             <h2 class="section-title">Budget bulan ini</h2>
             <a href="/budgets" class="link-more">Atur →</a>
@@ -103,7 +109,7 @@
         {% endif %}
     </section>
 
-    <section class="section">
+    <section class="section reveal">
         <div class="section-header">
             <h2 class="section-title">Tagihan mendekat</h2>
             <a href="/bills" class="link-more">Semua →</a>
@@ -129,7 +135,7 @@
         {% endif %}
     </section>
 
-    <section class="section">
+    <section class="section reveal">
         <div class="section-header">
             <h2 class="section-title">Hutang &amp; Piutang</h2>
         </div>
@@ -147,7 +153,7 @@
         </div>
     </section>
 
-    <section class="section">
+    <section class="section reveal">
         <div class="section-header">
             <h2 class="section-title">Pengeluaran terbesar</h2>
             <a href="/reports" class="link-more">Laporan →</a>
@@ -172,7 +178,7 @@
         {% endif %}
     </section>
 
-    <section class="section">
+    <section class="section reveal">
         <div class="section-header">
             <h2 class="section-title">Tabungan</h2>
             <a href="/savings" class="link-more">Semua →</a>
@@ -202,7 +208,7 @@
         {% endif %}
     </section>
 
-    <section class="section">
+    <section class="section reveal">
         <div class="section-header">
             <h2 class="section-title">Transaksi terakhir</h2>
             <a href="/transactions" class="link-more">Lihat semua transaksi →</a>
