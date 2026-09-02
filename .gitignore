@@ -12,3 +12,11 @@ data/*
 temp_*.txt
 test-receipt-upload.png
 *.log
+
+# local test artifacts
+pytest_stdout.txt
+pytest_stderr.txt
+pytest_out.txt
+fin_out.txt
+api_out.txt
+test_out.txt
