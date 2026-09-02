@@ -46,6 +46,9 @@ def seed_default_data():
                 ("BTPN", AccountType.BANK, "\U0001f3e6", "BTPN"),
                 ("Mega", AccountType.BANK, "\U0001f3e6", "Bank Mega"),
                 ("Sinarmas", AccountType.BANK, "\U0001f3e6", "Bank Sinarmas"),
+                ("Panin", AccountType.BANK, "\U0001f3e6", "Bank Panin"),
+                ("UOB", AccountType.BANK, "\U0001f3e6", "Bank UOB Indonesia"),
+                ("DBS", AccountType.BANK, "\U0001f3e6", "Bank DBS Indonesia"),
                 # Bank digital
                 ("Jago", AccountType.BANK, "\U0001f3e6", "Bank Jago"),
                 ("SeaBank", AccountType.BANK, "\U0001f3e6", "SeaBank"),
@@ -72,6 +75,16 @@ def seed_default_data():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if settings.is_production:
+        # Fail-fast in production: refuse to boot with unsafe defaults.
+        if settings.SECRET_KEY == "change-me-in-production":
+            raise RuntimeError(
+                "SECRET_KEY must be overridden via env when APP_ENV=production"
+            )
+        if settings.DEBUG:
+            logger.warning("DEBUG=true forced off because APP_ENV=production")
+            settings.DEBUG = False
+
     from app.models.models import User
 
     Base.metadata.create_all(bind=engine)
