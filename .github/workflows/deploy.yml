@@ -6,7 +6,25 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Run test suite
+        env:
+          APP_ENV: test
+          RECEIPT_AI_BASE_URL: http://127.0.0.1:11435/v1
+          RECEIPT_AI_TIMEOUT_SEC: '1'
+        run: python -m pytest tests/ -q --tb=short
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

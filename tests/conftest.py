@@ -6,6 +6,9 @@ import shutil
 os.environ.setdefault("RECEIPT_UPLOAD_DIR", "data/receipts_test")
 # Fast test hashing - production default (600k iterations) is untouched.
 os.environ.setdefault("PF_PBKDF2_ITERATIONS", "2000")
+# Disable AI vision probe in tests (no Ollama available; would hang on timeout)
+os.environ.setdefault("RECEIPT_AI_TIMEOUT_SEC", "1")
+os.environ.setdefault("RECEIPT_AI_BASE_URL", "http://127.0.0.1:11435/v1")
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,6 +22,13 @@ from app.main import app
 from app.models.models import (
     Account, AccountType, Category, TransactionType, User,
 )
+
+# Disable AI vision probe network calls in tests (no Ollama available;
+# would hang on TCP timeout even with short timeout). Patched before any
+# receipt path can trigger build_scanner() -> _probe_service().
+import app.services.receipt_ai as _ai_mod
+_ai_mod._probe_service = lambda: None
+_ai_mod.AIVisionReceiptScannerService.available = lambda self: False
 
 TEST_DB_URL = "sqlite:///./test.db"
 engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})

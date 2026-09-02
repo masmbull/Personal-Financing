@@ -143,6 +143,9 @@ class TestNever500OnBadModelData:
 
 
 class TestUnavailable:
-    def test_probe_service_returns_none_when_offline(self):
-        # No Ollama on this machine -> probe quickly fails -> None.
+    def test_probe_service_returns_none_when_offline(self, monkeypatch):
+        # Mock httpx.get to fail fast (simulating unreachable Ollama).
+        def fake_get(*a, **k):
+            raise Exception("Connection refused")
+        monkeypatch.setattr(ai.httpx, "get", fake_get)
         assert ai._probe_service() is None
