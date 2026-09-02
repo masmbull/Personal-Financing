@@ -29,6 +29,9 @@ jobs:
             echo "=== Trust repo dir ==="
             git config --global --add safe.directory /opt/finance
 
+            echo "=== Fix /opt/finance ownership ==="
+            sudo -n chown -R standarbengkel:standarbengkel /opt/finance
+
             echo "=== Pull latest code ==="
             cd /opt/finance
             git fetch origin main
