@@ -1,0 +1,49 @@
+name: Deploy to server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy
+        run: |
+          set -e
+          echo "=== Pull latest code ==="
+          cd /opt/finance
+          git fetch origin main
+          git reset --hard origin/main
+
+          echo "=== Update deps ==="
+          source venv/bin/activate
+          pip install --quiet -r requirements.txt
+
+          echo "=== Restart service ==="
+          sudo systemctl restart finance
+          sleep 3
+
+          echo "=== Health check ==="
+          if systemctl is-active --quiet finance; then
+            echo "✅ finance service: ACTIVE"
+          else
+            echo "❌ finance service: DOWN"
+            sudo journalctl -u finance -n 20 --no-pager
+            exit 1
+          fi
+
+          code=$(curl -fsS -o /dev/null -w "%{http_code}" http://localhost:8000/ || echo "000")
+          if [ "$code" = "200" ]; then
+            echo "✅ HTTP 200 on localhost:8000"
+          else
+            echo "❌ HTTP $code"
+            exit 1
+          fi
+
+          echo "=== DEPLOY OK $(date) ==="
