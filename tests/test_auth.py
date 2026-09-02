@@ -423,3 +423,49 @@ def test_login_next_is_same_origin_only():
     })
     assert r.status_code == 303
     assert r.headers["location"] == "/"  # external next blocked
+# ==================== account edit HTML route IDOR regression ====================
+# The earlier /accounts/edit/2 {"detail":"Account not found"} finding was a
+# stale id after user-scoping. Ownership must stay strict on the HTML edit
+# routes too - an intruder editing someone else's account gets 404, and
+# cannot mutate master/global accounts.
+
+
+def test_user_a_cannot_edit_user_b_account_via_html_route():
+    db = get_test_db()
+    bob_account = db.query(Account).filter(Account.name == "BCA").first()
+    bid = bob_account.id
+    db.close()
+    c = _gen_user_client("editintruder")
+    # GET edit form -> 404 (ownership enforced)
+    assert c.get(f"/accounts/edit/{bid}").status_code == 404
+    # POST edit -> 404
+    r = c.post(f"/accounts/edit/{bid}", data={
+        "name": "Hacked", "type": "BANK", "initial_balance": "0", "icon": "",
+    })
+    assert r.status_code == 404
+    db = get_test_db()
+    acct = db.query(Account).filter(Account.id == bid).first()
+    db.close()
+    assert acct is not None and acct.name == "BCA"  # unchanged
+
+
+def test_global_master_account_cannot_be_edited():
+    # master accounts (user_id NULL) are immutable for HTML edits
+    from app.models.models import Account as A, AccountType
+    db = get_test_db()
+    master = A(name="BCA Master", type=AccountType.BANK, user_id=None)
+    db.add(master)
+    db.commit()
+    db.refresh(master)
+    mid = master.id
+    db.close()
+    c = _gen_user_client("masterintruder")
+    r = c.post(f"/accounts/edit/{mid}", data={
+        "name": "Hacked", "type": "BANK", "initial_balance": "0", "icon": "",
+    })
+    # POST edit uses strictly-own lookup -> must NOT succeed
+    assert r.status_code == 404
+    db = get_test_db()
+    acct = db.query(A).filter(A.id == mid).first()
+    db.close()
+    assert acct is not None and acct.name == "BCA Master"
