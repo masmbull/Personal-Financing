@@ -35,11 +35,18 @@
 
         <div class="form-group">
             <label class="form-label" for="account_id">Akun</label>
+            {% if has_accounts %}
             <select name="account_id" id="account_id" class="input" required>
                 {% for acc in accounts %}
                 <option value="{{ acc.id }}">{{ acc.icon or '' }} {{ acc.name }}</option>
                 {% endfor %}
             </select>
+            {% else %}
+            <div class="empty-state" style="padding:1rem;border:1px dashed var(--border);border-radius:8px;text-align:center;">
+                <div class="empty-desc">Belum punya akun. Buat akun dulu untuk mencatat transaksi.</div>
+                <a href="/accounts/create" class="btn btn-primary btn-sm mt-xs">+ Buat Akun</a>
+            </div>
+            {% endif %}
         </div>
 
         <div class="form-group">

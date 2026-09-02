@@ -83,10 +83,17 @@ def list_transactions(
 def add_transaction_form(request: Request, tx_type: str = "EXPENSE",
                          db: Session = Depends(get_db),
                          user: CurrentUser = Depends(get_current_user)):
-    accounts = _visible_accounts(db, user.id)
+    # Master accounts (NULL user_id) are read-only templates; only OWN accounts
+    # can hold balances. Filter to own only so the dropdown never shows
+    # something the service will reject with "Account not found".
+    own_accounts = db.query(Account).filter(
+        Account.user_id == user.id
+    ).order_by(Account.name).all()
     categories = db.query(Category).filter(Category.type == TransactionType(tx_type)).order_by(Category.name).all()
-    return templates.TemplateResponse(request, "transactions/add.html", { "accounts": accounts, "categories": categories,
+    return templates.TemplateResponse(request, "transactions/add.html", {
+        "accounts": own_accounts, "categories": categories,
         "tx_type": tx_type, "today": today_str(), "TransactionType": TransactionType,
+        "has_accounts": len(own_accounts) > 0,
     })
 
 
