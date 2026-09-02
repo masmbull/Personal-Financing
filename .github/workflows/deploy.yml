@@ -26,6 +26,9 @@ jobs:
           command_timeout: 8m
           script: |
             set -e
+            echo "=== Trust repo dir ==="
+            git config --global --add safe.directory /opt/finance
+
             echo "=== Pull latest code ==="
             cd /opt/finance
             git fetch origin main
