@@ -73,17 +73,26 @@ def seed_default_data():
         db.close()
 
 
+def _validate_production_config(s) -> None:
+    """Fail-fast: refuse to boot in production with unsafe defaults.
+
+    Extracted from lifespan so it can be unit-tested without spinning up
+    TestClient lifespan. Mutates DEBUG=False if it was left on.
+    """
+    if not s.is_production:
+        return
+    if s.SECRET_KEY == "change-me-in-production":
+        raise RuntimeError(
+            "SECRET_KEY must be overridden via env when APP_ENV=production"
+        )
+    if s.DEBUG:
+        logger.warning("DEBUG=true forced off because APP_ENV=production")
+        s.DEBUG = False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if settings.is_production:
-        # Fail-fast in production: refuse to boot with unsafe defaults.
-        if settings.SECRET_KEY == "change-me-in-production":
-            raise RuntimeError(
-                "SECRET_KEY must be overridden via env when APP_ENV=production"
-            )
-        if settings.DEBUG:
-            logger.warning("DEBUG=true forced off because APP_ENV=production")
-            settings.DEBUG = False
+    _validate_production_config(settings)
 
     from app.models.models import User
 
