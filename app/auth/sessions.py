@@ -8,7 +8,14 @@
 """
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+
+def _utcnow() -> datetime:
+    """Naive UTC now (drop tzinfo). Stored datetimes stay naive on purpose so
+    the existing schema keeps working without a migration, but the call site
+    is no longer the deprecated datetime.utcnow()."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 from fastapi import Request, Response
 from sqlalchemy.orm import Session as SqlSession
@@ -29,7 +36,7 @@ def create_session(db: SqlSession, user_id: int,
                    ttl_days: int = SESSION_TTL_DAYS) -> tuple[str, datetime]:
     """Persist a new session and return (raw_token, expires_at)."""
     token = secrets.token_urlsafe(32)
-    expires_at = datetime.utcnow() + timedelta(days=ttl_days)
+    expires_at = _utcnow() + timedelta(days=ttl_days)
     db.add(UserSession(
         user_id=user_id, token_hash=_hash_token(token), expires_at=expires_at,
     ))
@@ -46,7 +53,7 @@ def get_session_user(db: SqlSession, token: str | None) -> User | None:
     ).first()
     if row is None or row.revoked_at is not None:
         return None
-    if row.expires_at < datetime.utcnow():
+    if row.expires_at < _utcnow():
         return None
     user = db.query(User).filter(User.id == row.user_id).first()
     if user is None or not user.is_active:
@@ -62,7 +69,7 @@ def invalidate_session(db: SqlSession, token: str | None) -> None:
         UserSession.token_hash == _hash_token(token)
     ).first()
     if row is not None and row.revoked_at is None:
-        row.revoked_at = datetime.utcnow()
+        row.revoked_at = _utcnow()
         db.commit()
 
 

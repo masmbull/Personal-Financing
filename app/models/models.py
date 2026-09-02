@@ -1,10 +1,15 @@
 import enum
-from datetime import datetime, date
+from datetime import datetime, timezone, date
 from sqlalchemy import (
     Column, Integer, String, Enum, Date, DateTime, ForeignKey, Text, Float, Boolean
 )
 from sqlalchemy.orm import relationship
 from app.database.db import Base
+from datetime import timezone
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class AccountType(str, enum.Enum):
@@ -58,8 +63,8 @@ class User(Base):
     username = Column(String(50), nullable=False, unique=True, index=True)
     password_hash = Column(String(256), nullable=False)  # PBKDF2 string
     is_active = Column(Integer, nullable=False, default=1)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class UserSession(Base):
@@ -71,7 +76,7 @@ class UserSession(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     token_hash = Column(String(64), nullable=False, unique=True, index=True)
     expires_at = Column(DateTime, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
     revoked_at = Column(DateTime, nullable=True)
 
     user = relationship("User")
@@ -91,8 +96,8 @@ class Account(Base):
     initial_balance = Column(Integer, nullable=False, default=0)
     current_balance = Column(Integer, nullable=False, default=0)
     icon = Column(String(10), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     transactions = relationship("Transaction", back_populates="account", foreign_keys="Transaction.account_id")
     dest_transfers = relationship("Transaction", foreign_keys="Transaction.transfer_to_account_id", overlaps="transfer_to_account")
@@ -109,8 +114,8 @@ class Category(Base):
     parent_id = Column(Integer, ForeignKey('categories.id'), nullable=True, index=True)
     icon = Column(String(10), nullable=True)
     is_default = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     transactions = relationship("Transaction", back_populates="category")
     parent = relationship('Category', remote_side='Category.id', back_populates='children')
@@ -131,8 +136,8 @@ class Transaction(Base):
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     transfer_to_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     account = relationship("Account", back_populates="transactions", foreign_keys=[account_id])
     category = relationship("Category", back_populates="transactions")
@@ -158,8 +163,8 @@ class Debt(Base):
     status = Column(Enum(DebtStatus), nullable=False, default=DebtStatus.OPEN)
     notes = Column(Text, nullable=True)
     related_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     related_account = relationship("Account")
     payments = relationship("DebtPayment", back_populates="debt", order_by="DebtPayment.payment_date.desc()")
@@ -175,7 +180,7 @@ class DebtPayment(Base):
     payment_date = Column(Date, nullable=False, default=date.today)
     notes = Column(Text, nullable=True)
     transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
     debt = relationship("Debt", back_populates="payments")
     transaction = relationship("Transaction")
@@ -195,8 +200,8 @@ class Bill(Base):
     auto_create = Column(Boolean, default=False)
     active = Column(Boolean, default=True)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     category = relationship("Category")
     account = relationship("Account")
@@ -211,7 +216,7 @@ class BillPayment(Base):
     amount = Column(Integer, nullable=False)
     paid_date = Column(Date, nullable=False, default=date.today)
     transaction_id = Column(Integer, ForeignKey("transactions.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
     bill = relationship("Bill")
     transaction = relationship("Transaction")
@@ -229,8 +234,8 @@ class SavingsGoal(Base):
     color = Column(String(7), nullable=True)
     active = Column(Boolean, default=True)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     transactions = relationship("SavingsGoalTransaction", back_populates="goal",
                                order_by="SavingsGoalTransaction.created_at.desc()")
@@ -245,7 +250,7 @@ class SavingsGoalTransaction(Base):
     amount = Column(Integer, nullable=False)
     notes = Column(Text, nullable=True)
     related_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
     goal = relationship("SavingsGoal", back_populates="transactions")
     related_account = relationship("Account")
@@ -260,8 +265,8 @@ class Budget(Base):
     amount = Column(Integer, nullable=False)
     month = Column(Integer, nullable=False)
     year = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     category = relationship("Category")
 
@@ -278,8 +283,8 @@ class AssetRecord(Base):
     purchase_date = Column(Date, nullable=True)
     notes = Column(Text, nullable=True)
     icon = Column(String(10), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class Investment(Base):
@@ -294,8 +299,8 @@ class Investment(Base):
     purchase_date = Column(Date, nullable=True)
     notes = Column(Text, nullable=True)
     icon = Column(String(10), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
 
 class ReceiptStatus(str, enum.Enum):
@@ -323,7 +328,7 @@ class Receipt(Base):
                             comment="Set only when the USER confirms -> explicit transaction")
     file_hash = Column(String(64), nullable=True, index=True,
                        comment="SHA-256 of original upload for duplicate detection")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 
     transaction = relationship("Transaction")
 
@@ -338,5 +343,5 @@ class NetWorthSnapshot(Base):
     total_assets = Column(Integer, nullable=False)
     total_liabilities = Column(Integer, nullable=False)
     net_worth = Column(Integer, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=_utcnow)
 

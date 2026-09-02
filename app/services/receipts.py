@@ -11,9 +11,14 @@ import json
 import re
 import uuid
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
@@ -112,7 +117,7 @@ def save_receipt(db: Session, upload: UploadFile, user_id: int) -> Receipt:
 
     file_hash = hashlib.sha256(content).hexdigest()
 
-    now = datetime.utcnow()
+    now = _utcnow()
     rel_dir = Path(settings.RECEIPT_UPLOAD_DIR) / f"{now:%Y}" / f"{now:%m}"
     rel_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{uuid.uuid4().hex}{ext}"
