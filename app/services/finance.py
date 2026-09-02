@@ -44,7 +44,8 @@ def create_transaction(
     type: TransactionType, amount: int, account_id: int,
     category_id: int | None, date_val: date, description: str | None,
     transfer_to_account_id: int | None = None, merchant: str | None = None,
-    notes: str | None = None,
+    notes: str | None = None, merchant_id: int | None = None,
+    payment_method_id: int | None = None,
 ) -> Transaction:
     """Create a transaction on an account OWNED BY ``user_id``.
 
@@ -70,12 +71,29 @@ def create_transaction(
             raise ValueError("Cannot transfer to same account")
     if type != TransactionType.TRANSFER and not category_id:
         raise ValueError("Category required for income/expense")
+    if merchant_id is not None:
+        from app.models.models import Merchant
+        m = db.query(Merchant).filter(
+            Merchant.id == merchant_id,
+            (Merchant.user_id == user_id) | (Merchant.user_id.is_(None)),
+        ).first()
+        if not m:
+            raise ValueError("Merchant not found or not owned")
+    if payment_method_id is not None:
+        from app.models.models import PaymentMethod
+        pm = db.query(PaymentMethod).filter(
+            PaymentMethod.id == payment_method_id,
+            (PaymentMethod.user_id == user_id) | (PaymentMethod.user_id.is_(None)),
+        ).first()
+        if not pm:
+            raise ValueError("Payment method not found or not owned")
     transaction = Transaction(
         user_id=user_id, type=type, amount=amount, account_id=account_id,
         category_id=category_id if type != TransactionType.TRANSFER else None,
         transfer_to_account_id=transfer_to_account_id if type == TransactionType.TRANSFER else None,
         date=date_val, description=description,
         merchant=merchant.strip() if merchant else None,
+        merchant_id=merchant_id, payment_method_id=payment_method_id,
         notes=notes.strip() if notes else None,
     )
     db.add(transaction)

@@ -29,6 +29,8 @@ class TransactionCreate(BaseModel):
         None, description="Required for income/expense, ignored for transfers"
     )
     merchant: Optional[str] = Field(None, max_length=200)
+    merchant_id: Optional[int] = Field(None, description="Canonical merchant entity id")
+    payment_method_id: Optional[int] = Field(None, description="Payment method id")
     description: Optional[str] = None
     notes: Optional[str] = None
     date: Optional[dt_date] = Field(None, description="Defaults to today (ISO)")
@@ -51,6 +53,8 @@ class TransactionUpdate(BaseModel):
     account_id: Optional[int] = None
     category_id: Optional[int] = None
     merchant: Optional[str] = Field(None, max_length=200)
+    merchant_id: Optional[int] = None
+    payment_method_id: Optional[int] = None
     description: Optional[str] = None
     notes: Optional[str] = None
     date: Optional[dt_date] = None
@@ -74,6 +78,9 @@ class TransactionResponse(BaseModel):
     category_name: Optional[str] = None
     transfer_to_account_id: Optional[int] = None
     merchant: Optional[str] = None
+    merchant_id: Optional[int] = None
+    merchant_name: Optional[str] = None
+    payment_method_id: Optional[int] = None
     description: Optional[str] = None
     notes: Optional[str] = None
     date: dt_date

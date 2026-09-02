@@ -2,8 +2,9 @@
 from fastapi import APIRouter
 
 from app.api import (
-    accounts, assets, bills, budgets, categories, dashboard, debts,
-    health, investments, receipts, reports, savings, transactions, transfers,
+    accounts, assets, bills, budgets, categories, credit_cards, dashboard, debts,
+    fuel, health, investments, merchants, payment_methods, receipts, reports,
+    savings, transactions, transfers,
 )
 
 api_v1_router = APIRouter(prefix="/api/v1")
@@ -22,5 +23,9 @@ api_v1_router.include_router(assets.router)
 api_v1_router.include_router(investments.router)
 api_v1_router.include_router(reports.router)
 api_v1_router.include_router(receipts.router)
+api_v1_router.include_router(merchants.router)
+api_v1_router.include_router(payment_methods.router)
+api_v1_router.include_router(fuel.router)
+api_v1_router.include_router(credit_cards.router)
 
 __all__ = ["api_v1_router"]

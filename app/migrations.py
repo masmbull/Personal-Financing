@@ -176,3 +176,71 @@ def run_bill_occurrence_migration(engine: Engine) -> bool:
             "VALUES ('bill_occurrence_table', datetime('now'))"
         ))
     return True
+
+
+# ── Domain-expansion migration (merchant / payment-method / fuel / credit) ──
+# Fresh databases get everything from create_all. Existing databases need the
+# new columns on `transactions` and `accounts`, plus the new tables. All
+# additions are non-destructive and idempotent.
+
+_TRANSACTION_NEW_COLUMNS = [
+    ("merchant_id", "INTEGER"),
+    ("payment_method_id", "INTEGER"),
+    ("fuel_product_id", "INTEGER"),
+    ("quantity_liters", "FLOAT"),
+    ("price_per_liter", "INTEGER"),
+]
+
+_ACCOUNT_NEW_COLUMNS = [
+    ("credit_limit", "INTEGER"),
+    ("statement_date", "INTEGER"),
+    ("payment_due_day", "INTEGER"),
+    ("interest_rate_pct", "FLOAT"),
+    ("annual_fee", "INTEGER"),
+    ("card_network", "VARCHAR(20)"),
+]
+
+
+def run_domain_expansion_migration(engine: Engine) -> bool:
+    """Add domain columns idempotently. New tables are handled by create_all."""
+    insp = inspect(engine)
+    changed = False
+    with engine.begin() as conn:
+        if "transactions" in insp.get_table_names():
+            cols = {c["name"] for c in insp.get_columns("transactions")}
+            for name, typ in _TRANSACTION_NEW_COLUMNS:
+                if name not in cols:
+                    conn.execute(text(
+                        f"ALTER TABLE transactions ADD COLUMN {name} {typ}"
+                    ))
+                    changed = True
+                    logger.info("Migrated transactions: added %s", name)
+            db_ok = "merchants" in insp.get_table_names()
+            if db_ok:
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_transactions_merchant_id "
+                    "ON transactions(merchant_id)"
+                ))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_transactions_payment_method_id "
+                    "ON transactions(payment_method_id)"
+                ))
+        if "accounts" in insp.get_table_names():
+            cols = {c["name"] for c in insp.get_columns("accounts")}
+            for name, typ in _ACCOUNT_NEW_COLUMNS:
+                if name not in cols:
+                    conn.execute(text(
+                        f"ALTER TABLE accounts ADD COLUMN {name} {typ}"
+                    ))
+                    changed = True
+                    logger.info("Migrated accounts: added %s", name)
+        # Mark migration applied (for the log, not functionally required).
+        conn.execute(text(
+            f"CREATE TABLE IF NOT EXISTS {_MARKER_TABLE}"
+            " (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)"
+        ))
+        conn.execute(text(
+            f"INSERT OR IGNORE INTO {_MARKER_TABLE} (name, applied_at) "
+            "VALUES ('domain_expansion', datetime('now'))"
+        ))
+    return changed

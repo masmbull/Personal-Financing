@@ -14,6 +14,13 @@ class AccountBase(BaseModel):
     account_number: Optional[str] = Field(None, max_length=50)
     color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$", examples=["#3498DB"])
     icon: Optional[str] = Field(None, max_length=10, examples=["🏦"])
+    # Credit-card specific
+    credit_limit: Optional[int] = Field(None, ge=0, description="Credit limit in rupiah")
+    statement_date: Optional[int] = Field(None, ge=1, le=28, description="Statement close day of month")
+    payment_due_day: Optional[int] = Field(None, ge=1, le=28, description="Payment due day of month")
+    interest_rate_pct: Optional[float] = Field(None, ge=0, description="Annual interest rate %")
+    annual_fee: Optional[int] = Field(None, ge=0, description="Annual fee in rupiah")
+    card_network: Optional[str] = Field(None, max_length=20)
 
 
 class AccountCreate(AccountBase):
@@ -29,6 +36,12 @@ class AccountUpdate(BaseModel):
     color: Optional[str] = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
     icon: Optional[str] = Field(None, max_length=10)
     initial_balance: Optional[int] = None
+    credit_limit: Optional[int] = Field(None, ge=0)
+    statement_date: Optional[int] = Field(None, ge=1, le=28)
+    payment_due_day: Optional[int] = Field(None, ge=1, le=28)
+    interest_rate_pct: Optional[float] = Field(None, ge=0)
+    annual_fee: Optional[int] = Field(None, ge=0)
+    card_network: Optional[str] = Field(None, max_length=20)
 
 
 class AccountResponse(AccountBase):
@@ -37,6 +50,8 @@ class AccountResponse(AccountBase):
     id: int
     initial_balance: int
     current_balance: int = Field(description="Calculated live balance")
+    available_credit: Optional[int] = Field(
+        None, description="Credit limit minus outstanding (credit cards only)")
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

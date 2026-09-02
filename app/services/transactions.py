@@ -29,6 +29,9 @@ def _to_response(tx: Transaction) -> dict:
         "category_name": tx.category.name if tx.category else None,
         "transfer_to_account_id": tx.transfer_to_account_id,
         "merchant": tx.merchant,
+        "merchant_id": tx.merchant_id,
+        "merchant_name": tx.merchant_ref.canonical_name if tx.merchant_ref else None,
+        "payment_method_id": tx.payment_method_id,
         "description": tx.description,
         "notes": tx.notes,
         "date": tx.date,
@@ -117,6 +120,8 @@ def update_transaction(db: Session, tx_id: int, fields: dict, user_id: int) -> d
         "date_val": fields.get("date", tx.date),
         "description": fields.get("description", tx.description),
         "merchant": fields.get("merchant", tx.merchant),
+        "merchant_id": fields.get("merchant_id", tx.merchant_id),
+        "payment_method_id": fields.get("payment_method_id", tx.payment_method_id),
         "notes": fields.get("notes", tx.notes),
         "transfer_to_account_id": fields.get(
             "transfer_to_account_id", tx.transfer_to_account_id
@@ -138,6 +143,8 @@ def update_transaction(db: Session, tx_id: int, fields: dict, user_id: int) -> d
                 if merged["transfer_to_account_id"] else None
             ),
             merchant=merged["merchant"],
+            merchant_id=merged["merchant_id"],
+            payment_method_id=merged["payment_method_id"],
             notes=merged["notes"],
         )
     except ValueError as e:

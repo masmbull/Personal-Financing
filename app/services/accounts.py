@@ -77,7 +77,13 @@ def create_account(db: Session, *, user_id: int, name: str, type_: AccountType,
                    initial_balance: int = 0, icon: str | None = None,
                    institution: str | None = None,
                    account_number: str | None = None,
-                   color: str | None = None) -> Account:
+                   color: str | None = None,
+                   credit_limit: int | None = None,
+                   statement_date: int | None = None,
+                   payment_due_day: int | None = None,
+                   interest_rate_pct: float | None = None,
+                   annual_fee: int | None = None,
+                   card_network: str | None = None) -> Account:
     if not name or not name.strip():
         raise ValueError("Account name required")
     acct = Account(
@@ -85,11 +91,29 @@ def create_account(db: Session, *, user_id: int, name: str, type_: AccountType,
         initial_balance=initial_balance, current_balance=initial_balance,
         icon=icon or None, institution=institution,
         account_number=account_number, color=color,
+        credit_limit=credit_limit, statement_date=statement_date,
+        payment_due_day=payment_due_day, interest_rate_pct=interest_rate_pct,
+        annual_fee=annual_fee, card_network=card_network,
     )
     db.add(acct)
     db.commit()
     db.refresh(acct)
     return acct
+
+
+def get_available_credit(acc: Account) -> int | None:
+    """Canonical available-credit calc: credit_limit - outstanding liability.
+
+    Outstanding = the absolute value of the negative current_balance (how much
+    is owed). When a credit card has been paid past zero (credit balance),
+    available credit is credit_limit minus 0.
+    """
+    if acc.type != AccountType.CREDIT_CARD:
+        return None
+    if acc.credit_limit is None:
+        return None
+    outstanding = max(0, -acc.current_balance)
+    return acc.credit_limit - outstanding
 
 
 def update_account(db: Session, account_id: int, user_id: int, **fields) -> Account:

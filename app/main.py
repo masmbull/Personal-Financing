@@ -103,7 +103,20 @@ async def lifespan(app: FastAPI):
     run_category_hierarchy_migration(engine)
     from app.migrations import run_bill_occurrence_migration
     run_bill_occurrence_migration(engine)
+    from app.migrations import run_domain_expansion_migration
+    run_domain_expansion_migration(engine)
     seed_default_data()
+    try:
+        from app.services.seed_master import seed_master_data
+        _s = SessionLocal()
+        try:
+            seed_master_data(_s)
+        finally:
+            _s.close()
+    except Exception as e:
+        # Master data seed is nice-to-have, not critical. Allow tests to continue.
+        logger.warning("Master data seed failed: %s", e)
+
     from app.database.db import SessionLocal as _SL
     from app.services.users import bootstrap_admin
     _db = _SL()

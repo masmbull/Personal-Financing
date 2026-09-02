@@ -17,12 +17,47 @@ class AccountType(str, enum.Enum):
     CASH = "CASH"
     BANK = "BANK"
     E_WALLET = "E_WALLET"
+    SERVER_EMONEY = "SERVER_EMONEY"      # server-based electronic money
+    CARD_EMONEY = "CARD_EMONEY"          # card-based electronic money (Flazz, e-Money)
     CREDIT_CARD = "CREDIT_CARD"
+    PAY_LATER = "PAY_LATER"              # PayLater / BNPL
     SAVINGS = "SAVINGS"
     LOAN = "LOAN"
     INVESTMENT = "INVESTMENT"
+    GOLD = "GOLD"
     ASSET = "ASSET"
     LIABILITY = "LIABILITY"
+    OTHER = "OTHER"
+
+
+class MerchantType(str, enum.Enum):
+    RETAIL = "RETAIL"
+    GROCERY = "GROCERY"
+    FOOD_BEVERAGE = "FOOD_BEVERAGE"
+    TRANSPORT = "TRANSPORT"
+    DIGITAL = "DIGITAL"
+    TELECOM = "TELECOM"
+    FINANCIAL = "FINANCIAL"
+    UTILITIES = "UTILITIES"
+    HEALTHCARE = "HEALTHCARE"
+    EDUCATION = "EDUCATION"
+    ENTERTAINMENT = "ENTERTAINMENT"
+    GOVERNMENT = "GOVERNMENT"
+    MARKETPLACE = "MARKETPLACE"
+    OTHER = "OTHER"
+
+
+class PaymentMethodType(str, enum.Enum):
+    CASH = "CASH"
+    BANK_TRANSFER = "BANK_TRANSFER"
+    VIRTUAL_ACCOUNT = "VIRTUAL_ACCOUNT"
+    DEBIT_CARD = "DEBIT_CARD"
+    CREDIT_CARD = "CREDIT_CARD"
+    QRIS = "QRIS"
+    EWALLET = "EWALLET"
+    DIRECT_DEBIT = "DIRECT_DEBIT"
+    AUTO_DEBIT = "AUTO_DEBIT"
+    PAYLATER = "PAYLATER"
     OTHER = "OTHER"
 
 
@@ -97,6 +132,13 @@ class Account(Base):
     initial_balance = Column(Integer, nullable=False, default=0)
     current_balance = Column(Integer, nullable=False, default=0)
     icon = Column(String(10), nullable=True)
+    # Credit-card specific fields (only meaningful when type=CREDIT_CARD)
+    credit_limit = Column(Integer, nullable=True, comment="Max credit in rupiah")
+    statement_date = Column(Integer, nullable=True, comment="Day of month for statement close (1-28)")
+    payment_due_day = Column(Integer, nullable=True, comment="Day of month payment is due (1-28)")
+    interest_rate_pct = Column(Float, nullable=True, comment="Annual interest rate %")
+    annual_fee = Column(Integer, nullable=True, comment="Annual fee in rupiah")
+    card_network = Column(String(20), nullable=True, comment="Visa, Mastercard, JCB, GPN")
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
@@ -137,12 +179,21 @@ class Transaction(Base):
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     transfer_to_account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    merchant_id = Column(Integer, ForeignKey("merchants.id"), nullable=True, index=True,
+                         comment="Canonical merchant entity (nullable for legacy)")
+    payment_method_id = Column(Integer, ForeignKey("payment_methods.id"), nullable=True, index=True)
+    fuel_product_id = Column(Integer, ForeignKey("fuel_products.id"), nullable=True)
+    quantity_liters = Column(Float, nullable=True)
+    price_per_liter = Column(Integer, nullable=True, comment="Snapshot at time of transaction")
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 
     account = relationship("Account", back_populates="transactions", foreign_keys=[account_id])
     category = relationship("Category", back_populates="transactions")
     transfer_to_account = relationship("Account", foreign_keys=[transfer_to_account_id], overlaps="dest_transfers")
+    merchant_ref = relationship("Merchant")
+    payment_method_ref = relationship("PaymentMethod")
+    fuel_product_ref = relationship("FuelProduct")
 
 
 class Debt(Base):
@@ -382,4 +433,126 @@ class NetWorthSnapshot(Base):
     total_liabilities = Column(Integer, nullable=False)
     net_worth = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=_utcnow)
+
+
+# ── Merchant domain ──────────────────────────────────────────────────
+
+class Merchant(Base):
+    """Global master merchants (user_id=NULL) and user-custom merchants."""
+    __tablename__ = "merchants"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True,
+                     comment="NULL = global master merchant")
+    canonical_name = Column(String(200), nullable=False)
+    display_name = Column(String(200), nullable=False)
+    normalized_name = Column(String(200), nullable=False, index=True,
+                             comment="lowercased + stripped for matching")
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    merchant_type = Column(Enum(MerchantType), nullable=False, default=MerchantType.OTHER)
+    active = Column(Boolean, nullable=False, default=True)
+    source = Column(String(100), nullable=True)
+    source_url = Column(String(500), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+    category = relationship("Category")
+    aliases = relationship("MerchantAlias", back_populates="merchant", cascade="all, delete-orphan")
+
+
+class MerchantAlias(Base):
+    """Alternate spellings / OCR variants that resolve to a merchant."""
+    __tablename__ = "merchant_aliases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    merchant_id = Column(Integer, ForeignKey("merchants.id"), nullable=False, index=True)
+    alias = Column(String(200), nullable=False)
+    normalized_alias = Column(String(200), nullable=False, index=True)
+    source = Column(String(100), nullable=True)
+
+    merchant = relationship("Merchant", back_populates="aliases")
+
+
+# ── Payment Method domain ────────────────────────────────────────────
+
+class PaymentMethod(Base):
+    """Payment method: separate from Account and Merchant.
+    Global seed (user_id=NULL) for common Indonesian payment methods."""
+    __tablename__ = "payment_methods"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True,
+                     comment="NULL = global master payment method")
+    name = Column(String(100), nullable=False)
+    method_type = Column(Enum(PaymentMethodType), nullable=False)
+    active = Column(Boolean, nullable=False, default=True)
+    source = Column(String(100), nullable=True)
+    source_url = Column(String(500), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    effective_from = Column(Date, nullable=True)
+    effective_until = Column(Date, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+
+# ── Fuel / BBM domain ───────────────────────────────────────────────
+
+class FuelBrand(Base):
+    """Fuel operator brand (Pertamina, Shell, BP, Vivo, etc.)."""
+    __tablename__ = "fuel_brands"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, unique=True)
+    country = Column(String(50), nullable=False, default="ID")
+    active = Column(Boolean, nullable=False, default=True)
+    source = Column(String(100), nullable=True)
+    source_url = Column(String(500), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+
+    products = relationship("FuelProduct", back_populates="brand")
+
+
+class FuelProduct(Base):
+    """Specific fuel product (Pertamax, Pertalite, Shell V-Power, etc.)."""
+    __tablename__ = "fuel_products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    brand_id = Column(Integer, ForeignKey("fuel_brands.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    product_code = Column(String(50), nullable=True)
+    fuel_type = Column(String(50), nullable=True, comment="gasoline, diesel")
+    ron = Column(Integer, nullable=True, comment="Research Octane Number")
+    cn = Column(Integer, nullable=True, comment="Cetane Number (diesel)")
+    specification = Column(String(100), nullable=True)
+    active = Column(Boolean, nullable=False, default=True)
+    source = Column(String(100), nullable=True)
+    source_url = Column(String(500), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+
+    brand = relationship("FuelBrand", back_populates="products")
+    prices = relationship("FuelPrice", back_populates="product")
+
+
+class FuelPrice(Base):
+    """Historical fuel price reference. Never mutated; old rows stay correct."""
+    __tablename__ = "fuel_prices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    product_id = Column(Integer, ForeignKey("fuel_products.id"), nullable=False, index=True)
+    region = Column(String(100), nullable=False)
+    price_per_liter = Column(Integer, nullable=False, comment="IDR per liter")
+    currency = Column(String(3), nullable=False, default="IDR")
+    effective_from = Column(Date, nullable=False, index=True)
+    effective_until = Column(Date, nullable=True)
+    source = Column(String(100), nullable=True)
+    source_url = Column(String(500), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+
+    product = relationship("FuelProduct", back_populates="prices")
 
