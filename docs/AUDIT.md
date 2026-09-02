@@ -1,6 +1,6 @@
 # Application Audit - Personal-Financing
 
-Snapshot: 170 tests green (135 baseline + 35 new). Commit `be7aa49` -> scheduler + net-worth + accounting audit phase.
+Snapshot: 173 tests green (135 baseline + 38 new). Commit `be7aa49` -> scheduler + net-worth + accounting audit phase (+ integration + IDOR regression).
 
 ## A. Sudah benar (working, tested, secure)
 
@@ -139,4 +139,6 @@ Then credit-card statement/limit fields.
 | Scheduler Arch | - | done jobs.py | CLI+cron | test_bill_scheduler | COMPLETE |
 | Timezone | - | done time_utils | APP_TIMEZONE | test_networth_job | COMPLETE |
 | Accounting Invariants | - | - | - | 8 tests | COMPLETE |
+| Account Edit IDOR | - | - | - | 2 tests | COMPLETE |
+| E2E Integration | - | - | - | 1 test | COMPLETE |
 
