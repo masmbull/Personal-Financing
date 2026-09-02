@@ -43,7 +43,7 @@
     </div>
 
     {% if r.ocr.items %}
-    <details class="rr-card rr-items-toggle" data-rr-accordion>
+    <details class="rr-card rr-items-toggle" data-rr-accordion open>
       <summary class="rr-items-summary"><span>Item</span><span class="rr-badge">{{ r.ocr.items|length }}</span></summary>
       <div class="rr-items-list">
         {% for item in r.ocr.items %}
@@ -57,6 +57,10 @@
         {% endfor %}
       </div>
     </details>
+    {% else %}
+    <div class="rr-card rr-items-list">
+      <p class="rr-card-sub">Tidak ada item terdeteksi dari struk. Tambahkan manual bila perlu.</p>
+    </div>
     {% endif %}
 
     <div class="rr-card">

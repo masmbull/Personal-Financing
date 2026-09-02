@@ -78,7 +78,7 @@
       </div>
     </div>
 
-    {% elif r.ocr and (r.ocr.total_amount or r.ocr.merchant or r.ocr.date) %}
+    {% elif r.ocr %}
     {% include "receipts/_dt1.html" %}
 
     {% else %}
