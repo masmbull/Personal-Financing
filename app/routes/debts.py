@@ -18,14 +18,26 @@ router = APIRouter()
 @router.get("/debts", response_class=HTMLResponse)
 def list_debts(request: Request, db: Session = Depends(get_db),
                user: CurrentUser = Depends(get_current_user)):
+    from app.models.models import DebtPayment
     receivables = debts_service.list_debts(db, DebtType.RECEIVABLE, user.id)
     payables = debts_service.list_debts(db, DebtType.PAYABLE, user.id)
     totals = debts_service.totals_for(db, user.id)
-    return templates.TemplateResponse(request, "debts/list.html", { "receivables": receivables, "payables": payables,
+    # Fetch payment history for each debt
+    payments_by_debt = {}
+    for debt in receivables + payables:
+        pmts = (db.query(DebtPayment)
+                .filter(DebtPayment.debt_id == debt.id, DebtPayment.user_id == user.id)
+                .order_by(DebtPayment.payment_date.desc())
+                .all())
+        if pmts:
+            payments_by_debt[debt.id] = pmts
+    return templates.TemplateResponse(request, "debts/list.html", {
+        "receivables": receivables, "payables": payables,
         "total_receivable": totals["total_receivable"],
         "total_payable": totals["total_payable"],
         "format_rupiah": format_rupiah,
         "DebtType": DebtType, "DebtStatus": debts_service.DebtStatus,
+        "payments_by_debt": payments_by_debt,
     })
 
 

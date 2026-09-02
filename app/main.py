@@ -7,11 +7,12 @@ from fastapi.staticfiles import StaticFiles
 
 from app.database.db import engine, Base, SessionLocal
 from app.models.models import Account, Category, AccountType, TransactionType
-from app.routes import dashboard, transactions, categories, reports, transfer, debts, bills, budgets, savings, assets_list, investments, receipts_ui, misc
+from app.routes import dashboard, transactions, categories, reports, transfer, debts, bills, budgets, savings, assets_list, investments, receipts_ui, misc, export
 from app.api.router import api_v1_router
 from app.api.errors import register_exception_handlers
 from app.auth.router import router as auth_router
 from app.middleware import UserContextMiddleware
+from app.rate_limit import RateLimitMiddleware
 from app.config import get_settings
 
 settings = get_settings()
@@ -144,6 +145,8 @@ app.add_middleware(
 )
 # Soft session context for templates (enforcement happens in route deps).
 app.add_middleware(UserContextMiddleware)
+# Brute-force protection on auth + upload endpoints (in-memory, per-IP).
+app.add_middleware(RateLimitMiddleware)
 
 register_exception_handlers(app)
 
@@ -169,4 +172,5 @@ app.include_router(budgets.router)
 app.include_router(savings.router)
 app.include_router(assets_list.router)
 app.include_router(investments.router)
+app.include_router(export.router)
 

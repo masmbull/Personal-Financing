@@ -72,6 +72,8 @@ def default_user_id() -> int:
 
 @pytest.fixture(autouse=True)
 def setup_db():
+    from app.rate_limit import RateLimitMiddleware
+    RateLimitMiddleware.reset()
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     shutil.rmtree(RECEIPT_TEST_DIR, ignore_errors=True)

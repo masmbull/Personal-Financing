@@ -1,6 +1,6 @@
 # Application Audit — Personal-Financing
 
-Snapshot: 123 tests green, baseline = commit `6592931` (+ cleanup `b7bd4b0`).
+Snapshot: 135 tests green, baseline commit `8e84fe7` (+ export/rate-limit phases).
 
 ## A. Sudah benar (working, tested, secure)
 
@@ -17,18 +17,13 @@ Snapshot: 123 tests green, baseline = commit `6592931` (+ cleanup `b7bd4b0`).
 
 ## B. Setengah jadi (ada tapi belum lengkap)
 
-- **Dashboard period filter** — endpoint ada, UI tidak expose minggu/bulan-lalu/tahun/custom.
-- **CSV export** — belum ada endpoint / tombol.
 - **Savings goal contribution/withdrawal** — model ada (`SavingsGoalTransaction`), UI form belum eksplisit.
-- **Debt payment history** — model `DebtPayment` ada, list view belum menampilkan timeline.
 - **Net worth snapshot** — `NetWorthSnapshot` table ada tapi belum ada scheduler untuk snapshot harian.
 - **Optimistic UI / button loading** — toast/modal ada, tapi `aria-busy` + spinner inline belum konsisten.
 
 ## C. Broken / masalah latent
 
-- **`datetime.utcnow()` deprecated** (Python 3.12+) — 2791 warnings. Tidak break tapi akan rusak di 3.12+ runtime. Perlu migrasi ke `datetime.now(timezone.utc)`.
 - **Test pollution risk** — `test.db` bisa korup kalau pytest di-kill mid-run (SQLite WAL issue). Sudah mitigasi: drop_all per-test. Belum: `PRAGMA journal_mode=WAL` di test engine.
-- **Bank "DBS" / "UOB" belum di-seed** — README klaim ada, tapi seed list tidak include.
 - **No `pytest.ini` / `pyproject.toml` test config** — `pytest tests/` jalan, tapi `addopts` (warnings=error, junit-xml) belum di-set.
 
 ## D. UI tanpa backend
@@ -46,8 +41,6 @@ Snapshot: 123 tests green, baseline = commit `6592931` (+ cleanup `b7bd4b0`).
 - **DEBUG default = `True`** di config.py — harus `False` di production. Belum enforced.
 - **`SECRET_KEY` default = `"change-me-in-production"`** — boleh tapi tidak fail-fast.
 - **CORS default** localhost only — OK, production CORS origins perlu di-set.
-- **Cookie secure flag** — di-hardcode `secure=False` di auth; harus ENV-driven untuk production HTTPS.
-- **No rate limiting** — login/register/receipt upload belum throttle.
 - **CSRF** — double-submit untuk HTML form; API JSON belum (acceptable karena SameSite=Lax).
 
 ## G. Data integrity issue
@@ -66,36 +59,32 @@ Snapshot: 123 tests green, baseline = commit `6592931` (+ cleanup `b7bd4b0`).
 
 | Spec | Status |
 |------|--------|
-| Period filter (minggu/bulan-lalu/tahun/custom) | ❌ UI missing |
-| CSV / XLSX export | ❌ |
+| Period filter (minggu/bulan-lalu/tahun/custom) | ✅ done |
+| CSV / XLSX export | ✅ CSV done; XLSX sengaja skip (butuh dep + lokal) |
 | Savings contribution/withdraw form | ⚠ partial |
-| Debt payment history view | ⚠ partial |
+| Debt payment history view | ✅ done (timeline di list view) |
 | Bill auto-post scheduler | ❌ |
 | Net worth daily snapshot job | ❌ |
-| Bank DBS/UOB seed | ❌ |
-| Budget progress on dashboard | ⚠ data ada, belum render |
+| Bank DBS/UOB seed | ✅ done |
+| Budget progress on dashboard | ✅ done |
 | Optimistic UI / button loading | ❌ |
-| Production cookie secure flag | ❌ ENV-driven |
-| Rate limiting | ❌ |
-| `datetime.now(tz=utc)` migration | ❌ |
+| Production cookie secure flag | ✅ ENV-driven |
+| Rate limiting | ✅ in-memory per-IP (login/register/upload) |
+| `datetime.now(tz=utc)` migration | ✅ done |
 | `pytest` strict warnings | ❌ |
 
 ## Prioritas eksekusi (dari 25 phase user)
 
 1. **Quick wins (low risk, high value)**:
-   - datetime.utcnow migration
-   - Seed DBS/UOB (data only)
    - Pyproject pytest config (warnings as errors, junit)
-   - Production cookie secure flag + DEBUG fail-fast
-2. **Dashboard upgrade** (PHASE 3): period filter, budget usage tile
-3. **Export** (PHASE 15): CSV endpoint + button per list page
-4. **UI polish** (PHASE 2): button loading states, optimistic feedback, list skeletons
-5. **Receipt UX** (PHASE 11): dropzone/drag-drop/camera + confidence indicator
-6. **Indonesian master data audit** (PHASE 14)
-7. **Rate limiting** (PHASE 17): in-memory limiter
-8. **Net worth snapshot** (PHASE 16): daily job
-9. **Mobile UX verify** (PHASE 19)
-10. **Final QA** (PHASE 25)
+2. **Export** (PHASE 15): CSV done — XLSX bila diminta
+3. **UI polish** (PHASE 2): button loading states, optimistic feedback, list skeletons
+4. **Receipt UX** (PHASE 11): dropzone/drag-drop/camera + confidence indicator
+5. **Indonesian master data audit** (PHASE 14)
+6. **Net worth snapshot** (PHASE 16): daily job
+7. **Mobile UX verify** (PHASE 19)
+8. **Bill auto-post scheduler**
+9. **Final QA** (PHASE 25)
 
 ## Catatan arsitektural
 

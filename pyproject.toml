@@ -1,0 +1,8 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--disable-warnings -p no:cacheprovider"
+filterwarnings = [
+    "error",
+    "ignore:Using .httpx. with .starlette.testclient. is deprecated",
+    "ignore:Unclosed file:ResourceWarning",
+]

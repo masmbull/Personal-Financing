@@ -54,6 +54,20 @@
                     <a href="/debts/delete/{{ d.id }}" class="btn-link text-red" onclick="return confirm('Hapus?')">Hapus</a>
                 </div>
             </div>
+            {% if payments_by_debt.get(d.id) %}
+            <details class="payments">
+                <summary class="payments-summary">Riwayat pembayaran ({{ payments_by_debt[d.id]|length }})</summary>
+                <ul class="payments-list">
+                    {% for p in payments_by_debt[d.id] %}
+                    <li class="payment-item">
+                        <span class="payment-date">{{ p.payment_date.strftime('%d %b %Y') }}</span>
+                        <span class="payment-amount text-green">+{{ format_rupiah(p.amount) }}</span>
+                        {% if p.notes %}<span class="payment-note">{{ p.notes }}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
+            {% endif %}
             {% endfor %}
         </div>
         {% else %}
@@ -94,6 +108,20 @@
                     <a href="/debts/delete/{{ d.id }}" class="btn-link text-red" onclick="return confirm('Hapus?')">Hapus</a>
                 </div>
             </div>
+            {% if payments_by_debt.get(d.id) %}
+            <details class="payments">
+                <summary class="payments-summary">Riwayat pembayaran ({{ payments_by_debt[d.id]|length }})</summary>
+                <ul class="payments-list">
+                    {% for p in payments_by_debt[d.id] %}
+                    <li class="payment-item">
+                        <span class="payment-date">{{ p.payment_date.strftime('%d %b %Y') }}</span>
+                        <span class="payment-amount text-green">+{{ format_rupiah(p.amount) }}</span>
+                        {% if p.notes %}<span class="payment-note">{{ p.notes }}</span>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </details>
+            {% endif %}
             {% endfor %}
         </div>
         {% else %}
