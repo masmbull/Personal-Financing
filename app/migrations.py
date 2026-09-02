@@ -32,6 +32,7 @@ USER_OWNED_TABLES = [
     "investments",
     "receipts",
     "net_worth_snapshots",
+    "bill_occurrences",
 ]
 
 _MARKER_TABLE = "_pf_migrations"
@@ -131,3 +132,47 @@ def claim_legacy_rows(db: Session, user_id: int) -> None:
             f"UPDATE {table} SET user_id = :uid WHERE user_id IS NULL"
         ), {"uid": user_id})
     db.commit()
+
+_BO_TABLE_SQL = (
+    "CREATE TABLE IF NOT EXISTS bill_occurrences ("
+    "id INTEGER NOT NULL PRIMARY KEY, "
+    "user_id INTEGER NOT NULL, "
+    "bill_id INTEGER NOT NULL, "
+    "due_date DATE NOT NULL, "
+    "amount INTEGER NOT NULL, "
+    "status VARCHAR(20) NOT NULL, "
+    "bill_payment_id INTEGER, "
+    "created_at DATETIME"
+    ")"
+)
+
+
+def run_bill_occurrence_migration(engine: Engine) -> bool:
+    """Backfill the bill_occurrences table + unique index for EXISTING DBs.
+
+    Fresh databases get the table (with UNIQUE(bill_id, due_date)) straight
+    from create_all; this idempotent helper covers databases created before
+    the scheduler existed. The unique index enforces the idempotency
+    guarantee at the schema level.
+    """
+    insp = inspect(engine)
+    if "bill_occurrences" not in insp.get_table_names():
+        return False
+    idx = {i["name"] for i in insp.get_indexes("bill_occurrences")}
+    if "uq_bill_occurrence" in idx:
+        return False
+    with engine.begin() as conn:
+        conn.execute(text(_BO_TABLE_SQL))
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_bill_occurrence "
+            "ON bill_occurrences(bill_id, due_date)"
+        ))
+        conn.execute(text(
+            f"CREATE TABLE IF NOT EXISTS {_MARKER_TABLE}"
+            " (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)"
+        ))
+        conn.execute(text(
+            f"INSERT OR IGNORE INTO {_MARKER_TABLE} (name, applied_at) "
+            "VALUES ('bill_occurrence_table', datetime('now'))"
+        ))
+    return True

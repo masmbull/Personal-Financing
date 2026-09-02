@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, CurrentUser
 from app.database.db import get_db
 from app.schemas.bill import (
-    BillCreate, BillListResponse, BillPayRequest, BillPaymentResponse,
-    BillResponse, BillUpdate,
+    BillCreate, BillListResponse, BillOccurrenceResponse, BillPayRequest,
+    BillPaymentResponse, BillResponse, BillUpdate,
 )
 from app.services import bills as bills_service
 
@@ -108,3 +108,81 @@ def delete_bill(bill_id: int, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     bills_service.delete_bill(db, bill_id, user.id)
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
+# ==================== Bill Occurrences (scheduler) ====================
+
+
+def _occ_out(occ) -> BillOccurrenceResponse:
+    return BillOccurrenceResponse(
+        id=occ.id, bill_id=occ.bill_id,
+        bill_name=occ.bill.name if occ.bill else None,
+        due_date=occ.due_date, amount=occ.amount,
+        status=occ.status.value if hasattr(occ.status, "value") else occ.status,
+        bill_payment_id=occ.bill_payment_id,
+        created_at=occ.created_at,
+    )
+
+
+@router.post(
+    "/occurrences/run",
+    status_code=http_status.HTTP_201_CREATED,
+    summary="Generate pending bill occurrences (scheduler job)",
+    description=(
+        "Materialise DUE occurrences for all active bills up to the given "
+        "date. Idempotent - re-running creates zero duplicates."
+    ),
+)
+def generate_occurrences(
+    as_of: Optional[date] = Query(None, description="Defaults to today"),
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    from datetime import date as _date
+    created = bills_service.generate_bill_occurrences(
+        db, as_of=as_of or _date.today(), user_id=user.id)
+    return {"created": created, "as_of": (as_of or _date.today()).isoformat()}
+
+
+@router.get(
+    "/occurrences/due",
+    summary="List unpaid (DUE) bill occurrences",
+    description="All occurrences up to as_of that have not yet been paid.",
+)
+def list_due_occurrences(
+    as_of: Optional[date] = Query(None),
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    from datetime import date as _date
+    items = bills_service.due_occurrences(
+        db, user_id=user.id, as_of=as_of or _date.today())
+    return {"items": [_occ_out(i).model_dump() for i in items],
+            "total": len(items)}
+
+
+@router.post(
+    "/occurrences/{occurrence_id}/pay",
+    response_model=BillPaymentResponse,
+    status_code=http_status.HTTP_201_CREATED,
+    summary="Pay a specific generated occurrence",
+    description=(
+        "Creates the financial transaction via the normal pay_bill path "
+        "and marks the occurrence PAID. Idempotent - a second pay returns 400."
+    ),
+    responses={201: {"description": "Paid"}, 400: {"description": "Not DUE"}},
+)
+def pay_occurrence(
+    occurrence_id: int, payload: BillPayRequest,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    _bill, payment, _occ = bills_service.pay_occurrence(
+        db, occurrence_id, user.id,
+        amount=payload.amount, account_id=payload.account_id,
+        pay_date=payload.pay_date or date.today(),
+    )
+    return BillPaymentResponse(
+        id=payment.id, bill_id=payment.bill_id, amount=payment.amount,
+        paid_date=payment.paid_date, transaction_id=payment.transaction_id,
+    )

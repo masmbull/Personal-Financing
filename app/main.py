@@ -95,14 +95,14 @@ def _validate_production_config(s) -> None:
 async def lifespan(app: FastAPI):
     _validate_production_config(settings)
 
-    from app.models.models import User
-
     Base.metadata.create_all(bind=engine)
     # Legacy DB safety: add user_id columns where missing (idempotent),
     # then claim legacy rows for the bootstrap admin when one exists.
     from app.migrations import claim_legacy_rows, run_migrations, run_category_hierarchy_migration
     legacy_altered = run_migrations(engine)
     run_category_hierarchy_migration(engine)
+    from app.migrations import run_bill_occurrence_migration
+    run_bill_occurrence_migration(engine)
     seed_default_data()
     from app.database.db import SessionLocal as _SL
     from app.services.users import bootstrap_admin
@@ -111,13 +111,10 @@ async def lifespan(app: FastAPI):
         admin = bootstrap_admin(_db)
         if legacy_altered and admin is not None:
             claim_legacy_rows(_db, admin.id)
-        # Per-user daily net-worth snapshot for the oldest active user.
-        first_user = _db.query(User).filter(
-            User.is_active == 1
-        ).order_by(User.id).first()
-        if first_user is not None:
-            from app.services.reports import record_daily_snapshot
-            record_daily_snapshot(_db, first_user.id)
+        # Daily jobs: bill occurrences + net-worth snapshots for ALL users.
+        from app.services.jobs import run_bill_auto_post, run_daily_net_worth_snapshots
+        run_bill_auto_post(_db)
+        run_daily_net_worth_snapshots(_db)
     finally:
         _db.close()
     yield

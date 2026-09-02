@@ -109,23 +109,27 @@ def net_worth_snapshot(db: Session, user_id: int) -> dict:
 # ---------- Net-worth history (daily snapshots) ----------
 
 
-def record_daily_snapshot(db: Session, user_id: int) -> "NetWorthSnapshot":
-    """Upsert today's snapshot. Safe to call repeatedly - one row per day,
-    per user."""
+def record_daily_snapshot(db: Session, user_id: int,
+                          snapshot_date: date | None = None) -> "NetWorthSnapshot":
+    """Upsert one snapshot row per (user, date). Idempotent - calling twice
+    for the same logical date refreshes the same row instead of duplicating.
+    Supports historical dates, so a job can backfill previous days.
+    """
     from app.models.models import NetWorthSnapshot
+    from app.time_utils import today_in_tz
 
+    snap_date = snapshot_date or today_in_tz()
     nw = compute_net_worth(db, user_id)
-    today = date.today()
     row = (
         db.query(NetWorthSnapshot)
-        .filter(NetWorthSnapshot.snapshot_date == today,
+        .filter(NetWorthSnapshot.snapshot_date == snap_date,
                 NetWorthSnapshot.user_id == user_id)
         .first()
     )
     if row is None:
         row = NetWorthSnapshot(
             user_id=user_id,
-            snapshot_date=today,
+            snapshot_date=snap_date,
             total_assets=nw["total_assets"],
             total_liabilities=nw["total_liabilities"],
             net_worth=nw["net_worth"],
@@ -138,6 +142,35 @@ def record_daily_snapshot(db: Session, user_id: int) -> "NetWorthSnapshot":
     db.commit()
     db.refresh(row)
     return row
+
+
+def run_daily_net_worth_snapshots(db: Session, as_of: date | None = None) -> int:
+    """Create/refresh the daily net-worth snapshot for EVERY active user for a
+    logical date (default: today in the canonical timezone). Idempotent per
+    (user, date). Returns the number of snapshots written (upserted rows).
+
+    Callable independently of any scheduler - the production caller decides
+    when to invoke it.
+    """
+    from app.models.models import User, NetWorthSnapshot
+    from app.time_utils import today_in_tz
+
+    snap_date = as_of or today_in_tz()
+    users = db.query(User.id).filter(User.is_active == 1).all()
+    written = 0
+    for (uid,) in users:
+        before = row_count(db, NetWorthSnapshot, uid, snap_date)
+        record_daily_snapshot(db, uid, snap_date)
+        after = row_count(db, NetWorthSnapshot, uid, snap_date)
+        written += after - before
+    return written
+
+
+def row_count(db, model, user_id, snap_date):
+    return db.query(model.id).filter(
+        model.user_id == user_id,
+        model.snapshot_date == snap_date,
+    ).count()
 
 
 def net_worth_history(db: Session, user_id: int, date_from=None,

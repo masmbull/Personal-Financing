@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     RECEIPT_AI_MAX_IMAGE_WIDTH: int = int(
         os.environ.get("RECEIPT_AI_MAX_IMAGE_WIDTH", "1600"))
 
+    # Canonical timezone for all date-based calculations and daily jobs.
+    # Indonesian-first default; override via APP_TIMEZONE env var.
+    APP_TIMEZONE: str = os.environ.get("APP_TIMEZONE", "Asia/Jakarta")
+
 
     @property
     def cors_origins_list(self) -> list[str]:

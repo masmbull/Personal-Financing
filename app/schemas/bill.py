@@ -66,6 +66,19 @@ class BillPaymentResponse(BaseModel):
     transaction_id: Optional[int] = None
 
 
+class BillOccurrenceResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    bill_id: int
+    bill_name: Optional[str] = None
+    due_date: date
+    amount: int
+    status: str
+    bill_payment_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+
 class BillListResponse(BaseModel):
     items: list[BillResponse]
     total: int
