@@ -10,12 +10,18 @@
         <button class="theme-toggle" onclick="toggleTheme()" aria-label="Ganti tema">🌙</button>
     </div>
 
+    <nav class="period-nav reveal" aria-label="Periode dashboard">
+        {% for val, label in period_options %}
+        <a href="/?period={{ val }}" class="period-pill {% if data.period == val %}active{% endif %}">{{ label }}</a>
+        {% endfor %}
+    </nav>
+
     <section class="balance-card hero reveal" aria-label="Saldo tersedia">
         <div class="balance-label">Saldo tersedia</div>
         <div class="balance-amount">{{ format_rupiah(data.available_cash) }}</div>
-        <div class="balance-trend {% if data.monthly_cashflow >= 0 %}up{% else %}down{% endif %}">
-            {% if data.monthly_cashflow >= 0 %}▲{% else %}▼{% endif %}
-            {{ format_rupiah(data.monthly_cashflow if data.monthly_cashflow >= 0 else -data.monthly_cashflow) }} bulan ini
+        <div class="balance-trend {% if data.cashflow >= 0 %}up{% else %}down{% endif %}">
+            {% if data.cashflow >= 0 %}▲{% else %}▼{% endif %}
+            {{ format_rupiah(data.cashflow if data.cashflow >= 0 else -data.cashflow) }} {{ data.period_label }}
         </div>
     </section>
 
@@ -42,18 +48,23 @@
     <section class="summary-cards reveal">
         <div class="summary-card">
             <div class="summary-label">Uang masuk</div>
-            <div class="summary-value text-green">{{ format_rupiah(data.monthly_income) }}</div>
-            <div class="summary-sub">bulan ini</div>
+            <div class="summary-value text-green">{{ format_rupiah(data.income) }}</div>
+            <div class="summary-sub">{{ data.period_label }}</div>
         </div>
         <div class="summary-card">
             <div class="summary-label">Pengeluaran</div>
-            <div class="summary-value text-red">{{ format_rupiah(data.monthly_expense) }}</div>
-            <div class="summary-sub">bulan ini</div>
+            <div class="summary-value text-red">{{ format_rupiah(data.expense) }}</div>
+            <div class="summary-sub">{{ data.period_label }}</div>
         </div>
         <div class="summary-card">
             <div class="summary-label">Cashflow</div>
-            <div class="summary-value {% if data.monthly_cashflow >= 0 %}text-green{% else %}text-red{% endif %}">{{ format_rupiah(data.monthly_cashflow) }}</div>
-            <div class="summary-sub">bulan ini</div>
+            <div class="summary-value {% if data.cashflow >= 0 %}text-green{% else %}text-red{% endif %}">{{ format_rupiah(data.cashflow) }}</div>
+            <div class="summary-sub">{{ data.period_label }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Tingkat menabung</div>
+            <div class="summary-value {% if data.savings_rate >= 0 %}text-green{% else %}text-red{% endif %}">{{ data.savings_rate }}%</div>
+            <div class="summary-sub">{{ data.period_label }}</div>
         </div>
     </section>
 

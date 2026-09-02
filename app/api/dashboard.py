@@ -26,12 +26,17 @@ router = APIRouter(tags=["dashboard"])
 def dashboard(
     bills_days_ahead: int = Query(7, ge=0, le=60),
     recent_limit: int = Query(10, ge=1, le=50),
+    period: str = Query(
+        "month", pattern="^(week|month|prev_month|year)$",
+        description="Income/expense window: last 7 days, month-to-date, "
+                    "previous calendar month, or year-to-date.",
+    ),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
     payload = build_dashboard(
         db, user_id=user.id, bills_days_ahead=bills_days_ahead,
-        recent_limit=recent_limit
+        recent_limit=recent_limit, period=period,
     )
     core = {
         k: v for k, v in payload.items()

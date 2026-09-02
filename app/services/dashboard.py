@@ -11,15 +11,36 @@ from app.services.finance import expense_between, income_between
 from app.services.transactions import list_transactions
 
 
+def _period_range(period: str, today: date) -> tuple[date, date]:
+    """Return (start, end) for a named dashboard period. End is inclusive."""
+    if period == "week":
+        return today - timedelta(days=6), today
+    if period == "prev_month":
+        end = today.replace(day=1) - timedelta(days=1)
+        return end.replace(day=1), end
+    if period == "year":
+        return today.replace(month=1, day=1), today
+    return today.replace(day=1), today
+
+
+PERIOD_LABELS = {
+    "week": "7 hari terakhir",
+    "month": "bulan ini",
+    "prev_month": "bulan lalu",
+    "year": "tahun ini",
+}
+
+
 def build_dashboard(db: Session, *, user_id: int,
                     bills_days_ahead: int = 7,
-                    recent_limit: int = 10) -> dict:
+                    recent_limit: int = 10,
+                    period: str = "month") -> dict:
     today = date.today()
-    month_start = today.replace(day=1)
+    period_start, period_end = _period_range(period, today)
 
     nw = compute_net_worth(db, user_id)
-    monthly_income = income_between(db, month_start, today, user_id)
-    monthly_expense = expense_between(db, month_start, today, user_id)
+    income = income_between(db, period_start, period_end, user_id)
+    expense = expense_between(db, period_start, period_end, user_id)
 
     budget_rows = budgets_service.list_with_spending(
         db, today.year, today.month, user_id
@@ -48,9 +69,18 @@ def build_dashboard(db: Session, *, user_id: int,
         "total_assets": nw["total_assets"],
         "total_liabilities": nw["total_liabilities"],
         "available_cash": nw["available_cash"],
-        "monthly_income": monthly_income,
-        "monthly_expense": monthly_expense,
-        "monthly_cashflow": monthly_income - monthly_expense,
+        "period_start": period_start,
+        "period_end": period_end,
+        "period": period,
+        "period_label": PERIOD_LABELS.get(period, "bulan ini"),
+        "income": income,
+        "expense": expense,
+        "cashflow": income - expense,
+        "savings_rate": round((income - expense) * 100 / income) if income > 0 else 0,
+        # Backward-compatible aliases used by /api/v1/dashboard contract.
+        "monthly_income": income,
+        "monthly_expense": expense,
+        "monthly_cashflow": income - expense,
         "total_debt": nw["total_debt"],
         "total_receivables": nw["total_receivables"],
         "budget_summary": [r["payload"] for r in budget_rows],

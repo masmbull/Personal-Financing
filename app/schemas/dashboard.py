@@ -42,3 +42,14 @@ class DashboardSummary(BaseModel):
     budget_summary: list[BudgetResponse] = []
     upcoming_bills: list[UpcomingBillItem] = []
     recent_transactions: list[TransactionResponse] = []
+    # Period-aware income/expense window (default: month-to-date).
+    period: str = Field("month", description="week|month|prev_month|year")
+    period_label: str = Field("bulan ini")
+    period_start: Optional[date] = None
+    period_end: Optional[date] = None
+    income: int = Field(0, description="Money in for the selected period")
+    expense: int = Field(0, description="Spending for the selected period")
+    cashflow: int = Field(0, description="income - expense for the selected period")
+    savings_rate: int = Field(
+        0, description="(income - expense) / income * 100, rounded; 0 when no income"
+    )

@@ -97,6 +97,28 @@ def test_dashboard_page():
     assert response.status_code == 200
 
 
+def test_period_range_week_and_prev_month():
+    from datetime import date, timedelta
+    from app.services.dashboard import _period_range
+
+    today = date(2026, 7, 15)
+    s, e = _period_range("week", today)
+    assert s == today - timedelta(days=6) and e == today
+
+    s, e = _period_range("prev_month", today)
+    assert s == date(2026, 6, 1) and e == date(2026, 6, 30)
+
+    s, e = _period_range("year", today)
+    assert s == date(2026, 1, 1) and e == today
+
+    s, e = _period_range("month", today)
+    assert s == date(2026, 7, 1) and e == today
+
+    # January: previous month must still land in December (year-1).
+    s, e = _period_range("prev_month", date(2026, 1, 5))
+    assert s == date(2025, 12, 1) and e == date(2025, 12, 31)
+
+
 def test_transactions_page():
     response = client.get("/transactions")
     assert response.status_code == 200

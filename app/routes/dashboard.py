@@ -14,6 +14,7 @@ router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
 def dashboard(request: Request, db: Session = Depends(get_db),
+              period: str = "month",
               user: CurrentUser = Depends(get_current_user)):
     """Consolidated dashboard page - one call into the SAME service that
     powers GET /api/v1/dashboard, so numbers never diverge between UI/API."""
@@ -22,9 +23,11 @@ def dashboard(request: Request, db: Session = Depends(get_db),
     from app.services import reports as reports_service
     from app.services import savings as savings_service
     from app.services.dashboard import build_dashboard
-    from datetime import date as _date
 
-    payload = build_dashboard(db, user_id=user.id)
+    if period not in ("week", "month", "prev_month", "year"):
+        period = "month"
+
+    payload = build_dashboard(db, user_id=user.id, period=period)
 
     recent = []
     for t in payload["recent_transactions"]:
@@ -49,9 +52,12 @@ def dashboard(request: Request, db: Session = Depends(get_db),
         total_assets=payload["total_assets"],
         total_liabilities=payload["total_liabilities"],
         net_worth=payload["net_worth"],
-        monthly_income=payload["monthly_income"],
-        monthly_expense=payload["monthly_expense"],
-        monthly_cashflow=payload["monthly_cashflow"],
+        income=payload["income"],
+        expense=payload["expense"],
+        cashflow=payload["cashflow"],
+        savings_rate=payload["savings_rate"],
+        period=payload["period"],
+        period_label=payload["period_label"],
         total_debt=payload["total_debt"],
         total_receivables=payload["total_receivables"],
         budget_summary=budgets,
@@ -59,9 +65,9 @@ def dashboard(request: Request, db: Session = Depends(get_db),
         recent_transactions=recent,
     )
 
-    today = _date.today()
+    # Expense breakdown follows the selected period.
     breakdown = reports_service.category_breakdown(
-        db, TransactionType.EXPENSE, today.replace(day=1), today,
+        db, TransactionType.EXPENSE, payload["period_start"], payload["period_end"],
         user_id=user.id,
     )
     goals = [
@@ -76,6 +82,12 @@ def dashboard(request: Request, db: Session = Depends(get_db),
         "expense_breakdown": breakdown["by_category"][:5],
         "expense_total": breakdown["total"],
         "savings_goals": goals[:3],
+        "period_options": [
+            ("week", "7 Hari"),
+            ("month", "Bulan Ini"),
+            ("prev_month", "Bulan Lalu"),
+            ("year", "Tahun Ini"),
+        ],
         "format_rupiah": format_rupiah,
     })
 

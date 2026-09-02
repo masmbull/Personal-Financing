@@ -37,6 +37,23 @@ def test_dashboard_renders_all_sections():
         assert needle in t, needle
 
 
+def test_dashboard_period_selector_renders():
+    t = client.get("/").text
+    assert 'class="period-pill active"' in t          # default = bulan ini
+    for pill in ("7 Hari", "Bulan Ini", "Bulan Lalu", "Tahun Ini"):
+        assert f">{pill}<" in t, pill
+
+
+def test_dashboard_period_option_recomputes_labels():
+    t = client.get("/?period=year").text
+    assert "tahun ini" in t
+    tw = client.get("/?period=week").text
+    assert "7 hari terakhir" in tw
+    # Illegal period falls back to current month rendering.
+    tb = client.get("/?period=bogus").text
+    assert "bulan ini" in tb and "Tingkat menabung" in tb
+
+
 def test_dashboard_recent_transaction_row_links_to_edit():
     acc, cat = _acc("BCA"), _cat("Makan & Minum")
     tx = client.post("/api/v1/transactions", json={
