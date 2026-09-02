@@ -567,7 +567,7 @@ def test_all_template_classes_exist_in_css():
     # Jinja control words that appear inside class="..." text but aren't real classes
     jinja_words = {"if", "else", "endif", "elif", "for", "endfor", "not", "in",
                    "and", "or", "pct", "ret", "strong", "b", "conf", "item",
-                   "filter", "max", "min", "round", "int", "hidden"}
+                   "filter", "max", "min", "round", "int", "hidden", "val"}
     used = set()
     for dirpath, _, files in os.walk(os.path.join(base, "app", "templates")):
         for fn in files:
