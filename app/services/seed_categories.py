@@ -106,9 +106,6 @@ TAXONOMY = {
         ("other", "Pendapatan Lainnya", "\U0001f4c4", None, [
             ("other_income", "Pendapatan Lainnya", "\U0001f4c4"),
         ]),
-        ("transfer_in", "Transfer Masuk", "\U0001f504", None, [
-            ("transfer_in_income", "Transfer Masuk", "\U0001f504"),
-        ]),
     ],
 }
 

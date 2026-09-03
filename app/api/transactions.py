@@ -73,6 +73,9 @@ def create_transaction_endpoint(payload: TransactionCreate,
             merchant=payload.merchant, notes=payload.notes,
             merchant_id=payload.merchant_id,
             payment_method_id=payload.payment_method_id,
+            fuel_product_id=payload.fuel_product_id,
+            quantity_liters=payload.quantity_liters,
+            price_per_liter=payload.price_per_liter,
         )
     except ValueError as e:
         from app.api.errors import ApiError

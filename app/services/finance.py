@@ -14,15 +14,21 @@ def recalculate_account_balance(db: Session, account_id: int, user_id: int):
     ).first()
     if not account:
         return
-    sums = {
-        t: db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+    # Balance-affecting types. DEBT_REPAYMENT/DEBT_COLLECTION move cash like
+    # expense/income (they change a real account balance) but are deliberately
+    # excluded from income/expense REPORTS (see income_between/expense_between),
+    # so debt principal is never double-counted as expense or income.
+    income_like = (TransactionType.INCOME, TransactionType.DEBT_COLLECTION,
+                   TransactionType.REFUND)
+    expense_like = (TransactionType.EXPENSE, TransactionType.DEBT_REPAYMENT)
+    transfer_like = (TransactionType.TRANSFER,)
+    sums = {}
+    for t in income_like + expense_like + transfer_like:
+        sums[t] = db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
             Transaction.account_id == account_id,
             Transaction.type == t,
             Transaction.user_id == user_id,
         ).scalar()
-        for t in (TransactionType.INCOME, TransactionType.EXPENSE,
-                  TransactionType.TRANSFER)
-    }
     transfer_in = db.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
         Transaction.transfer_to_account_id == account_id,
         Transaction.type == TransactionType.TRANSFER,
@@ -30,9 +36,9 @@ def recalculate_account_balance(db: Session, account_id: int, user_id: int):
     ).scalar()
     account.current_balance = (
         account.initial_balance
-        + sums[TransactionType.INCOME]
-        - sums[TransactionType.EXPENSE]
-        - sums[TransactionType.TRANSFER]
+        + sum(sums[t] for t in income_like)
+        - sum(sums[t] for t in expense_like)
+        - sum(sums[t] for t in transfer_like)
         + transfer_in
     )
     db.commit()
@@ -46,6 +52,9 @@ def create_transaction(
     transfer_to_account_id: int | None = None, merchant: str | None = None,
     notes: str | None = None, merchant_id: int | None = None,
     payment_method_id: int | None = None,
+    fuel_product_id: int | None = None,
+    quantity_liters: float | None = None,
+    price_per_liter: int | None = None,
 ) -> Transaction:
     """Create a transaction on an account OWNED BY ``user_id``.
 
@@ -54,6 +63,10 @@ def create_transaction(
     """
     if amount <= 0:
         raise ValueError("Amount must be positive")
+    if quantity_liters is not None and quantity_liters <= 0:
+        raise ValueError("Fuel quantity must be positive")
+    if price_per_liter is not None and price_per_liter < 0:
+        raise ValueError("Fuel price per liter cannot be negative")
     account = db.query(Account).filter(
         Account.id == account_id, Account.user_id == user_id
     ).first()
@@ -70,7 +83,11 @@ def create_transaction(
         if account_id == transfer_to_account_id:
             raise ValueError("Cannot transfer to same account")
     if type != TransactionType.TRANSFER and not category_id:
-        raise ValueError("Category required for income/expense")
+        # REFUND / DEBT_REPAYMENT / DEBT_COLLECTION are not true income/expense
+        # and may be recorded without a category.
+        if type not in (TransactionType.REFUND, TransactionType.DEBT_REPAYMENT,
+                        TransactionType.DEBT_COLLECTION):
+            raise ValueError("Category required for income/expense")
     if merchant_id is not None:
         from app.models.models import Merchant
         m = db.query(Merchant).filter(
@@ -87,6 +104,11 @@ def create_transaction(
         ).first()
         if not pm:
             raise ValueError("Payment method not found or not owned")
+    if fuel_product_id is not None:
+        from app.models.models import FuelProduct
+        fp = db.query(FuelProduct).filter(FuelProduct.id == fuel_product_id).first()
+        if not fp:
+            raise ValueError("Fuel product not found")
     transaction = Transaction(
         user_id=user_id, type=type, amount=amount, account_id=account_id,
         category_id=category_id if type != TransactionType.TRANSFER else None,
@@ -94,6 +116,8 @@ def create_transaction(
         date=date_val, description=description,
         merchant=merchant.strip() if merchant else None,
         merchant_id=merchant_id, payment_method_id=payment_method_id,
+        fuel_product_id=fuel_product_id,
+        quantity_liters=quantity_liters, price_per_liter=price_per_liter,
         notes=notes.strip() if notes else None,
     )
     db.add(transaction)

@@ -147,9 +147,10 @@ def test_refund_reverses_expense_via_income_category():
 # ==================== DEBT PAYMENT ====================
 
 
-def test_debt_payment_reduces_balance_and_counts_as_expense():
+def test_debt_payment_reduces_balance_not_counted_as_expense():
+    """Principal repayment of a payable reduces cash but is NOT an expense."""
     uid = default_user_id()
-    cash = _new_account("DebtCash", AccountType.CASH, 1_000_000)
+    cash = _new_account("DebtCash2", AccountType.CASH, 1_000_000)
     db = get_test_db()
     debt = Debt(user_id=uid, type=DebtType.PAYABLE, person_name="Budi",
                 principal_amount=500_000, remaining_amount=500_000,
@@ -159,12 +160,93 @@ def test_debt_payment_reduces_balance_and_counts_as_expense():
     db.refresh(debt)
     debt_id = debt.id
     db.close()
-    debt, payment = debts_service.pay_debt(
+    debts_service.pay_debt(
         get_test_db(), debt_id, uid, amount=200_000, account_id=cash,
         payment_date=date.today())
-    assert debt.remaining_amount == 300_000
     assert _balance(cash) == 800_000
-    assert expense_between(get_test_db(), date.today(), date.today(), uid) == 200_000
+    # Principal repayment must NOT inflate expense totals.
+    assert expense_between(get_test_db(), date.today(), date.today(), uid) == 0
+    # ...nor should the matched collection-type logic treat it as income.
+    assert income_between(get_test_db(), date.today(), date.today(), uid) == 0
+
+
+def test_debt_collection_increases_balance_not_counted_as_income():
+    """Collecting a receivable increases cash but is NOT income."""
+    uid = default_user_id()
+    cash = _new_account("RecvCash", AccountType.CASH, 0)
+    db = get_test_db()
+    debt = Debt(user_id=uid, type=DebtType.RECEIVABLE, person_name="Citra",
+                principal_amount=300_000, remaining_amount=300_000,
+                start_date=date.today())
+    db.add(debt)
+    db.commit()
+    db.refresh(debt)
+    debt_id = debt.id
+    db.close()
+    debts_service.pay_debt(
+        get_test_db(), debt_id, uid, amount=300_000, account_id=cash,
+        payment_date=date.today())
+    assert _balance(cash) == 300_000
+    assert income_between(get_test_db(), date.today(), date.today(), uid) == 0
+    assert expense_between(get_test_db(), date.today(), date.today(), uid) == 0
+
+
+# ==================== CREDIT CARD REFUND ====================
+
+
+def test_credit_card_refund_reduces_liability_not_income():
+    """Refunding a card charge reduces the card liability; not counted as income."""
+    uid = default_user_id()
+    cc = _new_account("RefundCC", AccountType.CREDIT_CARD, 0)
+    cat = _cat("Belanja", TransactionType.EXPENSE)
+    db = get_test_db()
+    create_transaction(db, user_id=uid, type=TransactionType.EXPENSE,
+                      amount=300_000, account_id=cc, category_id=cat,
+                      date_val=date.today(), description="purchase")
+    db.close()
+    assert _balance(cc) == -300_000
+    from app.services import credit_card as cc_service
+    cc_service.credit_card_refund(
+        get_test_db(), user_id=uid, account_id=cc, amount=300_000,
+        date_val=date.today(), description="refund")
+    assert _balance(cc) == 0
+    # Refund must not be counted as income.
+    assert income_between(get_test_db(), date.today(), date.today(), uid) == 0
+
+
+# ==================== FUEL VALIDATION ====================
+
+
+def test_fuel_quantity_and_price_validation():
+    uid = default_user_id()
+    acc = _new_account("FuelAcc", AccountType.BANK, 1_000_000)
+    cat = _cat("BBM", TransactionType.EXPENSE)
+    db = get_test_db()
+    # Invalid: quantity <= 0
+    try:
+        create_transaction(db, user_id=uid, type=TransactionType.EXPENSE,
+                          amount=100_000, account_id=acc, category_id=cat,
+                          date_val=date.today(), description="bad fuel",
+                          quantity_liters=0.0, price_per_liter=10000)
+        assert False, "expected ValueError for non-positive quantity"
+    except ValueError:
+        pass
+    # Invalid: negative price
+    try:
+        create_transaction(db, user_id=uid, type=TransactionType.EXPENSE,
+                          amount=100_000, account_id=acc, category_id=cat,
+                          date_val=date.today(), description="bad fuel",
+                          quantity_liters=5.0, price_per_liter=-1)
+        assert False, "expected ValueError for negative price"
+    except ValueError:
+        pass
+    # Valid: positive quantity + non-negative price
+    create_transaction(db, user_id=uid, type=TransactionType.EXPENSE,
+                      amount=100_000, account_id=acc, category_id=cat,
+                      date_val=date.today(), description="ok fuel",
+                      quantity_liters=5.0, price_per_liter=10000)
+    db.commit()
+    db.close()
 
 
 # ==================== SAVINGS CONTRIBUTION ====================

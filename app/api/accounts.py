@@ -21,7 +21,7 @@ def _out(acc) -> AccountResponse:
         credit_limit=acc.credit_limit, statement_date=acc.statement_date,
         payment_due_day=acc.payment_due_day,
         interest_rate_pct=acc.interest_rate_pct, annual_fee=acc.annual_fee,
-        card_network=acc.card_network,
+        card_network=acc.card_network, institution_id=acc.institution_id,
         available_credit=accounts_service.get_available_credit(acc),
         created_at=acc.created_at, updated_at=acc.updated_at,
     )
@@ -56,7 +56,7 @@ def create_account(payload: AccountCreate,
         credit_limit=payload.credit_limit, statement_date=payload.statement_date,
         payment_due_day=payload.payment_due_day,
         interest_rate_pct=payload.interest_rate_pct, annual_fee=payload.annual_fee,
-        card_network=payload.card_network,
+        card_network=payload.card_network, institution_id=payload.institution_id,
     )
     return _out(acc)
 

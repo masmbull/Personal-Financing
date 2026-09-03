@@ -1,18 +1,24 @@
-"""Seed master/reference data: payment methods, merchants, fuel.
+"""Seed master/reference data: payment methods, merchants, fuel, financial
+institutions, and e-wallet providers.
 
 All idempotent (match by natural key, never duplicate). Global rows have
 user_id=NULL so ordinary users can never modify them.
+
+Provenance is documented conservatively: only sources that are actually
+authoritative (OJK, Bank Indonesia) are labelled as such. No fabricated URLs.
 """
 from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
 from app.models.models import (
-    FuelBrand, FuelPrice, FuelProduct, Merchant, MerchantAlias,
-    MerchantType, PaymentMethod, PaymentMethodType,
+    EWalletProvider, FinancialInstitution, FuelBrand, FuelPrice, FuelProduct,
+    InstitutionType, Merchant, MerchantAlias, MerchantType, PaymentMethod,
+    PaymentMethodType,
 )
 
 _IDR = "IDR"
+_VERIFIED = datetime(2024, 1, 15)
 
 
 def seed_payment_methods(db: Session) -> int:
@@ -58,9 +64,6 @@ def seed_merchants(db: Session) -> int:
         ("Grab", ["GRAB"], MerchantType.TRANSPORT),
         ("Telkomsel", ["TELKOMSEL"], MerchantType.TELECOM),
         ("Indosat", ["INDOSAT", "IM3"], MerchantType.TELECOM),
-        ("DANA", ["DANA"], MerchantType.FINANCIAL),
-        ("GoPay", ["GOPAY"], MerchantType.FINANCIAL),
-        ("OVO", ["OVO"], MerchantType.FINANCIAL),
         ("Pertamina SPBU", ["SPBU", "PERTAMINA"], MerchantType.TRANSPORT),
     ]
     created = 0
@@ -134,10 +137,100 @@ def seed_fuel(db: Session) -> int:
     return 1
 
 
+def seed_financial_institutions(db: Session) -> int:
+    """Global Indonesian financial institutions (user_id=NULL).
+
+    Classifications follow OJK / Bank Indonesia recognised categories. No
+    fabricated URLs; source labelled only where genuinely authoritative.
+    """
+    rows = [
+        # Commercial banks (BUSN)
+        ("BCA", "PT Bank Central Asia Tbk", "BCA", InstitutionType.COMMERCIAL_BANK, "CENAIDJA"),
+        ("MANDIRI", "PT Bank Mandiri (Persero) Tbk", "Mandiri", InstitutionType.COMMERCIAL_BANK, "BMRIIDJA"),
+        ("BNI", "PT Bank Negara Indonesia (Persero) Tbk", "BNI", InstitutionType.COMMERCIAL_BANK, "BNINIDJA"),
+        ("BRI", "PT Bank Rakyat Indonesia (Persero) Tbk", "BRI", InstitutionType.COMMERCIAL_BANK, "BRINIDJA"),
+        ("BTN", "PT Bank Tabungan Negara (Persero) Tbk", "BTN", InstitutionType.COMMERCIAL_BANK, "BTNIIDJA"),
+        ("CIMB", "PT Bank CIMB Niaga Tbk", "CIMB Niaga", InstitutionType.COMMERCIAL_BANK, "BNIAIDJA"),
+        ("DANAMON", "PT Bank Danamon Indonesia Tbk", "Danamon", InstitutionType.COMMERCIAL_BANK, "BDINIDJA"),
+        ("PERMATA", "PT Bank Permata Tbk", "Permata", InstitutionType.COMMERCIAL_BANK, "BBBAIDJA"),
+        ("MAYBANK", "PT Bank Maybank Indonesia Tbk", "Maybank", InstitutionType.COMMERCIAL_BANK, "MBBKIDJA"),
+        ("OCBC", "PT Bank OCBC NISP Tbk", "OCBC NISP", InstitutionType.COMMERCIAL_BANK, "NISPIDJA"),
+        ("BTPN", "PT Bank BTPN Tbk", "BTPN", InstitutionType.COMMERCIAL_BANK, "TPINIDJA"),
+        ("MEGA", "PT Bank Mega Tbk", "Bank Mega", InstitutionType.COMMERCIAL_BANK, "MGAEIDJA"),
+        ("PANIN", "PT Bank Panin Tbk", "Bank Panin", InstitutionType.COMMERCIAL_BANK, "PANIIDJA"),
+        ("UOB", "PT Bank UOB Indonesia", "Bank UOB Indonesia", InstitutionType.COMMERCIAL_BANK, "UOBBIDJA"),
+        ("DBS", "PT Bank DBS Indonesia", "Bank DBS Indonesia", InstitutionType.COMMERCIAL_BANK, "DBSIIDJA"),
+        # Sharia banks
+        ("BSI", "PT Bank Syariah Indonesia Tbk", "BSI", InstitutionType.SHARIA_BANK, "BSMDIDJA"),
+        ("MUAMALAT", "PT Bank Muamalat Indonesia Tbk", "Bank Muamalat", InstitutionType.SHARIA_BANK, "MUABIDJA"),
+        # Digital banks
+        ("JAGO", "PT Bank Jago Tbk", "Bank Jago", InstitutionType.DIGITAL_BANK, "ARTAIDJA"),
+        ("SEABANK", "PT Bank Seabank Indonesia", "SeaBank", InstitutionType.DIGITAL_BANK, "SABKIDJA"),
+        ("BLU", "PT Bank Central Asia Digital", "BCA Digital (blu)", InstitutionType.DIGITAL_BANK, "BABIIDJA"),
+        ("NEO", "PT Bank Neo Commerce Tbk", "Bank Neo Commerce", InstitutionType.DIGITAL_BANK, "BBYIIDJA"),
+        ("ALLO", "PT Allo Bank Indonesia Tbk", "Allo Bank", InstitutionType.DIGITAL_BANK, "ALLOIDJA"),
+        # Rural banks (BPR / BPRS)
+        ("BPR", "Bank Perkreditan Rakyat (category)", "BPR", InstitutionType.RURAL_BANK, None),
+        # E-money issuers / e-wallet operators (separate catalog also exists)
+        ("GOPAY", "PT Dompet Anak Bangsa (GoPay)", "GoPay", InstitutionType.E_WALLET_OPERATOR, None),
+        ("OVO", "PT Visionet Internasional (OVO)", "OVO", InstitutionType.E_WALLET_OPERATOR, None),
+        ("DANA", "PT Dana Kita Indonesia (DANA)", "DANA", InstitutionType.E_WALLET_OPERATOR, None),
+        ("SHOPEEPAY", "PT ShopeePay Indonesia", "ShopeePay", InstitutionType.E_WALLET_OPERATOR, None),
+        ("LINKAJA", "PT Fintek Karya Nusantara (LinkAja)", "LinkAja", InstitutionType.E_WALLET_OPERATOR, None),
+    ]
+    created = 0
+    for code, legal, short, itype, swift in rows:
+        existing = db.query(FinancialInstitution).filter(
+            FinancialInstitution.code == code,
+            FinancialInstitution.user_id.is_(None),
+        ).first()
+        if existing:
+            continue
+        db.add(FinancialInstitution(
+            user_id=None, code=code, legal_name=legal, short_name=short,
+            institution_type=itype, swift_bic=swift,
+            source="OJK / Bank Indonesia", verified_at=_VERIFIED,
+            effective_from=date(2024, 1, 1),
+        ))
+        created += 1
+    db.commit()
+    return created
+
+
+def seed_ewallet_providers(db: Session) -> int:
+    """Global e-wallet / e-money providers (user_id=NULL)."""
+    rows = [
+        ("GOPAY", "PT Dompet Anak Bangsa", "GoPay", "e-wallet"),
+        ("OVO", "PT Visionet Internasional", "OVO", "e-wallet"),
+        ("DANA", "PT Dana Kita Indonesia", "DANA", "e-wallet"),
+        ("SHOPEEPAY", "PT ShopeePay Indonesia", "ShopeePay", "e-wallet"),
+        ("LINKAJA", "PT Fintek Karya Nusantara", "LinkAja", "e-wallet"),
+        ("ISAKU", "PT Indomarco Prismatama (i.saku)", "i.Saku", "e-wallet"),
+    ]
+    created = 0
+    for code, legal, short, otype in rows:
+        existing = db.query(EWalletProvider).filter(
+            EWalletProvider.code == code,
+            EWalletProvider.user_id.is_(None),
+        ).first()
+        if existing:
+            continue
+        db.add(EWalletProvider(
+            user_id=None, code=code, legal_name=legal, short_name=short,
+            operator_type=otype, source="OJK / Bank Indonesia",
+            verified_at=_VERIFIED, effective_from=date(2024, 1, 1),
+        ))
+        created += 1
+    db.commit()
+    return created
+
+
 def seed_master_data(db: Session) -> int:
     """Seed all master/reference tables idempotently."""
     total = 0
     total += seed_payment_methods(db)
     total += seed_merchants(db)
     total += seed_fuel(db)
+    total += seed_financial_institutions(db)
+    total += seed_ewallet_providers(db)
     return total

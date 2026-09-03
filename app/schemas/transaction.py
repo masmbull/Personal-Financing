@@ -31,6 +31,9 @@ class TransactionCreate(BaseModel):
     merchant: Optional[str] = Field(None, max_length=200)
     merchant_id: Optional[int] = Field(None, description="Canonical merchant entity id")
     payment_method_id: Optional[int] = Field(None, description="Payment method id")
+    fuel_product_id: Optional[int] = Field(None, description="Fuel product reference id")
+    quantity_liters: Optional[float] = Field(None, gt=0, description="Fuel quantity (liters)")
+    price_per_liter: Optional[int] = Field(None, ge=0, description="Fuel unit price (IDR/liter) snapshot")
     description: Optional[str] = None
     notes: Optional[str] = None
     date: Optional[dt_date] = Field(None, description="Defaults to today (ISO)")
@@ -55,6 +58,9 @@ class TransactionUpdate(BaseModel):
     merchant: Optional[str] = Field(None, max_length=200)
     merchant_id: Optional[int] = None
     payment_method_id: Optional[int] = None
+    fuel_product_id: Optional[int] = None
+    quantity_liters: Optional[float] = Field(None, gt=0)
+    price_per_liter: Optional[int] = Field(None, ge=0)
     description: Optional[str] = None
     notes: Optional[str] = None
     date: Optional[dt_date] = None
@@ -81,6 +87,9 @@ class TransactionResponse(BaseModel):
     merchant_id: Optional[int] = None
     merchant_name: Optional[str] = None
     payment_method_id: Optional[int] = None
+    fuel_product_id: Optional[int] = None
+    quantity_liters: Optional[float] = None
+    price_per_liter: Optional[int] = None
     description: Optional[str] = None
     notes: Optional[str] = None
     date: dt_date

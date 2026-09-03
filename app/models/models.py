@@ -47,6 +47,25 @@ class MerchantType(str, enum.Enum):
     OTHER = "OTHER"
 
 
+class InstitutionType(str, enum.Enum):
+    """Indonesian financial-institution classifications (OJK-recognised).
+    Values only describe institutional category; specific licensing claims
+    belong in FinancialInstitution.notes, never in this enum.
+    """
+    COMMERCIAL_BANK = "COMMERCIAL_BANK"
+    SHARIA_BANK = "SHARIA_BANK"
+    DIGITAL_BANK = "DIGITAL_BANK"
+    RURAL_BANK = "RURAL_BANK"          # BPR
+    SHARIA_RURAL_BANK = "SHARIA_RURAL_BANK"  # BPRS
+    E_MONEY_ISSUER = "E_MONEY_ISSUER"  # uang elektronik berizin BI
+    E_WALLET_OPERATOR = "E_WALLET_OPERATOR"
+    PAYMENT_SERVICE = "PAYMENT_SERVICE"
+    INSURANCE = "INSURANCE"
+    SECURITIES = "SECURITIES"
+    P2P_LENDING = "P2P_LENDING"
+    OTHER_LICENSED = "OTHER_LICENSED"
+
+
 class PaymentMethodType(str, enum.Enum):
     CASH = "CASH"
     BANK_TRANSFER = "BANK_TRANSFER"
@@ -65,6 +84,16 @@ class TransactionType(str, enum.Enum):
     EXPENSE = "EXPENSE"
     INCOME = "INCOME"
     TRANSFER = "TRANSFER"
+    # Principal repayment of a Debt (PAYABLE). Cash decreases, debt liability
+    # decreases; NOT counted as expense in income/expense totals.
+    DEBT_REPAYMENT = "DEBT_REPAYMENT"
+    # Collection of a Debt (RECEIVABLE). Cash increases, debt receivable
+    # decreases; NOT counted as income in income/expense totals.
+    DEBT_COLLECTION = "DEBT_COLLECTION"
+    # Refund of a prior purchase back to an account (e.g. credit-card charge
+    # reversal). Increases the account balance (liability down) but is NOT
+    # counted as income.
+    REFUND = "REFUND"
 
 
 class DebtType(str, enum.Enum):
@@ -132,6 +161,8 @@ class Account(Base):
     initial_balance = Column(Integer, nullable=False, default=0)
     current_balance = Column(Integer, nullable=False, default=0)
     icon = Column(String(10), nullable=True)
+    institution_id = Column(Integer, ForeignKey("financial_institutions.id"), nullable=True,
+                             index=True, comment="Optional FK to master financial_institutions row")
     # Credit-card specific fields (only meaningful when type=CREDIT_CARD)
     credit_limit = Column(Integer, nullable=True, comment="Max credit in rupiah")
     statement_date = Column(Integer, nullable=True, comment="Day of month for statement close (1-28)")
@@ -144,6 +175,8 @@ class Account(Base):
 
     transactions = relationship("Transaction", back_populates="account", foreign_keys="Transaction.account_id")
     dest_transfers = relationship("Transaction", foreign_keys="Transaction.transfer_to_account_id", overlaps="transfer_to_account")
+    institution_ref = relationship("FinancialInstitution", back_populates="accounts",
+                                    foreign_keys=[institution_id])
 
 
 class Category(Base):
@@ -555,4 +588,80 @@ class FuelPrice(Base):
     created_at = Column(DateTime, default=_utcnow)
 
     product = relationship("FuelProduct", back_populates="prices")
+
+
+# ── Financial Institution / E-Wallet Provider domain ────────────────
+
+class FinancialInstitution(Base):
+    """Master-data catalog of Indonesian financial institutions.
+
+    user_id NULL = global master (seeded). Normal users may READ and
+    REFERENCE (via Account.institution_id) but may NOT modify or delete.
+    Stable attributes (legal_name, short_name, institution_type) reflect
+    the institution as a whole, not its current account products.
+    """
+    __tablename__ = "financial_institutions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True,
+                     comment="NULL = global master institution")
+    code = Column(String(40), nullable=False,
+                  comment="Stable short code (BCA, MANDIRI, BSI, GOPAY, ...)")
+    legal_name = Column(String(200), nullable=False)
+    short_name = Column(String(80), nullable=False)
+    aliases = Column(Text, nullable=True,
+                     comment="Comma-separated alternate names (legacy free-text inputs)")
+    institution_type = Column(Enum(InstitutionType), nullable=False,
+                              default=InstitutionType.OTHER_LICENSED)
+    swift_bic = Column(String(11), nullable=True)
+    active = Column(Boolean, nullable=False, default=True)
+    source = Column(String(100), nullable=True)
+    source_url = Column(String(500), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    effective_from = Column(Date, nullable=True)
+    effective_until = Column(Date, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    __table_args__ = (
+        UniqueConstraint("code", "user_id", name="uq_financial_institution_code"),
+    )
+
+    accounts = relationship("Account", back_populates="institution_ref",
+                           foreign_keys="Account.institution_id")
+
+
+class EWalletProvider(Base):
+    """Master catalog of e-wallet / e-money operators (separate from
+    FinancialInstitution because the product surface differs: an e-wallet
+    is a stored-value account held at the operator, not a deposit account
+    at a licensed bank).
+
+    user_id NULL = global master. Aliases stored as a single text column
+    (comma-separated) — provider aliases are short, normalised by lookup.
+    """
+    __tablename__ = "ewallet_providers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True,
+                     comment="NULL = global master provider")
+    code = Column(String(40), nullable=False,
+                  comment="Stable short code (GOPAY, OVO, DANA, SHOPEEPAY, ...)")
+    legal_name = Column(String(200), nullable=False)
+    short_name = Column(String(80), nullable=False)
+    aliases = Column(Text, nullable=True)
+    operator_type = Column(String(40), nullable=True,
+                           comment="e-money | e-wallet | paylater | qris-only")
+    active = Column(Boolean, nullable=False, default=True)
+    source = Column(String(100), nullable=True)
+    source_url = Column(String(500), nullable=True)
+    verified_at = Column(DateTime, nullable=True)
+    effective_from = Column(Date, nullable=True)
+    effective_until = Column(Date, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    __table_args__ = (
+        UniqueConstraint("code", "user_id", name="uq_ewallet_provider_code"),
+    )
 

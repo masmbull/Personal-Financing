@@ -121,13 +121,19 @@ def pay_debt(db: Session, debt_id: int, user_id: int, *, amount: int,
     tx_id = None
     if account_id:
         is_payable = debt.type == DebtType.PAYABLE
+        # Principal repayment of a payable reduces cash (balance) but is NOT an
+        # expense; collection of a receivable increases cash but is NOT income.
+        # Using dedicated transaction types keeps net-worth correct while
+        # excluding the movement from income/expense reports.
         cat_name = "Bayar Hutang" if is_payable else "Terima Piutang"
-        cat_type = TransactionType.EXPENSE if is_payable else TransactionType.INCOME
+        cat_type = TransactionType.DEBT_REPAYMENT if is_payable else TransactionType.DEBT_COLLECTION
         cat = db.query(Category).filter(
-            Category.name == cat_name, Category.type == cat_type
+            Category.name == cat_name, Category.type == TransactionType.EXPENSE
+        ).first() if is_payable else db.query(Category).filter(
+            Category.name == cat_name, Category.type == TransactionType.INCOME
         ).first()
         if not cat:
-            cat = Category(name=cat_name, type=cat_type,
+            cat = Category(name=cat_name, type=TransactionType.EXPENSE if is_payable else TransactionType.INCOME,
                            icon="💸" if is_payable else "💰")
             db.add(cat)
             db.flush()

@@ -244,3 +244,43 @@ def run_domain_expansion_migration(engine: Engine) -> bool:
             "VALUES ('domain_expansion', datetime('now'))"
         ))
     return changed
+
+
+# ── Financial institution + e-wallet provider domain ──
+# New tables (financial_institutions, ewallet_providers) are created by
+# create_all on every startup, so they need no ALTER. Existing databases only
+# require the new nullable FK column on `accounts`.
+
+_ACCOUNT_FK_COLUMNS = [
+    ("institution_id", "INTEGER"),
+]
+
+
+def run_institution_fk_migration(engine: Engine) -> bool:
+    """Add Account.institution_id idempotently. New tables handled by create_all."""
+    insp = inspect(engine)
+    if "accounts" not in insp.get_table_names():
+        return False
+    cols = {c["name"] for c in insp.get_columns("accounts")}
+    missing = [c for c in _ACCOUNT_FK_COLUMNS if c[0] not in cols]
+    if not missing:
+        return False
+    with engine.begin() as conn:
+        for name, typ in missing:
+            conn.execute(text(
+                f"ALTER TABLE accounts ADD COLUMN {name} {typ}"
+            ))
+            logger.info("Migrated accounts: added %s", name)
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_accounts_institution_id "
+            "ON accounts(institution_id)"
+        ))
+        conn.execute(text(
+            f"CREATE TABLE IF NOT EXISTS {_MARKER_TABLE} "
+            "(name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)"
+        ))
+        conn.execute(text(
+            f"INSERT OR IGNORE INTO {_MARKER_TABLE} (name, applied_at) "
+            "VALUES ('institution_fk', datetime('now'))"
+        ))
+    return True

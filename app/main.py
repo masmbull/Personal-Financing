@@ -105,6 +105,8 @@ async def lifespan(app: FastAPI):
     run_bill_occurrence_migration(engine)
     from app.migrations import run_domain_expansion_migration
     run_domain_expansion_migration(engine)
+    from app.migrations import run_institution_fk_migration
+    run_institution_fk_migration(engine)
     seed_default_data()
     try:
         from app.services.seed_master import seed_master_data

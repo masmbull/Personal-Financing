@@ -21,6 +21,7 @@ class AccountBase(BaseModel):
     interest_rate_pct: Optional[float] = Field(None, ge=0, description="Annual interest rate %")
     annual_fee: Optional[int] = Field(None, ge=0, description="Annual fee in rupiah")
     card_network: Optional[str] = Field(None, max_length=20)
+    institution_id: Optional[int] = Field(None, description="FK to master financial_institution")
 
 
 class AccountCreate(AccountBase):
@@ -42,6 +43,7 @@ class AccountUpdate(BaseModel):
     interest_rate_pct: Optional[float] = Field(None, ge=0)
     annual_fee: Optional[int] = Field(None, ge=0)
     card_network: Optional[str] = Field(None, max_length=20)
+    institution_id: Optional[int] = None
 
 
 class AccountResponse(AccountBase):

@@ -86,6 +86,7 @@ def setup_db():
     db.add(Category(name="Makan & Minum", type=TransactionType.EXPENSE, icon="X"))
     db.add(Category(name="Transportasi", type=TransactionType.EXPENSE, icon="X"))
     db.add(Category(name="Belanja", type=TransactionType.EXPENSE, icon="X"))
+    db.add(Category(name="BBM", type=TransactionType.EXPENSE, icon="X"))
     db.add(Category(name="Gaji", type=TransactionType.INCOME, icon="Y"))
     db.add(Category(name="Freelance", type=TransactionType.INCOME, icon="Y"))
     db.add(Account(name="BCA", user_id=bob.id, type=AccountType.BANK,
@@ -96,6 +97,16 @@ def setup_db():
                    initial_balance=0, current_balance=0))
     db.commit()
     db.close()
+
+    # Seed master data (institutions, e-wallet providers)
+    from app.services.seed_master import (
+        seed_financial_institutions, seed_ewallet_providers,
+    )
+    seed_db = TestingSessionLocal()
+    seed_financial_institutions(seed_db)
+    seed_ewallet_providers(seed_db)
+    seed_db.commit()
+    seed_db.close()
 
     # Existing tests were written pre-auth; keep them green by letting the
     # whole suite run as the default user. test_auth.py exercises REAL auth.

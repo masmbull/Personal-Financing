@@ -12,6 +12,7 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from app.models.models import Account, AccountType, Transaction, TransactionType
+from app.services.finance import create_transaction
 
 
 @dataclass
@@ -143,3 +144,28 @@ def _to_dict(p: StatementPeriod) -> dict:
         "minimum_payment": p.minimum_payment,
         "payment_status": p.payment_status,
     }
+
+
+def credit_card_refund(db: Session, *, user_id: int, account_id: int,
+                       amount: int, date_val, description: str | None = None,
+                       category_id: int | None = None) -> "Transaction":
+    """Reverse a credit-card charge: the issuer credits the card back.
+
+    Accounting: the card's outstanding liability DECREASES, so the balance moves
+    toward zero. We model this as a REFUND transaction on the card account — it
+    is balance-positive (liability down) but is NOT counted as income. No cash
+    account is touched (the money never left the card).
+    """
+    if amount <= 0:
+        raise ValueError("Refund amount must be positive")
+    account = db.query(Account).filter(
+        Account.id == account_id, Account.user_id == user_id
+    ).first()
+    if not account or account.type != AccountType.CREDIT_CARD:
+        raise ValueError("Refund target must be an owned credit-card account")
+    tx = create_transaction(
+        db=db, user_id=user_id, type=TransactionType.REFUND, amount=amount,
+        account_id=account_id, category_id=category_id,
+        date_val=date_val, description=description,
+    )
+    return tx

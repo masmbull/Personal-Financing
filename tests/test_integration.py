@@ -92,9 +92,10 @@ def test_full_workflow():
     _api(c,"post","/api/v1/reports/net-worth/snapshot")
     assert _api(c,"get","/api/v1/reports/net-worth/history")["count"]==1
 
-    # REPORTS (transfers excluded)
+    # REPORTS (transfers excluded; debt repayment is NOT an expense - it's
+    # principal money movement, not a spending event)
     flow = _api(c,"get","/api/v1/reports/cash-flow")
-    assert flow["income"]==5000000 and flow["expense"]==1050000
+    assert flow["income"]==5000000 and flow["expense"]==550000
 
     # DASHBOARD
     assert _api(c,"get","/api/v1/dashboard")["net_worth"]==nw["net_worth"]

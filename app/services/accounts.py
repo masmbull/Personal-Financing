@@ -83,9 +83,19 @@ def create_account(db: Session, *, user_id: int, name: str, type_: AccountType,
                    payment_due_day: int | None = None,
                    interest_rate_pct: float | None = None,
                    annual_fee: int | None = None,
-                   card_network: str | None = None) -> Account:
+                   card_network: str | None = None,
+                   institution_id: int | None = None) -> Account:
     if not name or not name.strip():
         raise ValueError("Account name required")
+    if institution_id is not None:
+        from app.models.models import FinancialInstitution
+        allowed = db.query(FinancialInstitution).filter(
+            FinancialInstitution.id == institution_id,
+            (FinancialInstitution.user_id == user_id)
+            | (FinancialInstitution.user_id.is_(None)),
+        ).first()
+        if not allowed:
+            raise ValueError("Institution not found or not owned")
     acct = Account(
         user_id=user_id, name=name.strip(), type=type_,
         initial_balance=initial_balance, current_balance=initial_balance,
@@ -94,6 +104,7 @@ def create_account(db: Session, *, user_id: int, name: str, type_: AccountType,
         credit_limit=credit_limit, statement_date=statement_date,
         payment_due_day=payment_due_day, interest_rate_pct=interest_rate_pct,
         annual_fee=annual_fee, card_network=card_network,
+        institution_id=institution_id,
     )
     db.add(acct)
     db.commit()
