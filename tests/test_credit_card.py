@@ -316,3 +316,206 @@ def test_M_get_available_credit_calculates_correctly():
     assert avail == 700_000
 
 
+# ==================== REFUND MATRIX (Commit C / Phase 5) ====================
+from app.services import credit_card as cc_service
+
+
+def test_N_refund_partial_reduces_liability():
+    """Partial refund reduces outstanding liability; available credit reflects it."""
+    uid = default_user_id()
+    cc_id = _new_account("RefundCC", AccountType.CREDIT_CARD, balance=0)
+    db = get_test_db()
+    create_transaction(
+        db, user_id=uid, type=TransactionType.EXPENSE, amount=1_000_000,
+        account_id=cc_id, category_id=_cat("Belanja", TransactionType.EXPENSE),
+        date_val=date.today(), description="purchase",
+    )
+    db.close()
+    assert _get_balance(cc_id) == -1_000_000
+
+    db = get_test_db()
+    db.query(Account).filter(Account.id == cc_id).update(
+        {"credit_limit": 10_000_000})
+    db.commit()
+    db.close()
+
+    cc_service.credit_card_refund(
+        get_test_db(), user_id=uid, account_id=cc_id, amount=250_000,
+        date_val=date.today(), description="partial refund")
+
+    assert _get_balance(cc_id) == -750_000
+
+    db = get_test_db()
+    acc = db.query(Account).filter(Account.id == cc_id).first()
+    avail = accounts_service.get_available_credit(acc)
+    db.close()
+    assert avail == 9_250_000  # 10M limit - 750k outstanding
+
+
+def test_O_refund_full_zeroes_outstanding():
+    """Full refund brings outstanding to 0 (no positive credit balance)."""
+    uid = default_user_id()
+    cc_id = _new_account("RefundCC", AccountType.CREDIT_CARD, balance=0)
+    db = get_test_db()
+    create_transaction(
+        db, user_id=uid, type=TransactionType.EXPENSE, amount=500_000,
+        account_id=cc_id, category_id=_cat("Belanja", TransactionType.EXPENSE),
+        date_val=date.today(), description="purchase",
+    )
+    db.close()
+    assert _get_balance(cc_id) == -500_000
+
+    cc_service.credit_card_refund(
+        get_test_db(), user_id=uid, account_id=cc_id, amount=500_000,
+        date_val=date.today(), description="full refund")
+
+    assert _get_balance(cc_id) == 0
+
+
+def test_P_refund_exceeds_outstanding_rejected():
+    """Refund > outstanding liability rejected; no positive credit balance."""
+    uid = default_user_id()
+    cc_id = _new_account("RefundCC", AccountType.CREDIT_CARD, balance=-300_000)
+    try:
+        cc_service.credit_card_refund(
+            get_test_db(), user_id=uid, account_id=cc_id, amount=500_000,
+            date_val=date.today(), description="over refund")
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "exceeds outstanding liability" in str(e)
+    finally:
+        assert _get_balance(cc_id) == -300_000  # unchanged
+
+
+def test_Q_refund_not_counted_as_income():
+    """REFUND reduces liability; must NOT appear in income reports."""
+    uid = default_user_id()
+    cc_id = _new_account("RefundCC", AccountType.CREDIT_CARD, balance=-200_000)
+    cc_service.credit_card_refund(
+        get_test_db(), user_id=uid, account_id=cc_id, amount=200_000,
+        date_val=date.today(), description="refund")
+
+    from app.services.finance import income_between
+    assert income_between(get_test_db(), date.today(), date.today(), uid) == 0
+    assert _get_balance(cc_id) == 0
+
+
+def test_R_refund_wrong_user_rejected():
+    """User B cannot refund User A's credit card."""
+    from app.models.models import User
+    uid = default_user_id()
+    cc_id = _new_account("RefundCC", AccountType.CREDIT_CARD, balance=-200_000)
+
+    db = get_test_db()
+    other = db.query(User).filter(User.username == "alice").first().id
+    db.close()
+
+    try:
+        cc_service.credit_card_refund(
+            get_test_db(), user_id=other, account_id=cc_id, amount=100_000,
+            date_val=date.today(), description="IDOR refund")
+        assert False, "Should have raised ValueError"
+    except ValueError:
+        pass
+    finally:
+        assert _get_balance(cc_id) == -200_000  # unchanged
+
+
+# ==================== END-TO-END SCENARIO (Commit C / Phase 13) ====================
+def test_S_purchase_payment_refund_reporting_invariants():
+    """Full CC lifecycle: charge -> partial pay -> refund, reconciles everything.
+
+    Verifies the accounting invariant end-to-end (Phase 13): available credit,
+    balance, and expense/income reports all agree with the outstanding
+    liability across a purchase, a payment (TRANSFER), and a refund.
+    """
+    from app.services.finance import expense_between, income_between
+
+    uid = default_user_id()
+    cc_id = _new_account("ScenarioCC", AccountType.CREDIT_CARD, balance=0,
+                         credit_limit=10_000_000)
+    bank_id = _new_account("ScenarioBank", AccountType.BANK, balance=5_000_000)
+    exp_cat = _cat("Belanja", TransactionType.EXPENSE)
+
+    # 1. Charge Rp 1,000,000
+    db = get_test_db()
+    create_transaction(
+        db, user_id=uid, type=TransactionType.EXPENSE, amount=1_000_000,
+        account_id=cc_id, category_id=exp_cat, date_val=date.today(),
+        description="laptop")
+    db.close()
+    assert _get_balance(cc_id) == -1_000_000
+    assert _get_balance(bank_id) == 5_000_000  # cash untouched by CC charge
+
+    # 2. Pay Rp 400,000 from bank to CC (TRANSFER)
+    db = get_test_db()
+    create_transaction(
+        db, user_id=uid, type=TransactionType.TRANSFER, amount=400_000,
+        account_id=bank_id, category_id=None, date_val=date.today(),
+        transfer_to_account_id=cc_id, description="cc payment")
+    db.close()
+    assert _get_balance(cc_id) == -600_000   # 1M liability - 400k paid
+    assert _get_balance(bank_id) == 4_600_000
+
+    # 3. Refund Rp 300,000 on the card
+    cc_service.credit_card_refund(
+        get_test_db(), user_id=uid, account_id=cc_id, amount=300_000,
+        date_val=date.today(), description="item refund")
+    assert _get_balance(cc_id) == -300_000  # remaining outstanding
+
+    # Available credit = 10M limit - 300k outstanding
+    db = get_test_db()
+    acc = db.query(Account).filter(Account.id == cc_id).first()
+    avail = accounts_service.get_available_credit(acc)
+    db.close()
+    assert avail == 9_700_000
+
+    # Reporting invariants: the charge (1M) is expense; payment & refund are
+    # NOT income. Expense report = 1M, income report = 0.
+    assert expense_between(get_test_db(), date.today(), date.today(), uid) == 1_000_000
+    assert income_between(get_test_db(), date.today(), date.today(), uid) == 0
+
+
+def test_T_mid_cycle_charge_respects_reduced_available_credit():
+    """After purchase+refund, a new charge is bounded by remaining available credit."""
+    uid = default_user_id()
+    cc_id = _new_account("CycleCC", AccountType.CREDIT_CARD, balance=-1_000_000,
+                         credit_limit=5_000_000)
+    exp_cat = _cat("Makan & Minum", TransactionType.EXPENSE)
+
+    # Available before refund = 5M - 1M = 4M. Charge 2M OK.
+    db = get_test_db()
+    create_transaction(
+        db, user_id=uid, type=TransactionType.EXPENSE, amount=2_000_000,
+        account_id=cc_id, category_id=exp_cat, date_val=date.today(),
+        description="charge")
+    db.close()
+    assert _get_balance(cc_id) == -3_000_000
+
+    # Refund 2M -> outstanding 1M -> available 4M
+    cc_service.credit_card_refund(
+        get_test_db(), user_id=uid, account_id=cc_id, amount=2_000_000,
+        date_val=date.today(), description="refund")
+    assert _get_balance(cc_id) == -1_000_000
+
+    db = get_test_db()
+    acc = db.query(Account).filter(Account.id == cc_id).first()
+    avail = accounts_service.get_available_credit(acc)
+    db.close()
+    assert avail == 4_000_000
+
+    # Charge exceeding available (5M) must be rejected.
+    try:
+        db = get_test_db()
+        create_transaction(
+            db, user_id=uid, type=TransactionType.EXPENSE, amount=5_000_000,
+            account_id=cc_id, category_id=exp_cat, date_val=date.today(),
+            description="over limit")
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "exceeds available credit" in str(e)
+    finally:
+        assert _get_balance(cc_id) == -1_000_000
+
+
+

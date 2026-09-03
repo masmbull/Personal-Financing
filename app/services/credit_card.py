@@ -180,6 +180,17 @@ def credit_card_refund(db: Session, *, user_id: int, account_id: int,
     ).first()
     if not account or account.type != AccountType.CREDIT_CARD:
         raise ValueError("Refund target must be an owned credit-card account")
+    # Over-refund guard: this app does NOT model a positive credit balance on a
+    # credit card (same invariant enforced for overpayment in create_transaction,
+    # see get_available_credit). A refund larger than the outstanding liability
+    # would push current_balance positive; reject it deterministically so the
+    # "current_balance <= 0 for CREDIT_CARD" invariant holds.
+    outstanding = max(0, -account.current_balance)
+    if amount > outstanding:
+        raise ValueError(
+            f"Refund {amount} exceeds outstanding liability {outstanding}; "
+            f"over-refund is not supported"
+        )
     tx = create_transaction(
         db=db, user_id=user_id, type=TransactionType.REFUND, amount=amount,
         account_id=account_id, category_id=category_id,
