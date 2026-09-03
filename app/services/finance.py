@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from app.models.models import Account, Transaction, Category, TransactionType
+from app.models.models import Account, AccountType, Category, Transaction, TransactionType
 
 
 def recalculate_account_balance(db: Session, account_id: int, user_id: int):
@@ -72,6 +72,20 @@ def create_transaction(
     ).first()
     if not account:
         raise ValueError("Account not found")
+    # Credit-card charge: reject over-limit purchases when a credit_limit is
+    # configured. available_credit = credit_limit - max(0,-current_balance).
+    # This app does NOT permit a negative available_credit (over-limit).
+    if (type == TransactionType.EXPENSE
+            and account.type == AccountType.CREDIT_CARD
+            and account.credit_limit is not None):
+        outstanding = max(0, -account.current_balance)
+        available = account.credit_limit - outstanding
+        if amount > available:
+            raise ValueError(
+                f"Credit-card charge {amount} exceeds available credit "
+                f"{available} (limit {account.credit_limit}, outstanding "
+                f"{outstanding})"
+            )
     if type == TransactionType.TRANSFER:
         if not transfer_to_account_id:
             raise ValueError("Transfer requires destination account")
@@ -82,6 +96,18 @@ def create_transaction(
             raise ValueError("Destination account not found")
         if account_id == transfer_to_account_id:
             raise ValueError("Cannot transfer to same account")
+        # Credit-card payment: reject overpayment deterministically.
+        # Outstanding liability is authoritative (current_balance is negative
+        # when owed). A payment > outstanding would push the card into a
+        # positive (credit) balance, which this app does NOT model. Phase 3
+        # policy: reject overpayment with a deterministic validation error.
+        if dest.type == AccountType.CREDIT_CARD:
+            outstanding = max(0, -dest.current_balance)
+            if amount > outstanding:
+                raise ValueError(
+                    f"Credit-card payment {amount} exceeds outstanding "
+                    f"liability {outstanding}; overpayment is not supported"
+                )
     if type != TransactionType.TRANSFER and not category_id:
         # REFUND / DEBT_REPAYMENT / DEBT_COLLECTION are not true income/expense
         # and may be recorded without a category.

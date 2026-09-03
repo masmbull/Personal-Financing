@@ -4,6 +4,23 @@ Given a credit card account's statement_date and payment_due_day (day of month,
 1-28 so every month has that day), computes the current/previous statement
 period and payment status. This is the domain foundation; it does NOT build a
 full bank-statement reconciliation system.
+
+Fees and interest
+-----------------
+``interest_rate_pct`` and ``annual_fee`` are stored on the account for reference
+but this engine does NOT auto-post interest or fee transactions. Posting
+periodic interest accurately requires a billing-day interest accrual model and
+per-day proration that is out of scope for this commit. Until that model is
+built, automated interest posting is intentionally NOT faked — values stay
+informational. See Phase 6 of the audit notes.
+
+Overpayment and credit balance
+------------------------------
+This app does NOT model a positive credit balance on a credit card. Any
+``TRANSFER`` whose destination is a CREDIT_CARD account and whose amount
+exceeds the current outstanding liability is rejected at the service layer
+(``create_transaction``) with a deterministic validation error. As a result
+``get_available_credit`` can rely on ``current_balance <= 0`` for CREDIT_CARD.
 """
 import calendar
 from dataclasses import dataclass

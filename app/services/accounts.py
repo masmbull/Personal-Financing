@@ -87,6 +87,11 @@ def create_account(db: Session, *, user_id: int, name: str, type_: AccountType,
                    institution_id: int | None = None) -> Account:
     if not name or not name.strip():
         raise ValueError("Account name required")
+    # Defence-in-depth: reject negative credit_limit / fees even when called
+    # directly (the API schema already enforces ge=0 at the request layer).
+    for fld in (credit_limit, annual_fee):
+        if fld is not None and fld < 0:
+            raise ValueError(f"{fld} cannot be negative")
     if institution_id is not None:
         from app.models.models import FinancialInstitution
         allowed = db.query(FinancialInstitution).filter(
@@ -116,8 +121,14 @@ def get_available_credit(acc: Account) -> int | None:
     """Canonical available-credit calc: credit_limit - outstanding liability.
 
     Outstanding = the absolute value of the negative current_balance (how much
-    is owed). When a credit card has been paid past zero (credit balance),
-    available credit is credit_limit minus 0.
+    is owed). This app does NOT model a positive credit balance on credit
+    cards: an overpayment is rejected at the service layer (see
+    ``create_transaction``) so current_balance never goes positive on a
+    CREDIT_CARD. When current_balance is negative-as-owed, available credit
+    is ``credit_limit - outstanding``.
+
+    Returns None when the account is not a CREDIT_CARD or has no
+    credit_limit configured.
     """
     if acc.type != AccountType.CREDIT_CARD:
         return None
