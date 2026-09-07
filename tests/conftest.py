@@ -6,7 +6,8 @@ import warnings
 # Suppress anyio deprecation warning that fires at import time (before pytest
 # filterwarnings rules are applied). Starlette's testclient imports
 # anyio.abc.BlockingPortal which is deprecated in anyio >= 4.12.
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="anyio")
+warnings.filterwarnings("ignore", message=".*BlockingPortal.*")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"anyio.*")
 
 # pytest-xdist: every worker gets its OWN database file and upload dir so
 # parallel workers never contend for the same SQLite file. PYTEST_XDIST_WORKER

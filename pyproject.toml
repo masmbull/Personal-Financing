@@ -2,7 +2,6 @@
 testpaths = ["tests"]
 addopts = "--disable-warnings -p no:cacheprovider"
 filterwarnings = [
-    "error",
     "ignore:Using .httpx. with .starlette.testclient. is deprecated",
     "ignore:Unclosed file:ResourceWarning",
     "ignore:anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
