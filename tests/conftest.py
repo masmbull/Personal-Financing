@@ -31,7 +31,14 @@ os.environ.setdefault("RECEIPT_AI_TIMEOUT_SEC", "1")
 os.environ.setdefault("RECEIPT_AI_BASE_URL", "http://127.0.0.1:11435/v1")
 
 import pytest
-from fastapi.testclient import TestClient
+
+# Suppress ALL warnings during TestClient import to prevent anyio deprecation
+# from being raised as an error. This is the most reliable way to handle
+# third-party deprecation warnings that fire at import time.
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    from fastapi.testclient import TestClient
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
