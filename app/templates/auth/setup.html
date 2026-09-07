@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Setup - Finance{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+    <div class="card auth-card setup-card">
+        <div class="auth-head">
+            <div class="auth-logo" aria-hidden="true">🚀</div>
+            <h1 class="auth-title">Yuk Mulai!</h1>
+            <p class="auth-sub">Buat minimal satu akun dulu yuk, biar kami bisa nampilin data keuangan kamu</p>
+        </div>
+
+        {% if error %}
+        <div class="auth-error" role="alert">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/setup" class="form auth-form" id="setup-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+            <div class="form-group">
+                <label class="form-label" for="name">Nama Akun</label>
+                <input type="text" name="name" id="name" class="input"
+                       placeholder="Contoh: BCA, DANA, Cash" required maxlength="100"
+                       autofocus>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="type">Tipe</label>
+                <select name="type" id="type" class="input" required>
+                    <option value="CASH">💵 Cash / Tunai</option>
+                    <option value="BANK">🏦 Rekening Bank</option>
+                    <option value="E_WALLET">📱 E-Wallet</option>
+                    <option value="SAVINGS">🐷 Tabungan</option>
+                    <option value="CREDIT_CARD">💳 Kartu Kredit</option>
+                    <option value="INVESTMENT">📈 Investasi</option>
+                    <option value="OTHER">📦 Lainnya</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="initial_balance">Saldo Awal</label>
+                <div class="input-prefix">
+                    <span class="prefix">Rp</span>
+                    <input type="number" name="initial_balance" id="initial_balance" class="input"
+                           value="0" min="0" inputmode="numeric" step="1000">
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                <span>Lanjutkan</span>
+                <span class="btn-spinner hidden" aria-hidden="true"></span>
+            </button>
+        </form>
+
+        <p class="auth-alt setup-skip">
+            <a href="/setup/skip" class="link-more">Lewati dulu →</a>
+        </p>
+    </div>
+</div>
+
+<script>
+(function () {
+    var form = document.getElementById('setup-form');
+    if (!form) return;
+    form.addEventListener('submit', function () {
+        var btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+        btn.querySelector('.btn-spinner').classList.remove('hidden');
+    });
+})();
+</script>
+{% endblock %}

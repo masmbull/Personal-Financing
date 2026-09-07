@@ -16,6 +16,8 @@ from app.auth.sessions import (
     csrf_ok, resolve_request_user, set_csrf_cookie, set_session_cookie,
 )
 from app.database.db import get_db
+from app.models.models import AccountType
+from app.services import accounts as accounts_service
 from app.services.users import UsernameTaken, authenticate, create_user
 
 templates = Jinja2Templates(directory="app/templates")
@@ -100,7 +102,7 @@ def register_submit(
     except UsernameTaken:
         return RedirectResponse(url="/register?error=1", status_code=303)
     token, _ = create_session(db, user.id)
-    resp = RedirectResponse(url="/", status_code=303)
+    resp = RedirectResponse(url="/setup", status_code=303)
     set_session_cookie(resp, token)
     resp.delete_cookie(CSRF_COOKIE, path="/")
     return resp
@@ -119,3 +121,71 @@ def logout(request: Request, db: Session = Depends(get_db)):
     clear_session_cookie(resp)
     resp.delete_cookie(CSRF_COOKIE, path="/")
     return resp
+
+
+def _has_accounts(db: Session, user_id: int) -> bool:
+    """Check whether a user owns at least one account."""
+    from app.models.models import Account
+    return db.query(Account.id).filter(Account.user_id == user_id).first() is not None
+
+
+@router.get("/setup", response_class=HTMLResponse)
+def setup_page(request: Request, db: Session = Depends(get_db)):
+    """Post-registration onboarding - user must create at least one account."""
+    user = resolve_request_user(request, db)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+    if _has_accounts(db, user.id):
+        return RedirectResponse(url="/", status_code=303)
+    return _render_auth(request, "auth/setup.html", error="")
+
+
+@router.post("/setup")
+def setup_submit(
+    request: Request,
+    name: str = Form(...),
+    type: str = Form(...),
+    initial_balance: str = Form("0"),
+    csrf_token: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Create the first account during onboarding, then redirect to dashboard."""
+    user = resolve_request_user(request, db)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+    if not csrf_ok(request.cookies.get(CSRF_COOKIE), csrf_token):
+        return RedirectResponse(url="/setup?error=1", status_code=303)
+    if _has_accounts(db, user.id):
+        return RedirectResponse(url="/", status_code=303)
+    try:
+        init_bal = int(initial_balance) if initial_balance else 0
+    except ValueError:
+        init_bal = 0
+    if init_bal < 0:
+        init_bal = 0
+    try:
+        accounts_service.create_account(
+            db, user_id=user.id, name=name.strip(),
+            type_=AccountType(type), initial_balance=init_bal,
+        )
+    except (ValueError, KeyError):
+        resp = RedirectResponse(url="/setup?error=1", status_code=303)
+        resp.delete_cookie(CSRF_COOKIE, path="/")
+        return resp
+    resp = RedirectResponse(url="/", status_code=303)
+    resp.delete_cookie(CSRF_COOKIE, path="/")
+    return resp
+
+
+@router.get("/setup/skip")
+def setup_skip(request: Request, db: Session = Depends(get_db)):
+    """Skip onboarding - create a default Cash account so dashboard works."""
+    user = resolve_request_user(request, db)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+    if not _has_accounts(db, user.id):
+        accounts_service.create_account(
+            db, user_id=user.id, name="Cash",
+            type_=AccountType.CASH, initial_balance=0,
+        )
+    return RedirectResponse(url="/", status_code=303)

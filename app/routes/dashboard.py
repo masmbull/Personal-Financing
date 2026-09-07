@@ -1,15 +1,21 @@
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
-from app.models.models import AccountType, TransactionType
+from app.models.models import Account, AccountType, TransactionType
 from app.services import accounts as accounts_service
 from app.utils import format_rupiah
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
+
+
+def _user_has_accounts(db: Session, user_id: int) -> bool:
+    """Gate: user must own at least one account before seeing the dashboard."""
+    return db.query(Account.id).filter(Account.user_id == user_id).first() is not None
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -23,6 +29,9 @@ def dashboard(request: Request, db: Session = Depends(get_db),
     from app.services import reports as reports_service
     from app.services import savings as savings_service
     from app.services.dashboard import build_dashboard
+
+    if not _user_has_accounts(db, user.id):
+        return RedirectResponse(url="/setup", status_code=303)
 
     if period not in ("week", "month", "prev_month", "year"):
         period = "month"

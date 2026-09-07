@@ -34,9 +34,42 @@
                     <span class="icon">📊</span>
                     <span>Laporan</span>
                 </a>
-                <a href="/more" class="sidebar-nav-item {% if '/more' in request.url.path or '/accounts' in request.url.path or '/debts' in request.url.path or '/bills' in request.url.path or '/budgets' in request.url.path or '/savings' in request.url.path or '/assets' in request.url.path or '/investments' in request.url.path or '/categories' in request.url.path or '/receipts' in request.url.path and '/receipts/upload' not in request.url.path %}active{% endif %}">
-                    <span class="icon">⋯</span>
-                    <span>Lainnya</span>
+                <div class="sidebar-divider"></div>
+                <a href="/accounts" class="sidebar-nav-item {% if '/accounts' in request.url.path %}active{% endif %}">
+                    <span class="icon">🏦</span>
+                    <span>Akun</span>
+                </a>
+                <a href="/debts" class="sidebar-nav-item {% if '/debts' in request.url.path %}active{% endif %}">
+                    <span class="icon">💸</span>
+                    <span>Hutang</span>
+                </a>
+                <a href="/bills" class="sidebar-nav-item {% if '/bills' in request.url.path %}active{% endif %}">
+                    <span class="icon">📄</span>
+                    <span>Tagihan</span>
+                </a>
+                <a href="/budgets" class="sidebar-nav-item {% if '/budgets' in request.url.path %}active{% endif %}">
+                    <span class="icon">📊</span>
+                    <span>Budget</span>
+                </a>
+                <a href="/savings" class="sidebar-nav-item {% if '/savings' in request.url.path %}active{% endif %}">
+                    <span class="icon">🎯</span>
+                    <span>Tabungan</span>
+                </a>
+                <a href="/assets" class="sidebar-nav-item {% if '/assets' in request.url.path %}active{% endif %}">
+                    <span class="icon">🏠</span>
+                    <span>Aset</span>
+                </a>
+                <a href="/investments" class="sidebar-nav-item {% if '/investments' in request.url.path %}active{% endif %}">
+                    <span class="icon">📈</span>
+                    <span>Investasi</span>
+                </a>
+                <a href="/categories" class="sidebar-nav-item {% if '/categories' in request.url.path %}active{% endif %}">
+                    <span class="icon">🏷️</span>
+                    <span>Kategori</span>
+                </a>
+                <a href="/receipts" class="sidebar-nav-item {% if '/receipts' in request.url.path and '/receipts/upload' not in request.url.path %}active{% endif %}">
+                    <span class="icon">🧾</span>
+                    <span>Struk</span>
                 </a>
             </nav>
             <div class="sidebar-bottom">
@@ -79,7 +112,7 @@
             <span class="nav-icon">📊</span>
             <span class="nav-label">Laporan</span>
         </a>
-        <a href="/more" class="nav-item {% if '/more' in request.url.path or '/accounts' in request.url.path or '/debts' in request.url.path or '/bills' in request.url.path or '/budgets' in request.url.path or '/savings' in request.url.path or '/assets' in request.url.path or '/investments' in request.url.path or '/categories' in request.url.path or '/receipts' in request.url.path and '/receipts/upload' not in request.url.path %}active{% endif %}">
+        <a href="/accounts" class="nav-item {% if '/accounts' in request.url.path or '/debts' in request.url.path or '/bills' in request.url.path or '/budgets' in request.url.path or '/savings' in request.url.path or '/assets' in request.url.path or '/investments' in request.url.path or '/categories' in request.url.path or '/receipts' in request.url.path %}active{% endif %}">
             <span class="nav-icon">⋯</span>
             <span class="nav-label">Lainnya</span>
         </a>
