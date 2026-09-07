@@ -48,6 +48,21 @@ def _shift_month(y: int, m: int, delta: int) -> tuple[int, int]:
     return total // 12, total % 12 + 1
 
 
+# Minimum-payment floor: 10% of the statement balance (standard Indonesian
+# credit-card floor; the ratio is documented, not configurable per account).
+# Implemented in PURE integer arithmetic: ``int(charges * 0.10)`` would break
+# the project's "no floating point for money" invariant for very large
+# balances (float64 mantissa is 53 bits; Rupiah balances can exceed that).
+MIN_PAYMENT_PERCENT = 10
+
+
+def minimum_payment_from(net_charges: int) -> int:
+    """10% minimum-payment floor, integer math only (floor division)."""
+    if net_charges <= 0:
+        return 0
+    return net_charges // (100 // MIN_PAYMENT_PERCENT)
+
+
 def statement_closing_date(statement_day: int, ref: date) -> date:
     """The most recent closing date <= ref for the given statement day."""
     # Candidate: this month's closing on `statement_day`
@@ -103,10 +118,14 @@ def calculate_statement(db: Session, account: Account, ref: date | None = None,
                         user_id: int | None = None) -> StatementPeriod:
     """Compute a credit card's current statement with balance + payment status.
 
-    statement_balance = net expense in the period on the card (sum of EXPENSE
-    amounts), since a credit-card expense increases liability.
-    minimum_payment = 10% of statement_balance (standard Indonesian CC floor,
-    common minimum 3-10%; we use 10% as a documented default).
+    statement_balance = charges (sum of EXPENSE on the card) MINUS refunds
+    credited within the same period (sum of REFUND on the card), floored at 0.
+    A refund reverses a charge, so the issuer credits it back on the same
+    statement; a refund exceeding this period's charges applies to earlier
+    cycles' outstanding liability and is clamped here because this app does
+    not model a positive (credit) statement balance.
+    minimum_payment = 10% of the net statement balance, integer math
+    (see ``minimum_payment_from``).
     payment_status derives from transactions that are credit-card TRANSFER
     payments credited within [period_start, due_date].
     """
@@ -124,6 +143,18 @@ def calculate_statement(db: Session, account: Account, ref: date | None = None,
         q = q.filter(Transaction.user_id == user_id)
     charges = sum(t.amount for t in q.all())
 
+    # Refunds credited within the period reduce the statement balance.
+    r_q = db.query(Transaction).filter(
+        Transaction.account_id == account.id,
+        Transaction.type == TransactionType.REFUND,
+        Transaction.date >= period.period_start,
+        Transaction.date <= period.period_end,
+    )
+    if user_id is not None:
+        r_q = r_q.filter(Transaction.user_id == user_id)
+    refunds = sum(t.amount for t in r_q.all())
+    net_charges = max(0, charges - refunds)
+
     # Payments: TRANSFER into this card within the period
     pay_q = db.query(Transaction).filter(
         Transaction.transfer_to_account_id == account.id,
@@ -135,17 +166,17 @@ def calculate_statement(db: Session, account: Account, ref: date | None = None,
         pay_q = pay_q.filter(Transaction.user_id == user_id)
     paid = sum(t.amount for t in pay_q.all())
 
-    minimum = int(charges * 0.10)
-    if charges == 0:
+    minimum = minimum_payment_from(net_charges)
+    if net_charges == 0:
         status = "NOT_DUE"
-    elif paid >= charges:
+    elif paid >= net_charges:
         status = "PAID"
     elif paid > 0:
         status = "PARTIAL"
     else:
         status = "UNPAID"
 
-    period.statement_balance = charges
+    period.statement_balance = net_charges
     period.minimum_payment = minimum
     period.payment_status = status
     return period

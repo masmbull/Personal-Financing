@@ -69,9 +69,8 @@ def with_next_due(db: Session, user_id: int, today: date | None = None) -> list[
 
 
 def create_bill(db: Session, *, user_id: int, **fields) -> Bill:
-    amount = int(fields["amount"])
-    if amount <= 0:
-        raise ValueError("Amount must be positive")
+    from app.services.finance import validate_amount
+    amount = validate_amount(fields["amount"])
     bill = Bill(
         user_id=user_id,
         name=(fields["name"] or "").strip(),

@@ -48,9 +48,8 @@ def to_response_dict(goal: SavingsGoal) -> dict:
 
 
 def create_goal(db: Session, *, user_id: int, **fields) -> SavingsGoal:
-    target = int(fields["target_amount"])
-    if target <= 0:
-        raise ValueError("Amount must be positive")
+    from app.services.finance import validate_amount
+    target = validate_amount(fields["target_amount"])
     goal = SavingsGoal(
         user_id=user_id,
         name=(fields["name"] or "").strip(),
@@ -83,6 +82,10 @@ def deposit(db: Session, goal_id: int, *, user_id: int, amount: int,
     amount = int(amount)
     if amount <= 0:
         raise SavingsOperationError("Amount must be positive")
+    from app.services.finance import MAX_TX_AMOUNT
+    if amount > MAX_TX_AMOUNT:
+        raise SavingsOperationError(
+            f"Amount exceeds maximum supported ({MAX_TX_AMOUNT})")
     goal.current_amount += amount
     tx = SavingsGoalTransaction(
         user_id=user_id, goal_id=goal.id, amount=amount,
@@ -102,6 +105,10 @@ def withdraw(db: Session, goal_id: int, *, user_id: int, amount: int,
     amount = int(amount)
     if amount <= 0:
         raise SavingsOperationError("Amount must be positive")
+    from app.services.finance import MAX_TX_AMOUNT
+    if amount > MAX_TX_AMOUNT:
+        raise SavingsOperationError(
+            f"Amount exceeds maximum supported ({MAX_TX_AMOUNT})")
     if amount > goal.current_amount:
         raise SavingsOperationError("Withdrawal exceeds saved amount")
     goal.current_amount -= amount

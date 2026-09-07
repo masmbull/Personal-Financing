@@ -2,8 +2,21 @@
 import os
 import shutil
 
-# Point uploads at a scratch dir BEFORE app.config is imported anywhere.
-os.environ.setdefault("RECEIPT_UPLOAD_DIR", "data/receipts_test")
+# pytest-xdist: every worker gets its OWN database file and upload dir so
+# parallel workers never contend for the same SQLite file. PYTEST_XDIST_WORKER
+# is set by xdist in worker processes BEFORE this module is imported; in a
+# normal (non-xdist) run it is absent and the legacy names are used.
+_XDIST_WORKER = os.environ.get("PYTEST_XDIST_WORKER")
+_WORKER_SUFFIX = f"_{_XDIST_WORKER}" if _XDIST_WORKER else ""
+TEST_DB_PATH = f"test{_WORKER_SUFFIX}.db"
+RECEIPT_TEST_DIR = f"data/receipts_test{_WORKER_SUFFIX}"
+
+# Point uploads / DATABASE_URL at per-worker scratch locations BEFORE
+# app.config is imported anywhere. DATABASE_URL pins the app's own engine
+# (app.database.db) to the test database too, so no test can ever touch
+# data/finance.db.
+os.environ.setdefault("DATABASE_URL", f"sqlite:///./{TEST_DB_PATH}")
+os.environ.setdefault("RECEIPT_UPLOAD_DIR", RECEIPT_TEST_DIR)
 # Fast test hashing - production default (600k iterations) is untouched.
 os.environ.setdefault("PF_PBKDF2_ITERATIONS", "2000")
 # Disable AI vision probe in tests (no Ollama available; would hang on timeout)
@@ -30,7 +43,7 @@ import app.services.receipt_ai as _ai_mod
 _ai_mod._probe_service = lambda: None
 _ai_mod.AIVisionReceiptScannerService.available = lambda self: False
 
-TEST_DB_URL = "sqlite:///./test.db"
+TEST_DB_URL = f"sqlite:///./{TEST_DB_PATH}"
 engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -45,8 +58,6 @@ def override_get_db():
 
 app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
-
-RECEIPT_TEST_DIR = "data/receipts_test"
 
 # Default users used by the shared test client. PBKDF2 is intentionally
 # hashed ONCE at import to keep the suite fast; real login flows in
@@ -112,6 +123,10 @@ def setup_db():
     # whole suite run as the default user. test_auth.py exercises REAL auth.
     app.dependency_overrides[get_current_user] = lambda: _default_user_ctx(_bob_id)
     yield
+    # Deterministically close pooled connections so nothing is left for the
+    # garbage collector to warn about mid-run (ResourceWarning -> error under
+    # filterwarnings=["error"]).
+    engine.dispose()
     shutil.rmtree(RECEIPT_TEST_DIR, ignore_errors=True)
 
 

@@ -63,9 +63,8 @@ def totals_for(db: Session, user_id: int) -> dict:
 
 
 def create_debt(db: Session, *, user_id: int, **fields) -> Debt:
-    principal = int(fields["principal_amount"])
-    if principal <= 0:
-        raise ValueError("Amount must be positive")
+    from app.services.finance import validate_amount
+    principal = validate_amount(fields["principal_amount"])
     debt = Debt(
         user_id=user_id,
         type=fields["type"],
@@ -114,6 +113,10 @@ def pay_debt(db: Session, debt_id: int, user_id: int, *, amount: int,
     amount = int(amount)
     if amount <= 0:
         raise PaymentError("Payment must be positive")
+    from app.services.finance import MAX_TX_AMOUNT
+    if amount > MAX_TX_AMOUNT:
+        raise PaymentError(
+            f"Payment exceeds maximum supported ({MAX_TX_AMOUNT})")
     if amount > debt.remaining_amount:
         raise PaymentError("Payment exceeds remaining amount")
     pay_date = payment_date or date.today()

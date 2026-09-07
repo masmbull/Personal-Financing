@@ -3,6 +3,23 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.models import Account, AccountType, Category, Transaction, TransactionType
 
+# Single-transaction amount ceiling. SQLite stores signed 64-bit integers;
+# beyond ~9.2e18 an insert raises a raw OverflowError from the DBAPI at flush
+# time, leaving the session mid-transaction. This cap is far above any
+# legitimate Rupiah amount but far below the overflow boundary, so callers get
+# a deterministic ValueError instead and no partial state can be committed.
+MAX_TX_AMOUNT = 10_000_000_000_000  # Rp 10 trillion
+
+
+def validate_amount(amount: int, what: str = "Amount") -> int:
+    """Common money guard: strict int, positive, within the supported cap."""
+    amount = int(amount)
+    if amount <= 0:
+        raise ValueError(f"{what} must be positive")
+    if amount > MAX_TX_AMOUNT:
+        raise ValueError(f"{what} exceeds maximum supported ({MAX_TX_AMOUNT})")
+    return amount
+
 
 def recalculate_account_balance(db: Session, account_id: int, user_id: int):
     """Recompute an own account's current_balance from ITS OWN transactions.
@@ -63,6 +80,9 @@ def create_transaction(
     """
     if amount <= 0:
         raise ValueError("Amount must be positive")
+    if amount > MAX_TX_AMOUNT:
+        raise ValueError(
+            f"Amount exceeds maximum supported ({MAX_TX_AMOUNT})")
     if quantity_liters is not None and quantity_liters <= 0:
         raise ValueError("Fuel quantity must be positive")
     if price_per_liter is not None and price_per_liter < 0:

@@ -319,9 +319,12 @@ def test_global_category_master_accessible_to_all_authenticated_users():
 
 def test_migration_adds_user_id_preserves_data_and_is_idempotent(tmp_path):
     from sqlalchemy import create_engine, inspect, text
+    from sqlalchemy.pool import NullPool
 
     url = f"sqlite:///{tmp_path / 'legacy.db'}"
-    legacy = create_engine(url, connect_args={"check_same_thread": False})
+    # NullPool: connections close on checkin, nothing leaks to the GC.
+    legacy = create_engine(url, connect_args={"check_same_thread": False},
+                           poolclass=NullPool)
     with legacy.begin() as conn:
         conn.execute(text(
             "CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT UNIQUE "
