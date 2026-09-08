@@ -417,6 +417,37 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .modal-body{max-width:480px;margin:0 auto}
 @media(min-width:640px){.modal-overlay{align-items:center}.modal{border-radius:var(--r-lg)}}
 
+/* ---- mobile receipt picker (camera / gallery) ---- */
+.picker-modal{
+  position:fixed;inset:0;z-index:400;display:flex;align-items:flex-end;justify-content:center;
+  background:rgba(10,17,32,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  opacity:0;pointer-events:none;transition:opacity var(--tr);
+}
+.picker-modal.show{opacity:1;pointer-events:auto}
+.picker-sheet{
+  background:var(--bg-card);border-radius:var(--r-lg) var(--r-lg) 0 0;width:100%;max-width:640px;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+  transform:translateY(30px);transition:transform var(--tr);box-shadow:var(--sh-2);
+}
+.picker-modal.show .picker-sheet{transform:none}
+.picker-title{font-size:1.05rem;font-weight:700;margin:2px 0 14px;color:var(--ink)}
+.picker-option{
+  display:flex;align-items:center;gap:14px;width:100%;min-height:52px;
+  padding:14px 16px;margin-bottom:10px;border:1px solid var(--line);border-radius:var(--r-md);
+  background:var(--bg-soft);font-size:1rem;font-weight:600;color:var(--ink);
+  cursor:pointer;text-align:left;transition:background var(--tr),border-color var(--tr);
+}
+.picker-option:hover,.picker-option:focus{background:var(--blue-bg);border-color:var(--blue);outline:none}
+.picker-emoji{font-size:1.5rem;line-height:1}
+.picker-cancel{
+  display:block;width:100%;min-height:48px;margin-top:4px;padding:12px;
+  border:none;border-radius:var(--r-md);background:transparent;font-size:1rem;font-weight:600;
+  color:var(--ink-2);cursor:pointer;
+}
+.picker-cancel:hover,.picker-cancel:focus{background:var(--bg-soft);color:var(--ink);outline:none}
+/* On desktop the picker is never used — keep it hidden regardless of .show */
+@media(min-width:769px){.picker-modal{display:none!important}}
+
 /* ---- toast ---- */
 .toast-container{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:500;display:flex;flex-direction:column;gap:8px;width:min(92vw,420px)}
 .toast{padding:12px 16px;border-radius:var(--r-md);box-shadow:var(--sh-2);font-weight:600;font-size:.92rem;animation:toastIn .3s ease;background:var(--ink);color:var(--bg-card)}

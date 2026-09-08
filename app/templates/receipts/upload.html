@@ -38,4 +38,27 @@
         Setelah upload kamu bisa review dan catat struk sebagai transaksi.
     </p>
 </div>
+
+{# Mobile-only photo-source picker. Hidden on desktop via CSS. #}
+<div id="picker-modal" class="picker-modal" role="dialog" aria-modal="true"
+          aria-labelledby="picker-title">
+    <div class="picker-sheet">
+        <h2 id="picker-title" class="picker-title">Scan Struk</h2>
+        <button type="button" class="picker-option" id="btn-camera">
+            <span class="picker-emoji" aria-hidden="true">📷</span>
+            <span>Ambil Foto</span>
+        </button>
+        <button type="button" class="picker-option" id="btn-gallery">
+            <span class="picker-emoji" aria-hidden="true">🖼️</span>
+            <span>Pilih dari Galeri</span>
+        </button>
+        <button type="button" class="picker-cancel" id="btn-cancel">Batal</button>
+    </div>
+</div>
+
+{# Two dedicated inputs — one per source. Both feed the main form. #}
+<input type="file" id="file-input-camera" name="file" accept="image/*"
+       capture="environment" class="sr-only" hidden>
+<input type="file" id="file-input-gallery" name="file" accept="image/*"
+       class="sr-only" hidden>
 {% endblock %}

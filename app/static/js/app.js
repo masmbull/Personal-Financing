@@ -125,6 +125,60 @@
 
     var maxMb = parseInt(form.dataset.maxMb || '5', 10);
 
+    // ---- mobile picker (camera / gallery) ----
+    var picker = document.getElementById('picker-modal');
+    var btnCamera = document.getElementById('btn-camera');
+    var btnGallery = document.getElementById('btn-gallery');
+    var btnCancel = document.getElementById('btn-cancel');
+    var inputCamera = document.getElementById('file-input-camera');
+    var inputGallery = document.getElementById('file-input-gallery');
+    var isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    function openPicker() { if (picker) picker.classList.add('show'); }
+    function closePicker() {
+      if (picker) picker.classList.remove('show');
+      if (inputCamera) inputCamera.value = '';
+      if (inputGallery) inputGallery.value = '';
+    }
+
+    // Move a file picked from either source into the main form input so the
+    // existing validation/preview/submit flow handles it unchanged.
+    function adoptFile(src) {
+      if (src && src.files && src.files[0]) {
+        var dt = new DataTransfer();
+        dt.items.add(src.files[0]);
+        input.files = dt.files;
+        input.dispatchEvent(new Event('change'));
+        closePicker();
+      }
+    }
+
+    if (isMobile && picker) {
+      // On mobile the upload zone opens the source picker, not the camera
+      // directly. Desktop keeps the original direct-file-input behavior.
+      if (zone) {
+        zone.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          openPicker();
+        });
+      }
+      if (btnCamera && inputCamera) {
+        btnCamera.addEventListener('click', function () { inputCamera.click(); });
+        inputCamera.addEventListener('change', function () { adoptFile(inputCamera); });
+      }
+      if (btnGallery && inputGallery) {
+        btnGallery.addEventListener('click', function () { inputGallery.click(); });
+        inputGallery.addEventListener('change', function () { adoptFile(inputGallery); });
+      }
+      if (btnCancel) btnCancel.addEventListener('click', closePicker);
+      // backdrop click closes
+      picker.addEventListener('click', function (e) { if (e.target === picker) closePicker(); });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && picker.classList.contains('show')) closePicker();
+      });
+    }
+
     input.addEventListener('change', function () {
       var err = document.getElementById('upload-error');
       var prev = document.getElementById('preview');
