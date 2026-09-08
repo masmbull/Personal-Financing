@@ -58,23 +58,34 @@ jobs:
 
             echo "=== Restart service ==="
             sudo systemctl restart finance
-            sleep 3
 
             echo "=== Health check ==="
-            if systemctl is-active --quiet finance; then
-              echo "✅ finance service: ACTIVE"
+            # uvicorn 0.30 binds the listening socket only AFTER the FastAPI
+            # lifespan startup (migrations + seed + daily jobs) completes,
+            # which takes several seconds on a warm DB. A fixed sleep is too
+            # tight and hides real crashes. Poll up to ~60s instead; on final
+            # failure always dump the journal so the real error is visible.
+            ok=0
+            for i in $(seq 1 30); do
+              if systemctl is-active --quiet finance; then
+                code=$(curl -fsS -o /dev/null -w "%{http_code}" --max-time 3 http://localhost:8000/ 2>/dev/null || echo "000")
+                if [ "$code" = "200" ]; then
+                  echo "✅ HTTP 200 on localhost:8000 (attempt $i)"
+                  ok=1
+                  break
+                fi
+                echo "...waiting (attempt $i, http=$code)"
+              else
+                echo "...service not active yet (attempt $i)"
+              fi
+              sleep 2
+            done
+
+            if [ "$ok" = "1" ]; then
+              echo "=== DEPLOY OK $(date) ==="
             else
-              echo "❌ finance service: DOWN"
-              sudo journalctl -u finance -n 20 --no-pager
+              echo "❌ Health check failed after retries"
+              echo "--- last 60 finance log lines ---"
+              sudo journalctl -u finance -n 60 --no-pager
               exit 1
             fi
-
-            code=$(curl -fsSL -o /dev/null -w "%{http_code}" http://localhost:8000/ || echo "000")
-            if [ "$code" = "200" ]; then
-              echo "✅ HTTP 200 on localhost:8000"
-            else
-              echo "❌ HTTP $code"
-              exit 1
-            fi
-
-            echo "=== DEPLOY OK $(date) ==="
