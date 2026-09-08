@@ -381,10 +381,18 @@ def test_receipt_upload_validates_and_stores():
                     files={"file": ("struk.png", png, "image/png")})
     assert r.status_code == 201, r.text
     body = r.json()
-    assert body["status"] == "ready"          # OCR ran synchronously (offline engine)
-    assert body["ocr_status"] == "processed"
+    # OCR now runs in background thread; receipt is returned in pending/processing state.
     assert body["receipt_id"] > 0
     assert body["file_hash"]
+    # Wait for background OCR to finish
+    import time
+    for _ in range(100):
+        got = client.get(f"/api/v1/receipts/{body['receipt_id']}").json()
+        if got.get("ocr_status") in ("processed", "failed"):
+            break
+        time.sleep(0.05)
+    body = client.get(f"/api/v1/receipts/{body['receipt_id']}").json()
+    assert body["ocr_status"] == "processed"
     assert body["ocr"] is not None
 
     r = client.post("/api/v1/receipts",
@@ -404,6 +412,14 @@ def test_receipt_confirm_flow_creates_exactly_one_transaction():
     rid = client.post("/api/v1/receipts",
                       files={"file": ("kwitansi.png", png, "image/png")}
                       ).json()["receipt_id"]
+
+    # Wait for background OCR to finish
+    import time
+    for _ in range(100):
+        got = client.get(f"/api/v1/receipts/{rid}").json()
+        if got.get("ocr_status") in ("processed", "failed"):
+            break
+        time.sleep(0.05)
 
     # GET single shows processed/ready + unlinked
     got = client.get(f"/api/v1/receipts/{rid}").json()

@@ -170,8 +170,12 @@ def _image_to_b64(image_path) -> str:
     The ORIGINAL uploaded file is never touched: ``image_path`` is always the
     stored receipt, and this function only produces a temporary in-memory
     JPEG derived from it (nothing is written to disk and nothing is logged).
+
+    Memory-safety: capped pixel dimensions prevent decompression bombs from
+    exhausting the 3.6 GB server RAM.
     """
     from PIL import Image, ImageOps
+    Image.MAX_IMAGE_PIXELS = 25_000_000  # ~5000x5000, hard cap
     with Image.open(image_path) as img:
         # 1) EXIF orientation (phone photos), 2) downscale, 3) JPEG encode.
         img = ImageOps.exif_transpose(img)
@@ -180,6 +184,10 @@ def _image_to_b64(image_path) -> str:
         if img.width > max_w:
             r = max_w / img.width
             img = img.resize((max_w, int(img.height * r)), Image.LANCZOS)
+        # Extra safety: cap height for extremely tall receipt images.
+        max_h = max_w * 4  # reasonable max for receipts (~4:1 aspect)
+        if img.height > max_h:
+            img = img.crop((0, 0, img.width, max_h))
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=settings.RECEIPT_AI_JPEG_QUALITY)
         data = buf.getvalue()
@@ -391,6 +399,7 @@ class OllamaClient:
     # ---- chat (vision)
     def chat(self, image_b64: str) -> dict:
         """Send the image + prompt; return the parsed JSON object the model emitted."""
+        import time
         url = f"{self.base_url}/api/chat"
         payload = {
             "model": self.model,
@@ -407,7 +416,12 @@ class OllamaClient:
                 "num_ctx": self.num_ctx,
             },
         }
+        t0 = time.monotonic()
+        log.info("ollama vision request started model=%s timeout=%s", self.model, self.timeout)
         r = _client().post(url, json=payload, timeout=self.timeout)
+        elapsed = time.monotonic() - t0
+        log.info("ollama vision request completed model=%s elapsed=%.1fs status=%d",
+                 self.model, elapsed, r.status_code)
         if r.status_code != 200:
             raise RuntimeError(f"ollama http {r.status_code}")
         try:
@@ -437,6 +451,9 @@ class OllamaVisionReceiptScannerService:
         from app.services.receipt_ocr import (
             ReceiptScanResult, compute_confidence,
         )
+        import time
+        t_scan = time.monotonic()
+        log.info("ollama scan started path=%s", str(image_path)[:80])
         try:
             b64 = _image_to_b64(image_path)
         except Exception as e:

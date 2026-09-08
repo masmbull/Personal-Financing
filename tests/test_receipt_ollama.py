@@ -326,6 +326,15 @@ def test_ai_scan_does_not_create_transaction(monkeypatch, client):
                         files={"file": ("struk.png", PNG_BYTES, "image/png")})
         assert r.status_code == 201, r.text
         body = r.json()
+        rid = body["receipt_id"]
+        # OCR runs in background thread now — wait for it to complete
+        import time
+        for _ in range(100):
+            got = client.get(f"/api/v1/receipts/{rid}").json()
+            if got.get("ocr_status") in ("processed", "failed"):
+                break
+            time.sleep(0.05)
+        body = client.get(f"/api/v1/receipts/{rid}").json()
         # The AI draft is stored and visible for REVIEW...
         assert body["status"] == "ready"
         assert body["transaction_id"] is None
@@ -342,6 +351,14 @@ def test_full_upload_review_confirm_creates_exactly_one_transaction(
         rid = client.post("/api/v1/receipts",
                           files={"file": ("struk.png", PNG_BYTES, "image/png")}
                           ).json()["receipt_id"]
+
+    # OCR runs in background — wait for it
+    import time
+    for _ in range(100):
+        got = client.get(f"/api/v1/receipts/{rid}").json()
+        if got.get("ocr_status") in ("processed", "failed"):
+            break
+        time.sleep(0.05)
 
     # Review: the draft is served to the OWNER only and is unlinked.
     got = client.get(f"/api/v1/receipts/{rid}")

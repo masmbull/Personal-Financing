@@ -228,6 +228,12 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        # OCR processing is async now, but keep generous timeouts as a safety
+        # net in case any other long-running route needs it.  The critical fix
+        # is that POST /receipts/upload returns immediately and OCR runs in a
+        # background thread — so proxy_read_timeout is no longer the bottleneck.
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
     }
 }
 NGINXEOF

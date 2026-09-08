@@ -8,12 +8,16 @@ transaction be created through the normal transaction API.
 """
 import hashlib
 import json
+import logging
 import re
+import threading
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+log = logging.getLogger(__name__)
 
 
 def _utcnow() -> datetime:
@@ -225,6 +229,7 @@ def run_ocr(db: Session, receipt_id: int, user_id: int,
     ocr_data. NEVER creates a transaction - that requires explicit
     confirmation. Idempotent for already-confirmed receipts.
     """
+    import time
     from app.services.receipt_ocr import ReceiptScanResult
 
     receipt = get_receipt(db, receipt_id, user_id)
@@ -233,9 +238,12 @@ def run_ocr(db: Session, receipt_id: int, user_id: int,
     receipt.ocr_status = ReceiptStatus.PROCESSING
     db.commit()
 
+    log.info("receipt scan started receipt_id=%d user_id=%d", receipt_id, user_id)
     engine = scanner or get_scanner()
+    t0 = time.monotonic()
     try:
         result = engine.scan(receipt.stored_path)
+        elapsed = time.monotonic() - t0
         if not isinstance(result, ReceiptScanResult):
             if isinstance(result, dict):
                 result = ReceiptScanResult(**result)
@@ -243,12 +251,50 @@ def run_ocr(db: Session, receipt_id: int, user_id: int,
                 result = ReceiptScanResult(status="processed")
         receipt.ocr_data = json.dumps(result.to_dict())
         receipt.ocr_status = ReceiptStatus.PROCESSED
+        log.info("receipt scan completed receipt_id=%d status=processed elapsed=%.1fs confidence=%s",
+                 receipt_id, elapsed, getattr(result, "confidence", "?"))
     except Exception as e:  # noqa: BLE001 - OCR failure is a normal outcome
+        elapsed = time.monotonic() - t0
+        log.warning("receipt scan failed receipt_id=%d elapsed=%.1fs error=%s",
+                     receipt_id, elapsed, str(e)[:200])
         receipt.ocr_data = json.dumps({"status": "failed", "error": str(e)})
         receipt.ocr_status = ReceiptStatus.FAILED
     db.commit()
     db.refresh(receipt)
     return receipt
+
+
+def run_ocr_background(receipt_id: int, user_id: int,
+                       *, _sync: bool = False) -> "threading.Thread | None":
+    """Run OCR in a daemon thread with its own DB session.
+
+    The upload HTTP response returns IMMEDIATELY — the caller redirects
+    the user to the detail page which auto-polls until OCR finishes.
+    This prevents Nginx/Cloudflare proxy timeouts from killing the
+    connection during slow Ollama inference (CPU-only server).
+
+    When ``_sync=True`` the OCR runs inline (no thread).  Tests use
+    this to avoid SQLite contention from overlapping background threads.
+    """
+    from app.database.db import SessionLocal
+
+    def _worker():
+        db = SessionLocal()
+        try:
+            run_ocr(db, receipt_id, user_id)
+        except Exception as exc:  # noqa: BLE001
+            log.error("background OCR crashed receipt_id=%d: %s", receipt_id, exc)
+        finally:
+            db.close()
+
+    if _sync:
+        _worker()
+        return None
+
+    t = threading.Thread(target=_worker, daemon=True, name=f"ocr-{receipt_id}")
+    t.start()
+    log.info("background OCR thread started receipt_id=%d", receipt_id)
+    return t
 
 
 def delete_receipt(db: Session, receipt_id: int, user_id: int,

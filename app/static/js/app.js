@@ -253,6 +253,10 @@
     form.addEventListener('submit', function () {
       var b = document.getElementById('submit-btn');
       if (b) { b.disabled = true; b.textContent = 'Mengupload…'; }
+      var zone = document.getElementById('upload-zone');
+      if (zone) zone.classList.add('hidden');
+      var err = document.getElementById('upload-error');
+      if (err) err.classList.add('hidden');
     });
   }
 

@@ -26,12 +26,16 @@ from app.config import settings
 def _image_to_b64(image_path) -> str:
     """Read + downscale an image and return a base64 data-URI (JPEG)."""
     from PIL import Image
+    Image.MAX_IMAGE_PIXELS = 25_000_000
     with Image.open(image_path) as img:
         img = img.convert("RGB")
         max_w = settings.RECEIPT_AI_MAX_IMAGE_WIDTH
         if img.width > max_w:
             r = max_w / img.width
             img = img.resize((max_w, int(img.height * r)), Image.LANCZOS)
+        max_h = max_w * 4
+        if img.height > max_h:
+            img = img.crop((0, 0, img.width, max_h))
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=85)
     return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")

@@ -61,6 +61,15 @@ import app.services.receipt_ai as _ai_mod
 _ai_mod._probe_service = lambda: None
 _ai_mod.AIVisionReceiptScannerService.available = lambda self: False
 
+# Force background OCR to run synchronously in tests so daemon threads
+# don't race with setup_db's drop_all / create_all between tests.
+import app.services.receipts as _receipts_mod
+_orig_run_ocr_bg = _receipts_mod.run_ocr_background
+def _sync_ocr_bg(receipt_id, user_id, **kw):
+    kw["_sync"] = True
+    return _orig_run_ocr_bg(receipt_id, user_id, **kw)
+_receipts_mod.run_ocr_background = _sync_ocr_bg
+
 TEST_DB_URL = f"sqlite:///./{TEST_DB_PATH}"
 engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

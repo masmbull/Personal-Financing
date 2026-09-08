@@ -74,8 +74,11 @@ async def upload_submit(request: Request, db: Session = Depends(get_db),
         receipt = receipts_service.save_receipt(db, upload, user.id)
     except receipts_service.ReceiptValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    # synchronous local OCR (fast, CPU-only); never blocks on network
-    receipts_service.run_ocr(db, receipt.id, user.id)
+    # OCR runs in a background thread so the HTTP response returns immediately.
+    # This prevents Nginx/Cloudflare proxy timeouts from killing the connection
+    # during slow Ollama inference on a CPU-only server.  The detail page
+    # auto-polls until OCR finishes.
+    receipts_service.run_ocr_background(receipt.id, user.id)
     return RedirectResponse(url=f"/receipts/{receipt.id}?uploaded=1",
                             status_code=303)
 

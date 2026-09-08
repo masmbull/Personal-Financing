@@ -1,4 +1,5 @@
 """Web UI tests - dashboard, receipts pages, mobile form basics."""
+import time
 from datetime import date
 
 from app.models.models import Account, Category, Receipt, Transaction
@@ -20,6 +21,21 @@ def _cat(name):
     i = db.query(Category).filter(Category.name == name).first().id
     db.close()
     return i
+
+
+def _wait_ocr(rid, timeout=30):
+    """Poll until the receipt's OCR is no longer in a pending/processing state."""
+    done = {"PROCESSED", "FAILED", "CONFIRMED"}
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        db = get_test_db()
+        r = db.query(Receipt).filter(Receipt.id == int(rid)).first()
+        status = r.ocr_status.value if r else None
+        db.close()
+        if status in done:
+            return status.lower()
+        time.sleep(0.1)
+    return "timeout"
 
 
 # ==================== dashboard ====================
@@ -116,6 +132,7 @@ def _upload_png(name):
 def test_receipt_upload_via_html_form_creates_no_transaction():
     tx_before = client.get("/api/v1/transactions?page_size=1").json()["total"]
     rid, stored = _upload_png("struk-bca.png")
+    _wait_ocr(rid)
 
     receipt = client.get(f"/api/v1/receipts/{rid}").json()
     assert receipt["transaction_id"] is None          # upload alone never posts
@@ -139,6 +156,7 @@ def test_receipt_upload_via_html_form_creates_no_transaction():
 
 def test_receipt_confirm_html_creates_exactly_one_and_409_state():
     rid, stored = _upload_png("r2.png")
+    _wait_ocr(rid)
     acc, cat = _acc("BCA"), _cat("Makan & Minum")
     before = client.get(f"/api/v1/accounts/{acc}").json()["current_balance"]
 
@@ -193,6 +211,7 @@ def test_receipt_confirm_html_creates_exactly_one_and_409_state():
 
 def test_receipt_delete_unconfirmed_flow():
     rid, stored = _upload_png("r3.png")
+    _wait_ocr(rid)
     r = client.post(f"/receipts/{rid}/delete", follow_redirects=False)
     assert r.status_code == 303
     assert client.get(f"/receipts/{rid}").status_code == 404
@@ -326,6 +345,7 @@ def test_receipt_detail_renders_with_items_namespace():
                     follow_redirects=False)
     assert r.status_code == 303, r.text
     rid = r.headers["location"].split("?")[0].rsplit("/", 1)[-1]
+    _wait_ocr(rid)
 
     detail = client.get(f"/receipts/{rid}?uploaded=1")
     assert detail.status_code == 200, detail.text[:500]
@@ -388,6 +408,7 @@ def test_receipt_confirm_creates_one_and_second_409():
     """Confirm creates exactly one transaction; second confirm returns 409."""
     from app.models.models import Receipt, Transaction
     rid, stored = _upload_png("r_ocr.png")
+    _wait_ocr(rid)
     acc, cat = _acc("BCA"), _cat("Makan & Minum")
 
     r = client.post(f"/receipts/{rid}/confirm", data={
@@ -503,6 +524,7 @@ def test_categories_empty_state():
 
 def test_receipt_detail_renders_review_header():
     rid, stored = _upload_png("r-detail.png")
+    _wait_ocr(rid)
     t = client.get(f"/receipts/{rid}?uploaded=1").text
     assert "Review Struk" in t
     assert "rr-form" in t
@@ -524,6 +546,7 @@ def test_receipt_detail_renders_ocr_items_without_typeerror():
     r = client.post("/receipts/upload", files={"file": ("receipt.jpg", buf.getvalue(), "image/jpeg")}, follow_redirects=False)
     assert r.status_code == 303
     rid = r.headers["location"].split("?")[0].rsplit("/", 1)[-1]
+    _wait_ocr(rid)
     detail = client.get(f"/receipts/{rid}?uploaded=1")
     assert detail.status_code == 200
     assert "rr-form" in detail.text

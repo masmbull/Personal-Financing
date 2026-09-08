@@ -47,7 +47,10 @@ def upload_receipt(file: UploadFile,
         elif "too large" in msg:
             code = "FILE_TOO_LARGE"
         raise ApiError(400, code, str(e))
-    receipt = receipts_service.run_ocr(db, receipt.id, user.id)  # PROCESSING -> READY/FAILED
+    # OCR runs in a background thread so the HTTP response returns immediately.
+    # Prevents proxy timeouts during slow Ollama inference on CPU-only server.
+    # Client should poll GET /receipts/{id} until ocr_status != "processing".
+    receipts_service.run_ocr_background(receipt.id, user.id)
     return _out(receipt)
 
 
