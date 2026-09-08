@@ -128,6 +128,7 @@ class User(Base):
     username = Column(String(50), nullable=False, unique=True, index=True)
     password_hash = Column(String(256), nullable=False)  # PBKDF2 string
     is_active = Column(Integer, nullable=False, default=1)
+    is_admin = Column(Integer, nullable=False, default=0, comment="1 = system administrator")
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Admin - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <div class="top-bar reveal">
+        <div>
+            <div class="greeting">🔐 Panel Admin</div>
+            <h1 class="page-title-large">Manajemen Pengguna</h1>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="auth-error" role="alert">
+        {% if error == "1" %}Token CSRF tidak valid.{% elif error == "2" %}Tidak bisa mengubah status sendiri.{% elif error == "3" %}Pengguna tidak ditemukan.{% else %}Terjadi kesalahan.{% endif %}
+    </div>
+    {% endif %}
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">Daftar Pengguna ({{ user_count }})</h2>
+        </div>
+        {% if users %}
+        <div class="transaction-list">
+            {% for u in users %}
+            <div class="transaction-item">
+                <div class="tx-left">
+                    <span class="tx-icon">{% if u.is_admin %}👑{% else %}👤{% endif %}</span>
+                    <div class="tx-info">
+                        <span class="tx-desc strong">
+                            {{ u.username }}
+                            {% if u.is_admin %}<span class="badge badge-admin">Admin</span>{% endif %}
+                            {% if not u.is_active %}<span class="badge badge-inactive">Nonaktif</span>{% endif %}
+                        </span>
+                        <span class="tx-meta">Bergabung {{ u.created_at.strftime('%d %b %Y') if u.created_at else '-' }}</span>
+                    </div>
+                </div>
+                <div class="tx-right">
+                    {% if u.id != current.id %}
+                    <div class="btn-group">
+                        <form method="post" action="/admin/users/{{ u.id }}/toggle-admin" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-sm {% if u.is_admin %}btn-danger{% else %}btn-success{% endif %}">
+                                {% if u.is_admin %}Cabang Admin{% else %}Jadikan Admin{% endif %}
+                            </button>
+                        </form>
+                        <form method="post" action="/admin/users/{{ u.id }}/toggle-active" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-sm {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}">
+                                {% if u.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %}
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <span class="tx-meta">Anda</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-text">Belum ada pengguna terdaftar.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

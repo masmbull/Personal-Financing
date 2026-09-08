@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.database.db import engine, Base, SessionLocal
 from app.models.models import Account, Category, AccountType, TransactionType
-from app.routes import dashboard, transactions, categories, reports, transfer, debts, bills, budgets, savings, assets_list, investments, receipts_ui, misc, export
+from app.routes import dashboard, transactions, categories, reports, transfer, debts, bills, budgets, savings, assets_list, investments, receipts_ui, misc, export, admin, help
 from app.api.router import api_v1_router
 from app.api.errors import register_exception_handlers
 from app.auth.router import router as auth_router
@@ -105,6 +105,8 @@ async def lifespan(app: FastAPI):
     run_bill_occurrence_migration(engine)
     from app.migrations import run_domain_expansion_migration
     run_domain_expansion_migration(engine)
+    from app.migrations import run_admin_column_migration
+    run_admin_column_migration(engine)
     from app.migrations import run_institution_fk_migration
     run_institution_fk_migration(engine)
     seed_default_data()
@@ -185,4 +187,10 @@ app.include_router(savings.router)
 app.include_router(assets_list.router)
 app.include_router(investments.router)
 app.include_router(export.router)
+
+# Admin panel
+app.include_router(admin)
+
+# Help/knowledge base
+app.include_router(help)
 

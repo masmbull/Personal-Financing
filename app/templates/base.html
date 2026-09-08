@@ -71,6 +71,21 @@
                     <span class="icon">🧾</span>
                     <span>Struk</span>
                 </a>
+                <div class="sidebar-divider"></div>
+                <a href="/help" class="sidebar-nav-item {% if '/help' in request.url.path %}active{% endif %}">
+                    <span class="icon">❓</span>
+                    <span>Bantuan</span>
+                </a>
+                {% if request.state.user and request.state.user.is_admin %}
+                <a href="/admin" class="sidebar-nav-item {% if '/admin' in request.url.path %}active{% endif %}">
+                    <span class="icon">🔐</span>
+                    <span>Admin</span>
+                </a>
+                {% endif %}
+                <a href="/help" class="sidebar-nav-item {% if '/help' in request.url.path %}active{% endif %}">
+                    <span class="icon">📚</span>
+                    <span>Bantuan</span>
+                </a>
             </nav>
             <div class="sidebar-bottom">
                 <div class="sidebar-user">👤 {{ request.state.user.username }}</div>

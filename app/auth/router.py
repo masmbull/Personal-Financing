@@ -1,4 +1,4 @@
-"""Authentication web routes - /login, /register, /logout.
+﻿"""Authentication web routes - /login, /register, /logout.
 
 All state-changing forms carry a double-submit CSRF token. Password or
 username failures produce the same generic message (no enumeration).
@@ -19,6 +19,7 @@ from app.database.db import get_db
 from app.models.models import AccountType
 from app.services import accounts as accounts_service
 from app.services.users import UsernameTaken, authenticate, create_user
+from app.validation import validate_username, validate_password, validate_amount, validate_account_name
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
@@ -64,6 +65,12 @@ def login_submit(
 ):
     if not csrf_ok(request.cookies.get(CSRF_COOKIE), csrf_token):
         return RedirectResponse(url="/login?error=1", status_code=303)
+    
+    # Validate input
+    valid, err = validate_username(username)
+    if not valid:
+        return RedirectResponse(url="/login?error=1", status_code=303)
+    
     user = authenticate(db, username, password)
     if user is None:
         resp = RedirectResponse(url="/login?error=1", status_code=303)
@@ -93,10 +100,21 @@ def register_submit(
 ):
     if not csrf_ok(request.cookies.get(CSRF_COOKIE), csrf_token):
         return RedirectResponse(url="/register?error=1", status_code=303)
-    if len(password) < 8:
+    
+    # Validate username
+    valid, err = validate_username(username)
+    if not valid:
         return RedirectResponse(url="/register?error=1", status_code=303)
+    
+    # Validate password
+    valid, err = validate_password(password)
+    if not valid:
+        return RedirectResponse(url="/register?error=1", status_code=303)
+    
+    # Check password match
     if password != password2:
         return RedirectResponse(url="/register?error=1", status_code=303)
+    
     try:
         user = create_user(db, username, password)
     except UsernameTaken:
@@ -111,7 +129,7 @@ def register_submit(
 @router.post("/logout")
 def logout(request: Request, db: Session = Depends(get_db)):
     """POST-only logout. SameSite=Lax blocks cross-site POSTs so an attacker
-    cannot drive a victim's browser into this without both cookies."""
+    cannot drive a victim\'s browser into this without both cookies."""
     token = request.cookies.get(SESSION_COOKIE)
     if resolve_request_user(request, db) is None:
         return RedirectResponse(url="/login", status_code=303)
@@ -157,12 +175,21 @@ def setup_submit(
         return RedirectResponse(url="/setup?error=1", status_code=303)
     if _has_accounts(db, user.id):
         return RedirectResponse(url="/", status_code=303)
-    try:
-        init_bal = int(initial_balance) if initial_balance else 0
-    except ValueError:
-        init_bal = 0
-    if init_bal < 0:
-        init_bal = 0
+    
+    # Validate account name
+    valid, err = validate_account_name(name)
+    if not valid:
+        resp = RedirectResponse(url="/setup?error=1", status_code=303)
+        resp.delete_cookie(CSRF_COOKIE, path="/")
+        return resp
+    
+    # Validate amount
+    init_bal, err = validate_amount(initial_balance)
+    if err:
+        resp = RedirectResponse(url="/setup?error=1", status_code=303)
+        resp.delete_cookie(CSRF_COOKIE, path="/")
+        return resp
+    
     try:
         accounts_service.create_account(
             db, user_id=user.id, name=name.strip(),

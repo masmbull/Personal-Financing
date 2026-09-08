@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     # Bootstrap admin created on first startup when both vars are set.
     # Never commit real credentials to the repo; provide via .env/environment.
     AUTH_BOOTSTRAP_USERNAME: str = ""
+    AUTH_BOOTSTRAP_IS_ADMIN: bool = True
     AUTH_BOOTSTRAP_PASSWORD: str = ""
     AUTH_SESSION_TTL_DAYS: int = 30
 

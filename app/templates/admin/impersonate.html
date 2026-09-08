@@ -1,0 +1,18 @@
+﻿{% extends "base.html" %}
+{% block title %}Admin - Login as User{% endblock %}
+{% block content %}
+<div class="page">
+    <div class="auth-wrap">
+        <div class="card auth-card">
+            <h1 class="auth-title">Login sebagai User</h1>
+            <p class="auth-sub">Anda akan login sebagai <strong>{{ target_user.username }}</strong> untuk tujuan support.</p>
+            
+            <form method="post" action="/admin/users/{{ target_user.id }}/impersonate" class="form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-primary btn-block">Konfirmasi Login</button>
+                <a href="/admin/users" class="btn btn-block" style="margin-top:10px;">Batal</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

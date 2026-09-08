@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Bantuan - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <div class="top-bar reveal">
+        <div>
+            <div class="greeting">?? Panduan Penggunaan</div>
+            <h1 class="page-title-large">Pusat Bantuan</h1>
+        </div>
+    </div>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">?? Memulai</h2>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:12px">Selamat datang di Finance App!</h3>
+            <p>Aplikasi ini membantu Anda mencatat dan mengelola keuangan pribadi dengan mudah. Berikut langkah awal:</p>
+            <ol style="margin-top:12px;padding-left:20px;line-height:1.8">
+                <li><strong>Daftar</strong> — Buat akun baru di halaman Register</li>
+                <li><strong>Setup Akun</strong> — Masukkan akun pertama Anda (Cash, Bank, atau E-Wallet) dengan saldo awal</li>
+                <li><strong>Dashboard</strong> — Lihat ringkasan keuangan Anda</li>
+                <li><strong>Catat Transaksi</strong> — Tambah pemasukan atau pengeluaran</li>
+            </ol>
+        </div>
+    </section>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">?? Dashboard</h2>
+        </div>
+        <div class="card">
+            <p>Dashboard menampilkan:</p>
+            <ul style="margin-top:8px;padding-left:20px;line-height:1.8">
+                <li><strong>Saldo Tersedia</strong> — Total uang di semua akun likuid (Cash, Bank, E-Wallet, Tabungan)</li>
+                <li><strong>Total Aset</br> — Nilai semua aset + investasi</li>
+                <li><strong>Kewajiban</strong> — Total hutang dan saldo negatif kartu kredit</li>
+                <li><strong>Net Worth</strong> — Aset dikurangi kewajiban</li>
+                <li><strong>Pemasukan & Pengeluaran</strong> — Per periode (bulan ini, tahun ini, dll)</li>
+                <li><strong>Transaksi Terakhir</strong> — 5 transaksi terbaru</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">?? Akun</h2>
+        </div>
+        <div class="card">
+            <p>Kelola berbagai jenis akun:</p>
+            <ul style="margin-top:8px;padding-left:20px;line-height:1.8">
+                <li><strong>Cash</strong> — Uang tunai</li>
+                <li><strong>Bank</strong> — Rekening bank (BCA, Mandiri, BNI, dll)</li>
+                <li><strong>E-Wallet</strong> — GoPay, OVO, DANA, dll</li>
+                <li><strong>Kartu Kredit</strong> — Dengan limit kredit</li>
+                <li><strong>Tabungan</strong> — Rekening tabungan</li>
+                <li><strong>Investasi</strong> — Portofolio investasi</li>
+            </ul>
+            <p style="margin-top:12px"><strong>Tip:</strong> Saldo awal bisa diubah nanti, dan saldo akan otomatis dihitung ulang dari transaksi.</p>
+        </div>
+    </section>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">?? Transaksi</h2>
+        </div>
+        <div class="card">
+            <p>Jenis transaksi:</p>
+            <ul style="margin-top:8px;padding-left:20px;line-height:1.8">
+                <li><strong>Pengeluaran (Expense)</strong> — Uang keluar, saldo akun berkurang</li>
+                <li><strong>Pemasukan (Income)</strong> — Uang masuk, saldo akun bertambah</li>
+                <li><strong>Transfer</strong> — Pindah uang antar akun (tidak dihitung sebagai income/expense)</li>
+                <li><strong>Pembayaran Hutang</strong> — Bayar hutang, saldo berkurang tapi bukan expense</li>
+                <li><strong>Refund</strong> — Pengembalian uang, saldo bertambah tapi bukan income</li>
+            </ul>
+            <p style="margin-top:12px"><strong>Catatan:</strong> Setiap transaksi wajib memilih akun. Kategori opsional untuk income/expense, wajib untuk transfer.</p>
+        </div>
+    </section>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">?? Laporan</h2>
+        </div>
+        <div class="card">
+            <p>Laporan tersedia:</p>
+            <ul style="margin-top:8px;padding-left:20px;line-height:1.8">
+                <li><strong>Harian</strong> — Transaksi per hari</li>
+                <li><strong>Mingguan</strong> — Agregasi per minggu</li>
+                <li><strong>Bulanan</strong> — Ringkasan per bulan</li>
+                <li><strong>Per Kategori</strong> — Breakdown pengeluaran per kategori</li>
+                <li><strong>Tren 6 Bulan</strong> — Grafik income vs expense</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">?? Fitur Lainnya</h2>
+        </div>
+        <div class="card">
+            <ul style="padding-left:20px;line-height:1.8">
+                <li><strong>Hutang (Debts)</strong> — Catat hutang piutang, RECEIVABLE (orang utang ke Anda) atau PAYABLE (Anda utang)</li>
+                <li><strong>Tagihan (Bills)</strong> — Jadwal tagihan berulang (listrik, internet, langganan)</li>
+                <li><strong>Budget</strong> — Batas pengeluaran per kategori</li>
+                <li><strong>Tabungan (Savings)</strong> — Target tabungan dengan progress bar</li>
+                <li><strong>Aset</strong> — Catat aset berharga (mobil, rumah, elektronik)</li>
+                <li><strong>Investasi</strong> — Portofolio saham/crypto/dll dengan return tracker</li>
+                <li><strong>Kategori</strong> — Hirarki kategori (parent/child) untuk pengeluaran & pemasukan</li>
+                <li><strong>Struk (Receipts)</strong> — Scan struk pakai OCR (Tesseract atau AI)</li>
+                <li><strong>Kartu Kredit</strong> — Limit, statement date, minimum payment</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">?? Keamanan</h2>
+        </div>
+        <div class="card">
+            <ul style="padding-left:20px;line-height:1.8">
+                <li>Password di-hash dengan PBKDF2-SHA256 (600K iterasi)</li>
+                <li>Session disimpan di database (bukan JWT)</li>
+                <li>CSRF token di semua form</li>
+                <li>Session expired setelah 30 hari tidak aktif</li>
+                <li>User hanya bisa melihat data sendiri (isolasi penuh)</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">?? Tips</h2>
+        </div>
+        <div class="card">
+            <ul style="padding-left:20px;line-height:1.8">
+                <li>Gunakan <strong>Transfer</strong> untuk pindah uang antar akun — tidak mempengaruhi income/expense</li>
+                <li>Gunakan <strong>Pembayaran Hutang</strong> untuk bayar hutang — saldo berkurang tapi bukan expense</li>
+                <li>Gunakan <strong>Refund</strong> untuk pengembalian uang — saldo bertambah tapi bukan income</li>
+                <li><strong>Net Worth = Aset - Kewajikan</strong> — ini ukuran kekayaan bersih Anda</li>
+                <li>Saldo akun = Saldo awal + Income - Expense - Transfer keluar + Transfer masuk</li>
+            </ul>
+        </div>
+    </section>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">?? Menu Admin</h2>
+        </div>
+        <div class="card">
+            <p>Jika Anda adalah admin, akses panel admin di sidebar untuk:</p>
+            <ul style="margin-top:8px;padding-left:20px;line-height:1.8">
+                <li>Melihat statistik sistem (total user, transaksi, akun)</li>
+                <li>Mengaktifkan/menonaktifkan akun user</li>
+                <li>Memberikan/mencabut hak admin</li>
+            </ul>
+            <p style="margin-top:12px"><strong>Login Admin:</strong> Set user sebagai admin via environment variable <code>AUTH_BOOTSTRAP_USERNAME</code> atau via database.</p>
+        </div>
+    </section>
+</div>
+{% endblock %}

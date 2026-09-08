@@ -284,3 +284,27 @@ def run_institution_fk_migration(engine: Engine) -> bool:
             "VALUES ('institution_fk', datetime('now'))"
         ))
     return True
+
+
+def run_admin_column_migration(engine: Engine) -> bool:
+    """Add User.is_admin column idempotently."""
+    insp = inspect(engine)
+    if "users" not in insp.get_table_names():
+        return False
+    cols = {c["name"] for c in insp.get_columns("users")}
+    if "is_admin" in cols:
+        return False
+    with engine.begin() as conn:
+        conn.execute(text(
+            "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0"
+        ))
+        logger.info("Migrated users: added is_admin")
+        conn.execute(text(
+            f"CREATE TABLE IF NOT EXISTS {_MARKER_TABLE} "
+            "(name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)"
+        ))
+        conn.execute(text(
+            f"INSERT OR IGNORE INTO {_MARKER_TABLE} (name, applied_at) "
+            "VALUES ('admin_column', datetime('now'))"
+        ))
+    return True

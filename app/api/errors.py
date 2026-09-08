@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.exc import IntegrityError
 
-from app.auth.errors import NotAuthenticated
+from app.auth.errors import NotAuthenticated, NotAuthorized
 
 logger = logging.getLogger("app.api.errors")
 
@@ -72,6 +72,7 @@ def _map_exceptions():
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(ApiError, _handle_api_error)
     app.add_exception_handler(NotAuthenticated, _handle_not_authenticated)
+    app.add_exception_handler(NotAuthorized, _handle_not_authorized)
     app.add_exception_handler(RequestValidationError, _handle_validation)
     app.add_exception_handler(IntegrityError, _handle_integrity)
     app.add_exception_handler(ValueError, _handle_value_error)
@@ -112,6 +113,10 @@ def _handle_integrity(request: Request, exc: IntegrityError) -> JSONResponse:
 
 def _handle_value_error(request: Request, exc: ValueError) -> JSONResponse:
     return _error(400, "INVALID_REQUEST", str(exc))
+
+
+def _handle_not_authorized(request: Request, exc: NotAuthorized) -> JSONResponse:
+    return _error(403, "FORBIDDEN", str(exc) or "Insufficient permissions")
 
 
 def _handle_unexpected(request: Request, exc: Exception) -> JSONResponse:

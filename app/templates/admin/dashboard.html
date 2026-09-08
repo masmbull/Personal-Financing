@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Admin - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <div class="top-bar reveal">
+        <div>
+            <div class="greeting">Admin Panel</div>
+            <h1 class="page-title-large">Manajemen Sistem</h1>
+        </div>
+    </div>
+
+    <section class="summary-cards reveal">
+        <div class="summary-card">
+            <div class="summary-label">Total Pengguna</div>
+            <div class="summary-value">{{ stats.total_users }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Pengguna Aktif</div>
+            <div class="summary-value text-green">{{ stats.active_users }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Pengguna Nonaktif</div>
+            <div class="summary-value text-red">{{ stats.inactive_users }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Total Transaksi</div>
+            <div class="summary-value">{{ stats.total_transactions }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Total Akun</div>
+            <div class="summary-value">{{ stats.total_accounts }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Admin</div>
+            <div class="summary-value text-purple">{{ stats.admin_count }}</div>
+        </div>
+    </section>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">Daftar Pengguna</h2>
+        </div>
+        <div class="stack">
+            {% for user in users %}
+            <div class="card">
+                <div class="row-between">
+                    <div>
+                        <strong>{{ user.username }}</strong>
+                        {% if user.is_admin == 1 %}
+                        <span class="badge badge-admin">Admin</span>
+                        {% endif %}
+                        {% if user.is_active == 0 %}
+                        <span class="badge badge-inactive">Nonaktif</span>
+                        {% endif %}
+                        <div class="tx-meta">Bergabung: {{ user.created_at.strftime("%d %b %Y") if user.created_at else "-" }}</div>
+                    </div>
+                    <div class="btn-group">
+                        {% if user.is_admin == 0 %}
+                        <form method="post" action="/admin/users/{{ user.id }}/make-admin" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn-sm btn-success">Jadikan Admin</button>
+                        </form>
+                        {% else %}
+                        {% if user.id != current_user.id %}
+                        <form method="post" action="/admin/users/{{ user.id }}/revoke-admin" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn-sm btn-danger">Cabut Admin</button>
+                        </form>
+                        {% endif %}
+                        {% endif %}
+                        {% if user.is_active == 1 %}
+                        {% if user.id != current_user.id %}
+                        <form method="post" action="/admin/users/{{ user.id }}/deactivate" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn-sm btn-danger">Nonaktifkan</button>
+                        </form>
+                        {% endif %}
+                        {% else %}
+                        <form method="post" action="/admin/users/{{ user.id }}/activate" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn-sm btn-success">Aktifkan</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

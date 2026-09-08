@@ -3,9 +3,10 @@ import os
 import shutil
 import warnings
 
-# Suppress anyio deprecation warning that fires at import time (before pytest
-# filterwarnings rules are applied). Starlette's testclient imports
-# anyio.abc.BlockingPortal which is deprecated in anyio >= 4.12.
+# CRITICAL: Suppress anyio deprecation warning BEFORE any imports.
+# anyio 4.14+ raises DeprecationWarning for BlockingPortal at import time,
+# which happens before pytest filterwarnings rules are applied.
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", message=".*BlockingPortal.*")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module=r"anyio.*")
 
@@ -32,9 +33,7 @@ os.environ.setdefault("RECEIPT_AI_BASE_URL", "http://127.0.0.1:11435/v1")
 
 import pytest
 
-# Suppress ALL warnings during TestClient import to prevent anyio deprecation
-# from being raised as an error. This is the most reliable way to handle
-# third-party deprecation warnings that fire at import time.
+# Wrap TestClient import with catch_warnings as extra protection
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     from fastapi.testclient import TestClient
@@ -71,7 +70,27 @@ def override_get_db():
 
 
 app.dependency_overrides[get_db] = override_get_db
-client = TestClient(app)
+_client = TestClient(app)
+# Module-level alias so `from tests.conftest import client` still works
+# (some legacy tests use it directly instead of as a fixture).
+client = _client
+
+
+@pytest.fixture(name="client")
+def _client_fixture() -> TestClient:
+    """Shared test client for web/HTML routes (same instance as above)."""
+    return _client
+
+
+@pytest.fixture
+def db():
+    """A clean test database session, scoped to the calling test."""
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
 
 # Default users used by the shared test client. PBKDF2 is intentionally
 # hashed ONCE at import to keep the suite fast; real login flows in
