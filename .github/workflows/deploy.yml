@@ -60,17 +60,18 @@ jobs:
             sudo systemctl restart finance
 
             echo "=== Health check ==="
-            # uvicorn 0.30 binds the listening socket only AFTER the FastAPI
-            # lifespan startup (migrations + seed + daily jobs) completes,
-            # which takes several seconds on a warm DB. A fixed sleep is too
-            # tight and hides real crashes. Poll up to ~60s instead; on final
-            # failure always dump the journal so the real error is visible.
+            # Probe the canonical unauthenticated health endpoint rather than
+            # `/` (which 303-redirects to /login when called without a session
+            # cookie, as the auth dep rejects it). uvicorn 0.30 binds the
+            # socket only AFTER the lifespan startup completes, so poll up
+            # to ~60s; on final failure dump the journal so real crashes
+            # surface in the Actions log.
             ok=0
             for i in $(seq 1 30); do
               if systemctl is-active --quiet finance; then
-                code=$(curl -fsS -o /dev/null -w "%{http_code}" --max-time 3 http://localhost:8000/ 2>/dev/null || echo "000")
+                code=$(curl -fsS -o /dev/null -w "%{http_code}" --max-time 3 http://localhost:8000/api/v1/health 2>/dev/null || echo "000")
                 if [ "$code" = "200" ]; then
-                  echo "✅ HTTP 200 on localhost:8000 (attempt $i)"
+                  echo "✅ HTTP 200 on /api/v1/health (attempt $i)"
                   ok=1
                   break
                 fi
