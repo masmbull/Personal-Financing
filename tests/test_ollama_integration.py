@@ -43,7 +43,7 @@ def _make_fixture_receipt(path: str) -> None:
     img.save(path, format="PNG")
 
 
-def test_qwen_model_available():
+def test_configured_vision_model_available():
     c = OllamaClient()
     ok, reason = c.ping()
     assert ok, f"Ollama not usable: {reason}"
