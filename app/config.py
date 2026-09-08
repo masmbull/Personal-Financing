@@ -56,7 +56,11 @@ class Settings(BaseSettings):
     RECEIPT_AI_FALLBACK_TESSERACT: bool = os.environ.get(
         "RECEIPT_AI_FALLBACK_TESSERACT", "1").lower() in ("1", "true", "yes")
     RECEIPT_AI_MAX_IMAGE_WIDTH: int = int(
-        os.environ.get("RECEIPT_AI_MAX_IMAGE_WIDTH", "1600"))
+        os.environ.get("RECEIPT_AI_MAX_IMAGE_WIDTH", "1280"))
+    # JPEG quality for the temporary downscaled inference image (higher keeps
+    # more small text, larger bytes; 80 is the documented low-RAM default).
+    RECEIPT_AI_JPEG_QUALITY: int = int(
+        os.environ.get("RECEIPT_AI_JPEG_QUALITY", "80"))
 
     # ---- AI vision provider dispatch (PHASE: Ollama integration) ----
     # Provider selector: "ollama" (native /api/chat) or "openai_compat"
@@ -66,7 +70,11 @@ class Settings(BaseSettings):
     RECEIPT_AI_PROVIDER: str = os.environ.get(
         "RECEIPT_AI_PROVIDER", "ollama").strip().lower()
 
-    # ---- Native Ollama (qwen2.5vl:3b on 127.0.0.1:11434) ----
+    # ---- Native Ollama (moondream:1.8b-v2-q4_K_S on 127.0.0.1:11434) ----
+    # Production default (STANDARBENGKEL: ~3.6 GiB RAM, CPU-only, no GPU):
+    # moondream 1.8b Q4_K_S is the vision model. qwen2.5vl:3b pushed the box
+    # to ~99% RAM + swap, so it is NOT the production default. The model is a
+    # runtime env var on purpose - never hardcode it into pipeline code.
     # Ollama runs on the HOST machine, NOT in a container - inside Docker
     # this 127.0.0.1 would point at the container itself. Production here
     # uses systemd (not Docker) so 127.0.0.1 reaches the host's Ollama.
@@ -75,9 +83,9 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = os.environ.get(
         "OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     OLLAMA_VISION_MODEL: str = os.environ.get(
-        "OLLAMA_VISION_MODEL", "qwen2.5vl:3b")
+        "OLLAMA_VISION_MODEL", "moondream:1.8b-v2-q4_K_S")
     OLLAMA_TIMEOUT_SECONDS: float = float(
-        os.environ.get("OLLAMA_TIMEOUT_SECONDS", "90"))
+        os.environ.get("OLLAMA_TIMEOUT_SECONDS", "60"))
     # num_ctx bounds KV-cache RAM on a 3.6 GB box; 2048 is enough for one
     # receipt image + a short JSON reply.
     OLLAMA_NUM_CTX: int = int(os.environ.get("OLLAMA_NUM_CTX", "2048"))

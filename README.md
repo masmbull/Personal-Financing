@@ -88,7 +88,7 @@ Aplikasi web pencatatan keuangan pribadi yang ringan, cepat, dan mobile-first. D
 ### Struk & OCR
 - Upload struk (gambar/PDF) → validasi MIME & ukuran
 - SHA-256 dedupe — struk yang sama tidak diproses dua kali
-- OCR engine: Tesseract (lokal) atau AI-vision (Ollama / OpenAI-compatible)
+- OCR engine: Tesseract (lokal) atau AI-vision (Ollama, default moondream:1.8b-v2-q4_K_S / OpenAI-compatible)
 - Review & konfirmasi manual sebelum jadi transaksi — OCR TIDAK auto-post
 - Deteksi duplikat berdasarkan hash dan metadata
 
@@ -227,13 +227,15 @@ Database disimpan di `./data/finance.db` (persistent via bind mount `./data:/app
 | `AUTH_BOOTSTRAP_USERNAME` | (kosong) | Username admin otomatis saat startup pertama |
 | `AUTH_BOOTSTRAP_PASSWORD` | (kosong) | Password admin otomatis saat startup pertama |
 | `TESSERACT_CMD` | `tesseract` | Path ke executable Tesseract |
-| `RECEIPT_AI_ENABLED` | `0` | Enable AI-vision OCR |
-| `RECEIPT_AI_PROVIDER` | `ollama` | Provider AI (`ollama` / `openai`) |
-| `RECEIPT_AI_BASE_URL` | `http://localhost:11434/v1` | Base URL AI API |
-| `RECEIPT_AI_MODEL` | `llama3.2-vision` | Model vision AI |
-| `RECEIPT_AI_TIMEOUT_SEC` | `120` | Timeout AI (detik) |
-| `RECEIPT_AI_FALLBACK_TESSERACT` | `1` | Fallback ke Tesseract bila AI gagal |
-| `RECEIPT_AI_MAX_IMAGE_WIDTH` | `1600` | Resolusi maks gambar dikirim ke AI |
+| `RECEIPT_AI_ENABLED` | `true` | Enable AI-vision OCR |
+| `RECEIPT_AI_PROVIDER` | `ollama` | Provider AI (`ollama` / `openai_compat`) |
+| `RECEIPT_AI_MAX_IMAGE_WIDTH` | `1280` | Resolusi maks gambar dikirim ke AI |
+| `RECEIPT_AI_JPEG_QUALITY` | `80` | JPEG quality gambar inference temp |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | URL Ollama (localhost only) |
+| `OLLAMA_VISION_MODEL` | `moondream:1.8b-v2-q4_K_S` | Model vision (env-configurable) |
+| `OLLAMA_TIMEOUT_SECONDS` | `60` | Timeout inference (detik) |
+| `OLLAMA_NUM_CTX` | `2048` | Context window (bounded for low RAM) |
+| `OLLAMA_MAX_IMAGE_BYTES` | `2097152` | Max base64 gambar -> Tesseract |
 
 Semua variabel opsional sudah punya default aman — cukup copy `.env.example` ke `.env` untuk development.
 

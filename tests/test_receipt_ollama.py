@@ -1,4 +1,4 @@
-"""Tests for the native Ollama (qwen2.5vl:3b) receipt scanner.
+"""Tests for the native Ollama (moondream:1.8b-v2-q4_K_S) receipt scanner.
 
 These never require a live Ollama instance: HTTP is mocked. A separate
 optional live smoke test lives in tests/test_ollama_integration.py and only
@@ -210,7 +210,7 @@ def test_model_missing_from_tags(monkeypatch):
 
 def test_model_present_probes_ok(monkeypatch):
     fake = FakeClient(get_resp=FakeResp(
-        200, {"models": [{"name": "qwen2.5vl:3b"}]}))
+        200, {"models": [{"name": "moondream:1.8b-v2-q4_K_S"}]}))
     monkeypatch.setattr(oa, "_client", lambda: fake)
     svc = oa.OllamaVisionReceiptScannerService()
     assert svc.available() is True
@@ -456,3 +456,71 @@ def test_build_scanner_excludes_ollama_when_disabled(monkeypatch):
                    for e in svc.engines)
     else:
         assert not isinstance(svc, oa.OllamaVisionReceiptScannerService)
+
+
+# ------------------------------------------------------- low-RAM phase 11
+def test_vision_model_is_configurable(monkeypatch):
+    """The model must come from settings/env, never be hardcoded in code."""
+    monkeypatch.setattr(settings, "OLLAMA_VISION_MODEL", "moondream:1.8b-v2-q4_K_S")
+    assert oa.OllamaClient().model == "moondream:1.8b-v2-q4_K_S"
+    monkeypatch.setattr(settings, "OLLAMA_VISION_MODEL", "custom:vision-1")
+    assert oa.OllamaClient().model == "custom:vision-1"
+
+
+def test_image_resized_and_jpeg_encoded(tmp_path):
+    """Large receipt -> downscaled JPEG, aspect ratio kept, original untouched."""
+    import base64 as b64mod
+    import io as iomod
+    big = tmp_path / "big_receipt.png"
+    Image.new("RGB", (2400, 1200), "white").save(big, format="PNG")
+    b64 = oa._image_to_b64(str(big))
+    raw = b64mod.b64decode(b64)
+    assert raw.startswith(b"\xff\xd8")  # JPEG SOI
+    with Image.open(iomod.BytesIO(raw)) as im:
+        assert im.format == "JPEG"
+        assert im.width == settings.RECEIPT_AI_MAX_IMAGE_WIDTH == 1280
+        assert 590 <= im.height <= 650  # ~half of 1200 with ratio preserved
+    # The ORIGINAL file is unchanged in size and format.
+    with Image.open(str(big)) as orig:
+        assert orig.size == (2400, 1200)
+
+
+def test_jpeg_quality_setting_applied(monkeypatch, tmp_path):
+    import base64 as b64mod
+    p = tmp_path / "q.png"
+    Image.new("RGB", (400, 200), "green").save(p, format="PNG")
+    monkeypatch.setattr(settings, "RECEIPT_AI_JPEG_QUALITY", 10)
+    raw = b64mod.b64decode(oa._image_to_b64(str(p)))
+    assert raw.startswith(b"\xff\xd8")
+    # Still decodable at the low quality setting.
+    import io as iomod
+    with Image.open(iomod.BytesIO(raw)) as im:
+        assert im.size == (400, 200)
+
+
+def test_one_inference_at_a_time_lock():
+    """The process-wide lock serializes vision inference (even single-node)."""
+    import threading as _t
+    oa._reset_for_tests()
+    try:
+        outcome = {}
+        lock_holder = oa._ollama_lock(timeout=5)
+
+        def _second():
+            try:
+                with oa._ollama_lock(timeout=0.3):
+                    outcome["acquired"] = True
+            except TimeoutError:
+                outcome["acquired"] = False
+
+        with lock_holder:
+            t = _t.Thread(target=_second)
+            t.start()
+            t.join()
+            assert outcome.get("acquired") is False  # blocked while held
+
+        # After the first inference released, a new one can acquire.
+        with oa._ollama_lock(timeout=2):
+            pass
+    finally:
+        oa._reset_for_tests()

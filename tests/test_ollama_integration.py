@@ -3,8 +3,8 @@
 Only runs when OLLAMA_INTEGRATION_TEST=1 (skipped by default so CI and
 plain ``pytest tests/`` never require a live model):
 
-  * asserts the configured vision model (qwen2.5vl:3b) is present
-    (GET /api/tags on OLLAMA_BASE_URL)
+  * asserts the configured vision model (moondream:1.8b-v2-q4_K_S) is
+    present (GET /api/tags on OLLAMA_BASE_URL)
   * sends ONE small locally-generated receipt image through the real
     OllamaVisionReceiptScannerService
   * validates the structured reply against the app's server-side schema

@@ -1,4 +1,4 @@
-"""Native Ollama vision receipt scanner (qwen2.5vl:3b on 127.0.0.1:11434).
+"""Native Ollama vision receipt scanner (moondream:1.8b-v2-q4_K_S on 127.0.0.1:11434).
 
 Drop-in ``ReceiptScannerService``: ``scan(image_path)`` returns a
 ``ReceiptScanResult`` and NEVER creates a transaction.
@@ -156,7 +156,12 @@ def _client() -> httpx.Client:
     return _CLIENT
 # ------------------------------------------------------- image prep
 def _image_to_b64(image_path) -> str:
-    """Downscale + JPEG-encode an image; return PURE base64 (no data URI)."""
+    """Downscale + JPEG-encode an image; return PURE base64 (no data URI).
+
+    The ORIGINAL uploaded file is never touched: ``image_path`` is always the
+    stored receipt, and this function only produces a temporary in-memory
+    JPEG derived from it (nothing is written to disk and nothing is logged).
+    """
     from PIL import Image
     with Image.open(image_path) as img:
         img = img.convert("RGB")
@@ -165,7 +170,7 @@ def _image_to_b64(image_path) -> str:
             r = max_w / img.width
             img = img.resize((max_w, int(img.height * r)), Image.LANCZOS)
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=85)
+        img.save(buf, format="JPEG", quality=settings.RECEIPT_AI_JPEG_QUALITY)
         data = buf.getvalue()
     if len(data) > settings.OLLAMA_MAX_IMAGE_BYTES:
         raise ValueError(
@@ -307,23 +312,19 @@ def _extract_json(reply: str):
 
 
 # ------------------------------------------------------- prompt
+# Kept intentionally short and task-specific (small low-RAM model, 2K ctx):
+# no reasoning, no explanations, no prose - only one small JSON object out.
 _SYSTEM_PROMPT = (
-    "You are a precise Indonesian receipt (struk) data extractor. "
-    "Read the receipt image and return ONLY valid JSON with no commentary and "
-    "no markdown fences. Every monetary value is an INTEGER in Indonesian "
-    "Rupiah (drop '.' thousands separators; e.g. 25.000 -> 25000, 1.250.000 -> "
-    "1250000). Currency is IDR unless the receipt clearly states another. "
-    "NEVER invent values; if a field is unreadable use null. "
-    'Schema: {"merchant": string|null, "date": "YYYY-MM-DD"|null, '
-    '"time": "HH:MM"|"HH:MM:SS"|null, '
-    '"total_amount": int|null, "subtotal": int|null, "tax": int|null, '
-    '"discount": int|null, '
+    "Extract receipt data as STRICT JSON only. No explanations, no markdown. "
+    "Money = integer Indonesian Rupiah (IDR); dots are thousands separators "
+    "(25.000 -> 25000). Unknown = null. Never invent values. "
+    'Fields: {"merchant": string|null, "date": "YYYY-MM-DD"|null, '
+    '"time": "HH:MM"|"HH:MM:SS"|null, "total_amount": int|null, '
+    '"subtotal": int|null, "tax": int|null, "discount": int|null, '
     '"payment_method": "TUNAI"|"DEBIT"|"KREDIT"|"QRIS"|null, '
     '"items": [{"name": string, "quantity": int|null, '
     '"unit_price": int|null, "total_price": int|null}], '
-    '"confidence": number}. '
-    "total_amount is the FINAL amount paid. Extract as many line items as "
-    "are visible. confidence is your 0..1 self-assessment of accuracy."
+    '"confidence": number}. total_amount = final paid. Reply JSON only.'
 )
 # ------------------------------------------------------- client + scanner
 class OllamaClient:
