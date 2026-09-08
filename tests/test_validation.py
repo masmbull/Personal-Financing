@@ -5,6 +5,7 @@ enforcement, authorization checks, and CSRF protection on state-changing
 form posts.
 """
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.main import app
@@ -81,7 +82,18 @@ class TestAuthorization:
 class TestCsrf:
     """Validate CSRF protection on admin web POSTs."""
 
-    def test_admin_make_admin_requires_valid_csrf(self, client: TestClient, db):
+    def test_admin_make_admin_requires_valid_csrf(self, db: Session):
+        """A forged CSRF token must block the action even for an authenticated admin.
+
+        The previous version raw-POSTed /login with no CSRF token, so the login
+        never set a session and the admin POST was rejected by the AUTH gate (not
+        the CSRF check) - the 303 assertion passed for the wrong reason. Here we
+        log in for real (which itself requires a valid CSRF token), then POST the
+        admin action with a forged token, so only the CSRF check can reject it.
+        """
+        import re
+
+        from app.api.deps import get_current_user
         from app.auth.security import hash_password
 
         admin = User(username="csrfadmin", password_hash=hash_password("p"),
@@ -92,16 +104,36 @@ class TestCsrf:
         db.commit()
         db.refresh(victim)
 
-        client.post("/login", data={"username": "csrfadmin", "password": "p"},
-                    follow_redirects=False)
-        resp = client.post(
+        # Use REAL auth (drop the conftest get_current_user override) so the
+        # session cookie - not the test override - decides the request identity.
+        app.dependency_overrides.pop(get_current_user, None)
+        real_client = TestClient(app, follow_redirects=False)
+
+        # Establish an authenticated admin session via the real login flow,
+        # which requires a valid CSRF token of its own.
+        m = re.search(r'name="csrf_token" value="([^"]+)"',
+                      real_client.get("/login").text)
+        login_token = m.group(1) if m else ""
+        login_resp = real_client.post(
+            "/login",
+            data={"username": "csrfadmin", "password": "p",
+                  "csrf_token": login_token},
+            follow_redirects=False,
+        )
+        assert login_resp.status_code == 303, \
+            f"login should succeed with valid CSRF; got {login_resp.status_code}"
+
+        # Now POST the admin action with a FORGED CSRF token. Auth is valid, so
+        # the only gate that can reject it is the CSRF check.
+        resp = real_client.post(
             f"/admin/users/{victim.id}/make-admin",
             data={"csrf_token": "forged"},
             follow_redirects=False,
         )
         assert resp.status_code == 303
         db.refresh(victim)
-        assert victim.is_admin == 0
+        assert victim.is_admin == 0, \
+            "victim must NOT be promoted when the CSRF token is forged"
 
 
 class TestAdminModel:
