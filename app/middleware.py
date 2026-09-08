@@ -8,8 +8,11 @@ from dataclasses import dataclass
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.deps import get_current_user
-from app.auth.sessions import SESSION_COOKIE, resolve_request_user
+from app.auth.sessions import (
+    CSRF_COOKIE, SESSION_COOKIE, get_session_row, resolve_request_user,
+)
 from app.database.db import SessionLocal
+from app.models.models import User
 
 PUBLIC_PREFIXES = ("/static", "/login", "/register")
 
@@ -20,6 +23,10 @@ class UserContext:
     id: int
     username: str
     is_admin: bool = False
+    # Set when an admin created this session via the impersonate flow.
+    # The banner middleware renders a "Mode dukungan" strip + return button.
+    is_impersonating: bool = False
+    impersonator_username: str | None = None
 
 
 class UserContextMiddleware(BaseHTTPMiddleware):
@@ -31,6 +38,7 @@ class UserContextMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request, call_next):
         request.state.user = None
+        request.state.csrf_token = request.cookies.get(CSRF_COOKIE, "")
         path = request.url.path
         overrides = getattr(request.app, "dependency_overrides", {})
         override = overrides.get(get_current_user)
@@ -51,11 +59,20 @@ class UserContextMiddleware(BaseHTTPMiddleware):
             try:
                 db_user = resolve_request_user(request, db)
                 if db_user:
-                    request.state.user = UserContext(
+                    ctx = UserContext(
                         id=db_user.id,
                         username=db_user.username,
                         is_admin=bool(getattr(db_user, "is_admin", False)),
                     )
+                    row = get_session_row(db, request.cookies.get(SESSION_COOKIE))
+                    if row is not None and row.impersonator_user_id:
+                        admin = db.query(User).filter(
+                            User.id == row.impersonator_user_id
+                        ).first()
+                        if admin is not None:
+                            ctx.is_impersonating = True
+                            ctx.impersonator_username = admin.username
+                    request.state.user = ctx
             except Exception:
                 request.state.user = None
             finally:

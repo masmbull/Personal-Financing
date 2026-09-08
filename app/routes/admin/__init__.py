@@ -11,7 +11,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.auth.sessions import CSRF_COOKIE, csrf_ok, resolve_request_user, set_csrf_cookie
+from app.auth.sessions import (
+    CSRF_COOKIE, SESSION_COOKIE, create_session, csrf_ok, resolve_impersonation,
+    resolve_request_user, set_csrf_cookie, set_session_cookie,
+)
 from app.database.db import get_db
 from app.models.models import Account, Transaction, User
 
@@ -139,3 +142,105 @@ def deactivate_user(
         user.is_active = 0
         db.commit()
     return RedirectResponse(url="/admin", status_code=303)
+
+
+def _validate_impersonation_target(db: Session, admin: User, user_id: int) -> str | None:
+    """Return an error code (or None) for an admin impersonating ``user_id``.
+
+    Guards: no self-impersonation, target must exist, must not be an admin,
+    must be active. Codes match the messages rendered in ``admin/index.html``.
+    """
+    if user_id == admin.id:
+        return "6"
+    target = db.query(User).filter(User.id == user_id).first()
+    if target is None:
+        return "3"
+    if target.is_admin:
+        return "4"
+    if not target.is_active:
+        return "5"
+    return None
+
+
+@router.get("/admin/users", response_class=HTMLResponse)
+def admin_users_page(request: Request, db: Session = Depends(get_db)):
+    """User management page with per-user support (impersonate) actions."""
+    admin, redirect = _gate(request, db)
+    if redirect is not None:
+        return redirect
+
+    users = db.query(User).order_by(User.created_at.desc()).all()
+    token = secrets.token_urlsafe(24)
+    resp = templates.TemplateResponse(request, "admin/index.html", {
+        "users": users,
+        "user_count": len(users),
+        "current": admin,
+        "csrf_token": token,
+        "error": request.query_params.get("error", ""),
+    })
+    set_csrf_cookie(resp, token)
+    return resp
+
+
+@router.get("/admin/users/{user_id}/impersonate", response_class=HTMLResponse)
+def impersonate_confirm(
+    user_id: int, request: Request, db: Session = Depends(get_db),
+):
+    """Confirmation page before an admin logs in as a user (support)."""
+    admin, redirect = _gate(request, db)
+    if redirect is not None:
+        return redirect
+    error = _validate_impersonation_target(db, admin, user_id)
+    if error is not None:
+        return RedirectResponse(url=f"/admin/users?error={error}", status_code=303)
+    target = db.query(User).filter(User.id == user_id).first()
+    token = secrets.token_urlsafe(24)
+    resp = templates.TemplateResponse(request, "admin/impersonate.html", {
+        "target_user": target,
+        "csrf_token": token,
+    })
+    set_csrf_cookie(resp, token)
+    return resp
+
+
+@router.post("/admin/users/{user_id}/impersonate")
+def impersonate_start(
+    user_id: int,
+    request: Request,
+    csrf_token: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Create an impersonation session and switch the admin's cookie to it."""
+    admin, redirect = _gate(request, db)
+    if redirect is not None:
+        return redirect
+    if not csrf_ok(request.cookies.get(CSRF_COOKIE), csrf_token):
+        return RedirectResponse(url="/admin/users?error=1", status_code=303)
+    error = _validate_impersonation_target(db, admin, user_id)
+    if error is not None:
+        return RedirectResponse(url=f"/admin/users?error={error}", status_code=303)
+    token, _ = create_session(db, user_id, impersonator_user_id=admin.id)
+    resp = RedirectResponse(url="/", status_code=303)
+    set_session_cookie(resp, token)
+    # Keep a CSRF cookie live so the global "return to admin" banner can POST.
+    set_csrf_cookie(resp)
+    return resp
+
+
+@router.post("/admin/stop-impersonating")
+def stop_impersonating(
+    request: Request,
+    csrf_token: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """End an impersonation session and return the admin to their own session."""
+    if not csrf_ok(request.cookies.get(CSRF_COOKIE), csrf_token):
+        return RedirectResponse(url="/", status_code=303)
+    new_token, _ = resolve_impersonation(db, request.cookies.get(SESSION_COOKIE))
+    if new_token is None:
+        # Not impersonating: don't log anyone out, just send home.
+        return RedirectResponse(url="/", status_code=303)
+    resp = RedirectResponse(url="/admin/users", status_code=303)
+    set_session_cookie(resp, new_token)
+    set_csrf_cookie(resp)
+    return resp

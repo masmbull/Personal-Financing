@@ -308,3 +308,34 @@ def run_admin_column_migration(engine: Engine) -> bool:
             "VALUES ('admin_column', datetime('now'))"
         ))
     return True
+
+
+# Admin support/impersonation: a session created by an admin acting as
+# another user remembers who started it. The column is nullable so existing
+# (normal) sessions are untouched; fresh databases get it from create_all.
+def run_impersonation_migration(engine: Engine) -> bool:
+    """Add UserSession.impersonator_user_id idempotently."""
+    insp = inspect(engine)
+    if "user_sessions" not in insp.get_table_names():
+        return False
+    cols = {c["name"] for c in insp.get_columns("user_sessions")}
+    if "impersonator_user_id" in cols:
+        return False
+    with engine.begin() as conn:
+        conn.execute(text(
+            "ALTER TABLE user_sessions ADD COLUMN impersonator_user_id INTEGER"
+        ))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_user_sessions_impersonator_user_id "
+            "ON user_sessions(impersonator_user_id)"
+        ))
+        logger.info("Migrated user_sessions: added impersonator_user_id")
+        conn.execute(text(
+            f"CREATE TABLE IF NOT EXISTS {_MARKER_TABLE} "
+            "(name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)"
+        ))
+        conn.execute(text(
+            f"INSERT OR IGNORE INTO {_MARKER_TABLE} (name, applied_at) "
+            "VALUES ('impersonation', datetime('now'))"
+        ))
+    return True

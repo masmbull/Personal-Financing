@@ -33,12 +33,19 @@ def _hash_token(token: str) -> str:
 
 
 def create_session(db: SqlSession, user_id: int,
-                   ttl_days: int = SESSION_TTL_DAYS) -> tuple[str, datetime]:
-    """Persist a new session and return (raw_token, expires_at)."""
+                   ttl_days: int = SESSION_TTL_DAYS,
+                   impersonator_user_id: int | None = None
+                   ) -> tuple[str, datetime]:
+    """Persist a new session and return (raw_token, expires_at).
+
+    ``impersonator_user_id`` is set when an admin created this session via
+    the support/impersonate flow; NULL keeps it a normal session.
+    """
     token = secrets.token_urlsafe(32)
     expires_at = _utcnow() + timedelta(days=ttl_days)
     db.add(UserSession(
         user_id=user_id, token_hash=_hash_token(token), expires_at=expires_at,
+        impersonator_user_id=impersonator_user_id,
     ))
     db.commit()
     return token, expires_at
@@ -76,6 +83,45 @@ def invalidate_session(db: SqlSession, token: str | None) -> None:
 def resolve_request_user(request: Request, db: SqlSession) -> User | None:
     """Convenience: read the cookie and resolve it to a user (or None)."""
     return get_session_user(db, request.cookies.get(SESSION_COOKIE))
+
+
+def get_session_row(db: SqlSession, token: str | None) -> "UserSession | None":
+    """Return the live UserSession row for a raw cookie token, or None.
+
+    Returns the row even when it's an impersonation session so callers can
+    inspect ``impersonator_user_id``. Revoked or expired rows still come
+    back so the caller can decide; pass through ``get_session_user`` when
+    "valid" is what you need.
+    """
+    if not token:
+        return None
+    return db.query(UserSession).filter(
+        UserSession.token_hash == _hash_token(token)
+    ).first()
+
+
+def impersonator_id(db: SqlSession, token: str | None) -> int | None:
+    """Admin user id stored on the current session if it's an impersonation."""
+    row = get_session_row(db, token)
+    if row is None or row.revoked_at is not None or row.expires_at < _utcnow():
+        return None
+    return row.impersonator_user_id
+
+
+def resolve_impersonation(db: SqlSession, token: str | None) -> tuple[str | None, int | None]:
+    """If the current session is an impersonation session, revoke it and
+    return ``(new_admin_token, admin_user_id)`` for a fresh admin session.
+
+    Returns ``(None, None)`` when the request is NOT impersonating, so the
+    caller can render a no-op redirect instead of logging the admin out.
+    """
+    row = get_session_row(db, token)
+    if row is None or row.impersonator_user_id is None:
+        return None, None
+    admin_id = row.impersonator_user_id
+    invalidate_session(db, token)
+    admin_token, _ = create_session(db, admin_id)
+    return admin_token, admin_id
 
 
 def set_session_cookie(response: Response, token: str) -> None:

@@ -11,7 +11,7 @@
 
     {% if error %}
     <div class="auth-error" role="alert">
-        {% if error == "1" %}Token CSRF tidak valid.{% elif error == "2" %}Tidak bisa mengubah status sendiri.{% elif error == "3" %}Pengguna tidak ditemukan.{% else %}Terjadi kesalahan.{% endif %}
+        {% if error == "1" %}Token CSRF tidak valid.{% elif error == "2" %}Tidak bisa mengubah status sendiri.{% elif error == "3" %}Pengguna tidak ditemukan.{% elif error == "4" %}Tidak dapat login sebagai admin lain.{% elif error == "5" %}Pengguna nonaktif tidak dapat diimpersonasi.{% elif error == "6" %}Tidak dapat login sebagai diri sendiri.{% else %}Terjadi kesalahan.{% endif %}
     </div>
     {% endif %}
 
@@ -37,18 +37,31 @@
                 <div class="tx-right">
                     {% if u.id != current.id %}
                     <div class="btn-group">
-                        <form method="post" action="/admin/users/{{ u.id }}/toggle-admin" class="inline">
+                        {% if u.is_admin %}
+                        <form method="post" action="/admin/users/{{ u.id }}/revoke-admin" class="inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="btn btn-sm {% if u.is_admin %}btn-danger{% else %}btn-success{% endif %}">
-                                {% if u.is_admin %}Cabang Admin{% else %}Jadikan Admin{% endif %}
-                            </button>
+                            <button type="submit" class="btn btn-sm btn-danger">Cabut Admin</button>
                         </form>
-                        <form method="post" action="/admin/users/{{ u.id }}/toggle-active" class="inline">
+                        {% else %}
+                        <form method="post" action="/admin/users/{{ u.id }}/make-admin" class="inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="btn btn-sm {% if u.is_active %}btn-danger{% else %}btn-success{% endif %}">
-                                {% if u.is_active %}Nonaktifkan{% else %}Aktifkan{% endif %}
-                            </button>
+                            <button type="submit" class="btn btn-sm btn-success">Jadikan Admin</button>
                         </form>
+                        {% endif %}
+                        {% if u.is_active %}
+                        <form method="post" action="/admin/users/{{ u.id }}/deactivate" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Nonaktifkan</button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="/admin/users/{{ u.id }}/activate" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="btn btn-sm btn-success">Aktifkan</button>
+                        </form>
+                        {% endif %}
+                        {% if not u.is_admin and u.is_active %}
+                        <a href="/admin/users/{{ u.id }}/impersonate" class="btn btn-sm btn-primary">Login sebagai</a>
+                        {% endif %}
                     </div>
                     {% else %}
                     <span class="tx-meta">Anda</span>

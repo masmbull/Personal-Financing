@@ -135,7 +135,13 @@ class User(Base):
 
 class UserSession(Base):
     """Server-side session record; the cookie only carries an opaque token
-    whose SHA-256 hash is stored here. Logout revokes the row."""
+    whose SHA-256 hash is stored here. Logout revokes the row.
+
+    ``impersonator_user_id`` is set ONLY when an admin created this session
+    via the support/impersonate flow; it points at the admin user so the
+    banner middleware can render "Mode dukungan" and ``stop-impersonating``
+    knows which admin to re-issue a fresh session for. NULL = normal session.
+    """
     __tablename__ = "user_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -144,8 +150,12 @@ class UserSession(Base):
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=_utcnow)
     revoked_at = Column(DateTime, nullable=True)
+    impersonator_user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=True, index=True,
+        comment="Admin who created this session via impersonate; NULL = normal",
+    )
 
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
 
 
 class Account(Base):

@@ -107,6 +107,8 @@ async def lifespan(app: FastAPI):
     run_domain_expansion_migration(engine)
     from app.migrations import run_admin_column_migration
     run_admin_column_migration(engine)
+    from app.migrations import run_impersonation_migration
+    run_impersonation_migration(engine)
     from app.migrations import run_institution_fk_migration
     run_institution_fk_migration(engine)
     seed_default_data()

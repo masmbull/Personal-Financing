@@ -18,6 +18,15 @@
     <div class="toast-container" id="toast-container"></div>
 
     <div class="app">
+        {% if request.state.user and request.state.user.is_impersonating %}
+        <div class="impersonate-banner" role="status">
+            <span class="impersonate-banner-text">👁️ Mode dukungan — login sebagai <strong>{{ request.state.user.username }}</strong> (atas nama admin {{ request.state.user.impersonator_username }})</span>
+            <form method="post" action="/admin/stop-impersonating" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-primary">Kembali ke Admin</button>
+            </form>
+        </div>
+        {% endif %}
         {% if request.state.user %}
         <aside class="sidebar">
             <div class="sidebar-logo">💰 Keuangan</div>
