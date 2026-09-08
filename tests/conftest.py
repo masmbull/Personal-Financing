@@ -27,7 +27,12 @@ os.environ.setdefault("DATABASE_URL", f"sqlite:///./{TEST_DB_PATH}")
 os.environ.setdefault("RECEIPT_UPLOAD_DIR", RECEIPT_TEST_DIR)
 # Fast test hashing - production default (600k iterations) is untouched.
 os.environ.setdefault("PF_PBKDF2_ITERATIONS", "2000")
-# Disable AI vision probe in tests (no Ollama available; would hang on timeout)
+# Disable AI vision (Ollama) in the broad suite: no Ollama is running in CI
+# and we must not depend on it. The existing OCR (Tesseract) path is the
+# source of truth here; Ollama is exercised in tests/test_receipt_ollama.py
+# with mocked HTTP and an optional live smoke test (OLLAMA_INTEGRATION_TEST=1).
+os.environ.setdefault("RECEIPT_AI_ENABLED", "false")
+os.environ.setdefault("RECEIPT_AI_PROVIDER", "ollama")
 os.environ.setdefault("RECEIPT_AI_TIMEOUT_SEC", "1")
 os.environ.setdefault("RECEIPT_AI_BASE_URL", "http://127.0.0.1:11435/v1")
 

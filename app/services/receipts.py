@@ -336,6 +336,17 @@ def to_response_dict(receipt: Receipt) -> dict:
         ocr = {"error": err or "OCR processing failed"}
     elif data:
         ocr = {k: getattr(data, k, None) for k in _OCR_FIELDS}
+        # _parse_ocr_data hands back nested SimpleNamespace objects; the API
+        # schema needs plain dicts for line items, so normalize them here.
+        if ocr.get("items"):
+            ocr["items"] = [
+                i if isinstance(i, dict) else (
+                    {"name": getattr(i, "name", None),
+                     "quantity": getattr(i, "quantity", None),
+                     "unit_price": getattr(i, "unit_price", None),
+                     "total_price": getattr(i, "total_price", None)})
+                for i in ocr["items"]
+            ]
     else:
         ocr = None
 

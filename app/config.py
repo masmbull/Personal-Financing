@@ -43,8 +43,10 @@ class Settings(BaseSettings):
     # OCR language fallback chain: ind+eng -> eng -> none
     RECEIPT_OCR_LANG: str = os.environ.get("RECEIPT_OCR_LANG", "ind+eng")
 
-    # Optional AI vision OCR engine (Ollama, OpenAI-compatible). Preferred over
-    # Tesseract when the endpoint+model respond; otherwise local path is kept.
+    # Optional AI vision OCR engine. Preferred over Tesseract when the
+    # endpoint+model respond; otherwise local path is kept.
+    # Back-compat: these stay as defaults; Ollama scanner reads OLLAMA_*
+    # below.
     RECEIPT_AI_BASE_URL: str = os.environ.get(
         "RECEIPT_AI_BASE_URL", "http://localhost:11434/v1")
     RECEIPT_AI_MODEL: str = os.environ.get(
@@ -55,6 +57,34 @@ class Settings(BaseSettings):
         "RECEIPT_AI_FALLBACK_TESSERACT", "1").lower() in ("1", "true", "yes")
     RECEIPT_AI_MAX_IMAGE_WIDTH: int = int(
         os.environ.get("RECEIPT_AI_MAX_IMAGE_WIDTH", "1600"))
+
+    # ---- AI vision provider dispatch (PHASE: Ollama integration) ----
+    # Provider selector: "ollama" (native /api/chat) or "openai_compat"
+    # (/v1/chat/completions). Empty/disabled means AI off -> Tesseract only.
+    RECEIPT_AI_ENABLED: bool = os.environ.get(
+        "RECEIPT_AI_ENABLED", "true").lower() in ("1", "true", "yes")
+    RECEIPT_AI_PROVIDER: str = os.environ.get(
+        "RECEIPT_AI_PROVIDER", "ollama").strip().lower()
+
+    # ---- Native Ollama (qwen2.5vl:3b on 127.0.0.1:11434) ----
+    # Ollama runs on the HOST machine, NOT in a container - inside Docker
+    # this 127.0.0.1 would point at the container itself. Production here
+    # uses systemd (not Docker) so 127.0.0.1 reaches the host's Ollama.
+    # If/when containerised, override with host.docker.internal:11434
+    # (Docker Desktop) or the bridge gateway (e.g. 172.17.0.1:11434).
+    OLLAMA_BASE_URL: str = os.environ.get(
+        "OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+    OLLAMA_VISION_MODEL: str = os.environ.get(
+        "OLLAMA_VISION_MODEL", "qwen2.5vl:3b")
+    OLLAMA_TIMEOUT_SECONDS: float = float(
+        os.environ.get("OLLAMA_TIMEOUT_SECONDS", "90"))
+    # num_ctx bounds KV-cache RAM on a 3.6 GB box; 2048 is enough for one
+    # receipt image + a short JSON reply.
+    OLLAMA_NUM_CTX: int = int(os.environ.get("OLLAMA_NUM_CTX", "2048"))
+    # Max base64 size we'll send (~2 MB raw -> ~2.7 MB base64). Anything
+    # larger falls back to Tesseract to avoid OOM in Ollama.
+    OLLAMA_MAX_IMAGE_BYTES: int = int(
+        os.environ.get("OLLAMA_MAX_IMAGE_BYTES", str(2 * 1024 * 1024)))
 
     # Canonical timezone for all date-based calculations and daily jobs.
     # Indonesian-first default; override via APP_TIMEZONE env var.

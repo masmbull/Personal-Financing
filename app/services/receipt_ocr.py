@@ -740,30 +740,83 @@ class OfflineReceiptScannerService(ReceiptScannerService):
         return ReceiptScanResult(status="failed", raw_text=None)
 
 
+class FallbackReceiptScannerService(ReceiptScannerService):
+    """Try each engine in order; stop at the first non-failed result.
+
+    Used to guarantee: if the preferred (Ollama) engine is unreachable,
+    missing its model, times out, or returns a rejected result, we still
+    fall through to Tesseract (and then the offline placeholder) so the
+    upload -> review -> confirm -> transaction lifecycle always works.
+    """
+
+    def __init__(self, engines: list):
+        # Drop None entries; keep only real engines.
+        self.engines = [e for e in engines if e is not None]
+        if not self.engines:
+            self.engines = [OfflineReceiptScannerService()]
+
+    def scan(self, image_path):
+        last_failed = None
+        for engine in self.engines:
+            try:
+                result = engine.scan(image_path)
+            except Exception:
+                # One engine blew up - try the next, never bubble a 500.
+                continue
+            if result is None:
+                continue
+            if getattr(result, "status", "failed") != "failed":
+                return result
+            # Keep a failed result so we can report why, if all engines fail.
+            last_failed = result
+        if last_failed is not None:
+            return last_failed
+        return ReceiptScanResult(
+            status="failed", error="all receipt engines failed")
+
+
 # ---------------------------------------------------------------- factory
 
 _scanner = None
 
 
 def build_scanner():
-    """Preferred: AI vision (Ollama) -> Tesseract -> offline placeholder.
+    """Assemble the production receipt scanner as a per-scan fallback chain.
 
-    AI wins when a local Ollama endpoint serves the configured vision model,
-    since it reads the image directly and is far more accurate than OCR+regex.
-    Falls back to Tesseract when AI is unreachable (or explicitly disabled),
-    and to the offline placeholder when no local OCR binary exists.
+    Order: AI vision (Ollama native, or OpenAI-compat) -> Tesseract -> offline.
+    The chain is wrapped in ``FallbackReceiptScannerService`` so a failure of
+    the preferred engine at SCAN TIME (Ollama stopped, model missing, timeout,
+    out-of-memory, rejected output) transparently falls through to the next
+    engine - the upload -> review -> confirm -> transaction lifecycle always
+    works. AI is only included when ``RECEIPT_AI_ENABLED`` is set and a
+    provider is selected.
+
+    Ollama wins when reachable (it reads the image directly and is far more
+    accurate than OCR+regex on Indonesian receipts), but never blocks the
+    lifecycle when it is down.
     """
     from app.config import settings
-    try:
-        from app.services.receipt_ai import _probe_service
-        ai = _probe_service()
-        if ai is not None:
-            return ai
-    except Exception:
-        pass
+
+    engines: list = []
+
+    if settings.RECEIPT_AI_ENABLED:
+        provider = settings.RECEIPT_AI_PROVIDER
+        if provider == "ollama":
+            from app.services.receipt_ollama import OllamaVisionReceiptScannerService
+            engines.append(OllamaVisionReceiptScannerService())
+        elif provider == "openai_compat":
+            from app.services.receipt_ai import AIVisionReceiptScannerService
+            engines.append(AIVisionReceiptScannerService())
+
+    # Always keep the proven local engine in the chain when available.
     if settings.RECEIPT_AI_FALLBACK_TESSERACT and _tesseract_available():
-        return TesseractReceiptScannerService()
-    return OfflineReceiptScannerService()
+        engines.append(TesseractReceiptScannerService())
+    else:
+        engines.append(OfflineReceiptScannerService())
+
+    if len(engines) == 1:
+        return engines[0]
+    return FallbackReceiptScannerService(engines)
 
 
 def get_scanner():
