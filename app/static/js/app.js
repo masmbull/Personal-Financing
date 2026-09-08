@@ -132,11 +132,33 @@
     var btnCancel = document.getElementById('btn-cancel');
     var inputCamera = document.getElementById('file-input-camera');
     var inputGallery = document.getElementById('file-input-gallery');
-    var isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-    function openPicker() { if (picker) picker.classList.add('show'); }
+    // Move picker modal and hidden inputs to <body> so position:fixed works
+    // even though the template renders inside <main> which has a CSS transform
+    // animation (pageIn).  Parent transforms create a containing block that
+    // breaks fixed positioning.
+    if (picker && picker.parentNode !== document.body) {
+      document.body.appendChild(picker);
+    }
+    if (inputCamera && inputCamera.parentNode !== document.body) {
+      document.body.appendChild(inputCamera);
+    }
+    if (inputGallery && inputGallery.parentNode !== document.body) {
+      document.body.appendChild(inputGallery);
+    }
+
+    var pickerMql = window.matchMedia('(max-width: 768px)');
+
+    function openPicker() {
+      if (!picker) return;
+      picker.removeAttribute('hidden');
+      picker.classList.add('show');
+    }
     function closePicker() {
-      if (picker) picker.classList.remove('show');
+      if (picker) {
+        picker.classList.remove('show');
+        picker.setAttribute('hidden', '');
+      }
       if (inputCamera) inputCamera.value = '';
       if (inputGallery) inputGallery.value = '';
     }
@@ -153,22 +175,30 @@
       }
     }
 
-    if (isMobile && picker) {
-      // On mobile the upload zone opens the source picker, not the camera
-      // directly. Desktop keeps the original direct-file-input behavior.
+    if (picker) {
+      // On mobile: tap upload zone → open source picker.
+      // On desktop: let the <label> click through to the native file input.
+      // Re-evaluate mql.matches on every click so rotation/resize is handled.
       if (zone) {
         zone.addEventListener('click', function (e) {
+          if (!pickerMql.matches) return;
           e.preventDefault();
           e.stopPropagation();
           openPicker();
         });
       }
       if (btnCamera && inputCamera) {
-        btnCamera.addEventListener('click', function () { inputCamera.click(); });
+        btnCamera.addEventListener('click', function () {
+          closePicker();
+          inputCamera.click();
+        });
         inputCamera.addEventListener('change', function () { adoptFile(inputCamera); });
       }
       if (btnGallery && inputGallery) {
-        btnGallery.addEventListener('click', function () { inputGallery.click(); });
+        btnGallery.addEventListener('click', function () {
+          closePicker();
+          inputGallery.click();
+        });
         inputGallery.addEventListener('change', function () { adoptFile(inputGallery); });
       }
       if (btnCancel) btnCancel.addEventListener('click', closePicker);

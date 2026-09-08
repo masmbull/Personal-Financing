@@ -39,9 +39,10 @@
     </p>
 </div>
 
-{# Mobile-only photo-source picker. Hidden on desktop via CSS. #}
-<div id="picker-modal" class="picker-modal" role="dialog" aria-modal="true"
-          aria-labelledby="picker-title">
+{# Mobile-only photo-source picker. Moves to document.body via JS to escape
+   the <main> transform context that breaks position:fixed.  #}
+<div id="picker-modal" class="picker-modal" hidden role="dialog" aria-modal="true"
+     aria-labelledby="picker-title">
     <div class="picker-sheet">
         <h2 id="picker-title" class="picker-title">Scan Struk</h2>
         <button type="button" class="picker-option" id="btn-camera">
@@ -58,7 +59,6 @@
 
 {# Two dedicated inputs — one per source. Both feed the main form. #}
 <input type="file" id="file-input-camera" name="file" accept="image/*"
-       capture="environment" class="sr-only" hidden>
-<input type="file" id="file-input-gallery" name="file" accept="image/*"
-       class="sr-only" hidden>
+       capture="environment" hidden>
+<input type="file" id="file-input-gallery" name="file" accept="image/*" hidden>
 {% endblock %}

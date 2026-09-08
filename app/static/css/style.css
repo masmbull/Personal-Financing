@@ -418,18 +418,21 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 @media(min-width:640px){.modal-overlay{align-items:center}.modal{border-radius:var(--r-lg)}}
 
 /* ---- mobile receipt picker (camera / gallery) ---- */
+/* Hidden by default via hidden attr + display:none. JS removes hidden and
+   adds .show to display. Moved to document.body at runtime so position:fixed
+   works even though the template originally renders inside <main> with a
+   transform animation. */
 .picker-modal{
-  position:fixed;inset:0;z-index:400;display:flex;align-items:flex-end;justify-content:center;
+  position:fixed;inset:0;z-index:400;display:none;align-items:flex-end;justify-content:center;
   background:rgba(10,17,32,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
-  opacity:0;pointer-events:none;transition:opacity var(--tr);
 }
-.picker-modal.show{opacity:1;pointer-events:auto}
+.picker-modal.show{display:flex}
 .picker-sheet{
   background:var(--bg-card);border-radius:var(--r-lg) var(--r-lg) 0 0;width:100%;max-width:640px;
-  padding:18px 18px calc(18px + env(safe-area-inset-bottom));
-  transform:translateY(30px);transition:transform var(--tr);box-shadow:var(--sh-2);
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom));box-shadow:var(--sh-2);
 }
-.picker-modal.show .picker-sheet{transform:none}
+.picker-modal.show .picker-sheet{animation:pickerSlideUp .22s ease both}
+@keyframes pickerSlideUp{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
 .picker-title{font-size:1.05rem;font-weight:700;margin:2px 0 14px;color:var(--ink)}
 .picker-option{
   display:flex;align-items:center;gap:14px;width:100%;min-height:52px;

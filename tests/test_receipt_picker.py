@@ -1,4 +1,5 @@
 ﻿"""Tests for the mobile receipt picker (camera / gallery) and upload flow."""
+import re
 from fastapi.testclient import TestClient
 from app.api.deps import get_current_user
 from app.main import app
@@ -14,6 +15,8 @@ def _fresh_client():
 def _png_bytes(size=8):
     return valid_png_bytes(size)
 
+
+# ── HTML structure ──────────────────────────────────────────────────
 
 def test_upload_page_renders_mobile_picker(client):
     r = client.get("/receipts/upload")
@@ -37,6 +40,16 @@ def test_gallery_input_has_no_capture(client):
     assert 'accept="image/*"' in block
 
 
+def test_picker_modal_hidden_by_default(client):
+    """Picker modal must have the hidden attribute to prevent stray text."""
+    r = client.get("/receipts/upload")
+    m = re.search(r'<div\s+id="picker-modal"[^>]*>', r.text)
+    assert m, "picker-modal div not found"
+    assert 'hidden' in m.group(0), (
+        "picker-modal must have the hidden attribute to hide it from the page"
+    )
+
+
 def test_picker_modal_has_two_buttons_and_cancel(client):
     r = client.get("/receipts/upload")
     assert 'id="btn-camera"' in r.text
@@ -44,12 +57,37 @@ def test_picker_modal_has_two_buttons_and_cancel(client):
     assert 'id="btn-cancel"' in r.text
 
 
+def test_no_duplicate_stray_picker_markup(client):
+    """The picker sheet content must only appear once, inside the picker-modal."""
+    r = client.get("/receipts/upload")
+    # The picker-modal div should appear exactly once.
+    assert r.text.count('id="picker-modal"') == 1
+    # "Scan Struk" heading inside the picker sheet should appear once
+    # (the page h1 has it too, but the picker h2 with id="picker-title" once).
+    assert r.text.count('id="picker-title"') == 1
+
+
+def test_camera_and_gallery_inputs_not_sr_only(client):
+    """Camera/gallery inputs use hidden attr, not sr-only class."""
+    r = client.get("/receipts/upload")
+    cam_block = r.text.split('id="file-input-camera"')[1].split(">")[0]
+    gal_block = r.text.split('id="file-input-gallery"')[1].split(">")[0]
+    assert "sr-only" not in cam_block
+    assert "sr-only" not in gal_block
+    assert 'hidden' in cam_block
+    assert 'hidden' in gal_block
+
+
+# ── Auth ────────────────────────────────────────────────────────────
+
 def test_upload_page_requires_login_if_not_authenticated():
     c = _fresh_client()
     r = c.get("/receipts/upload")
     assert r.status_code in (301, 302, 303, 401, 403)
     assert "/login" in r.headers.get("location", "")
 
+
+# ── Upload pipeline ────────────────────────────────────────────────
 
 def _upload(client, filename, input_id):
     png = _png_bytes()
