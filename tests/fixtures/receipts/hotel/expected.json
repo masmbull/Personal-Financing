@@ -1,0 +1,10 @@
+{
+  "merchant": "HOTEL SANTIKA",
+  "total_amount": 495000,
+  "subtotal": 450000,
+  "service_charge": 45000,
+  "payment_method": "KREDIT",
+  "items_count": 1,
+  "items_total": 450000,
+  "document_type": "HOTEL_RECEIPT"
+}

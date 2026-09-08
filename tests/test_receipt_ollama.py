@@ -437,7 +437,11 @@ def test_build_scanner_prioritizes_ollama_when_enabled(monkeypatch):
         svc = ro.build_scanner()
     finally:
         ro._scanner = None
-    engines = svc.engines if isinstance(svc, FallbackReceiptScannerService) else [svc]
+    # AI chains are wrapped in CrossCheckReceiptScannerService for the
+    # hybrid Vision+OCR enrichment; unwrap to inspect the inner engine.
+    inner = getattr(svc, "inner", svc)
+    engines = inner.engines if isinstance(inner, FallbackReceiptScannerService) \
+        else [inner]
     assert engines and isinstance(engines[0], oa.OllamaVisionReceiptScannerService)
 
 

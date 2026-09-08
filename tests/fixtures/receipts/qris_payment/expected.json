@@ -1,0 +1,7 @@
+{
+  "total_amount": 30800,
+  "payment_method": "QRIS",
+  "document_type": "QRIS_PAYMENT_RECEIPT",
+  "qris_merchant_id": "ID1026000123456",
+  "qris_reference": "20260908ABC"
+}

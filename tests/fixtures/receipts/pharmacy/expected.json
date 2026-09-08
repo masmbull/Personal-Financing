@@ -1,0 +1,9 @@
+{
+  "merchant": "APOTEK KIMIA FARMA",
+  "total_amount": 17000,
+  "subtotal": 17000,
+  "payment_method": "TUNAI",
+  "items_count": 2,
+  "items_total": 17000,
+  "document_type": "PHARMACY_RECEIPT"
+}

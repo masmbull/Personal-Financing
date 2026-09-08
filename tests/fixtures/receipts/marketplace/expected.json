@@ -1,0 +1,10 @@
+{
+  "merchant": "TOKOPEDIA",
+  "total_amount": 242000,
+  "subtotal": 250000,
+  "discount": 20000,
+  "delivery_fee": 12000,
+  "items_count": 1,
+  "items_total": 250000,
+  "document_type": "E_COMMERCE_RECEIPT"
+}

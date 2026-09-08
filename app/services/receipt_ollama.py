@@ -38,8 +38,17 @@ from pathlib import Path
 import httpx
 
 from app.config import settings
+from app.services.receipt_id import (
+    DOC_TYPES, CANONICAL_METHODS, normalize_id_date, normalize_id_time,
+    normalize_payment_method, _PROVIDER_PATTERNS,
+)
 
 log = logging.getLogger(__name__)
+
+# Canonical payment-method whitelist (see app/services/receipt_id.py):
+# anything outside it is dropped to None, never stored blindly.
+_ALLOWED_PM = set(CANONICAL_METHODS)
+_KNOWN_PROVIDERS = {name for name, _ in _PROVIDER_PATTERNS}
 
 
 # ------------------------------------------------------- file-lock guard
@@ -162,8 +171,10 @@ def _image_to_b64(image_path) -> str:
     stored receipt, and this function only produces a temporary in-memory
     JPEG derived from it (nothing is written to disk and nothing is logged).
     """
-    from PIL import Image
+    from PIL import Image, ImageOps
     with Image.open(image_path) as img:
+        # 1) EXIF orientation (phone photos), 2) downscale, 3) JPEG encode.
+        img = ImageOps.exif_transpose(img)
         img = img.convert("RGB")
         max_w = settings.RECEIPT_AI_MAX_IMAGE_WIDTH
         if img.width > max_w:
@@ -180,8 +191,6 @@ def _image_to_b64(image_path) -> str:
 
 
 # ------------------------------------------------------- validation
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_TIME_RE = re.compile(r"^\d{2}:\d{2}(:\d{2})?$")
 _ALLOWED_PM = {"TUNAI", "DEBIT", "KREDIT", "QRIS", "CASH", "CARD", "TRANSFER", ""}
 
 
@@ -220,13 +229,14 @@ def _int(v):
 def _money(v, *, allow_zero: bool = False):
     """Integer Rupiah with positive + ceiling enforcement.
 
+    Coerces via the Indonesian money parser so model-emitted thousands
+    separators are understood ("12.500" -> 12500, "Rp 12.500", "1.250.000").
     Returns ``(int_value, None)`` on success, ``(None, error_str)`` on failure.
-    The caller is responsible for deciding what to do with a ``None`` return
-    (missing field -> null) vs an error.
     """
-    n = _int(v)
+    from app.services.receipt_id import parse_id_money
+    n, warn = parse_id_money(v)
     if n is None:
-        return None, None
+        return None, warn or None
     if not allow_zero and n <= 0:
         return None, "negative or zero amount"
     # Import lazily so config is fully loaded before finance is touched.
@@ -237,28 +247,29 @@ def _money(v, *, allow_zero: bool = False):
 
 
 def _validate_date(v):
-    s = _n(v)
-    if s is None:
-        return None, None
-    if not _DATE_RE.match(s):
-        return None, f"invalid date format: {s!r}"
-    # Real calendar check (e.g. 2025-02-30 must be rejected).
-    try:
-        from datetime import date
-        y, m, d = (int(p) for p in s.split("-"))
-        date(y, m, d)
-    except (ValueError, TypeError):
-        return None, f"invalid calendar date: {s!r}"
-    return s, None
+    """Accept ISO or Indonesian date formats; normalize to ISO.
+
+    Returns (iso, warning) - impossible calendar dates and unparseable
+    strings yield (None, warning) rather than a guessed value.
+    """
+    return normalize_id_date(v)
+
+
+def _money_signed(v):
+    """Integer rupiah allowing negatives (e.g. 'Pembulatan' rounding lines)."""
+    from app.services.receipt_id import parse_id_money
+    n, warn = parse_id_money(v)
+    if n is None:
+        return None, warn or None
+    from app.services.finance import MAX_TX_AMOUNT
+    if abs(n) > MAX_TX_AMOUNT:
+        return None, f"amount exceeds MAX_TX_AMOUNT ({MAX_TX_AMOUNT})"
+    return n, None
 
 
 def _validate_time(v):
-    s = _n(v)
-    if s is None:
-        return None, None
-    if not _TIME_RE.match(s):
-        return None, f"invalid time format: {s!r}"
-    return s, None
+    """Accept HH:MM / HH:MM:SS (also dot-separated) -> canonical or warning."""
+    return normalize_id_time(v)
 
 
 def _clean_items(raw):
@@ -286,11 +297,15 @@ def _clean_items(raw):
             unit = None
         if tot is not None and tot < 0:
             tot = None
+        item_discount, _ = _money(it.get("discount"), allow_zero=True)
         out.append(ReceiptItem(
             name=name[:200],  # cap to keep DB row reasonable
             quantity=qty,
             unit_price=unit,
             total_price=tot,
+            unit=(str(it.get("unit") or "").strip()[:12] or None),
+            sku=(str(it.get("sku") or "").strip()[:64] or None),
+            discount=item_discount,
         ))
     return out
 
@@ -317,13 +332,28 @@ def _extract_json(reply: str):
 _SYSTEM_PROMPT = (
     "Extract receipt data as STRICT JSON only. No explanations, no markdown. "
     "Money = integer Indonesian Rupiah (IDR); dots are thousands separators "
-    "(25.000 -> 25000). Unknown = null. Never invent values. "
-    'Fields: {"merchant": string|null, "date": "YYYY-MM-DD"|null, '
-    '"time": "HH:MM"|"HH:MM:SS"|null, "total_amount": int|null, '
-    '"subtotal": int|null, "tax": int|null, "discount": int|null, '
-    '"payment_method": "TUNAI"|"DEBIT"|"KREDIT"|"QRIS"|null, '
-    '"items": [{"name": string, "quantity": int|null, '
-    '"unit_price": int|null, "total_price": int|null}], '
+    "(25.000 -> 25000). Unknown = null. Never invent or expand values; copy "
+    "product names exactly as printed. Date as printed (YYYY-MM-DD or "
+    "DD/MM/YYYY). "
+    'Fields: {"document_type": "RETAIL_RECEIPT"|"RESTAURANT_RECEIPT"|'
+    '"CAFE_RECEIPT"|"SUPERMARKET_RECEIPT"|"MINIMARKET_RECEIPT"|'
+    '"FUEL_RECEIPT"|"WORKSHOP_RECEIPT"|"PHARMACY_RECEIPT"|"HOSPITAL_RECEIPT"|'
+    '"HOTEL_RECEIPT"|"PARKING_RECEIPT"|"TOLL_RECEIPT"|"TRANSPORT_RECEIPT"|'
+    '"UTILITY_RECEIPT"|"TELCO_RECEIPT"|"E_COMMERCE_RECEIPT"|'
+    '"DELIVERY_RECEIPT"|"QRIS_PAYMENT_RECEIPT"|"BANK_PAYMENT_RECEIPT"|'
+    '"E_WALLET_RECEIPT"|"OTHER_RECEIPT"|"UNKNOWN"|null, '
+    '"merchant": string|null, "merchant_address": string|null, '
+    '"merchant_phone": string|null, "receipt_number": string|null, '
+    '"invoice_number": string|null, "date": null|string, "time": null|string, '
+    '"currency": "IDR", "subtotal": int|null, "discount": int|null, '
+    '"tax": int|null, "service_charge": int|null, "delivery_fee": int|null, '
+    '"shipping_fee": int|null, "rounding": int|null, "other_fee": int|null, '
+    '"total_amount": int|null, '
+    '"payment_method": "TUNAI"|"DEBIT"|"KREDIT"|"QRIS"|"TRANSFER"|'
+    '"E_WALLET"|null, '
+    '"payment_provider": "GOPAY"|"OVO"|"DANA"|"SHOPEEPAY"|"LINKAJA"|null, '
+    '"items": [{"name": string, "quantity": int|null, "unit": string|null, '
+    '"unit_price": int|null, "discount": int|null, "total_price": int|null}], '
     '"confidence": number}. total_amount = final paid. Reply JSON only.'
 )
 # ------------------------------------------------------- client + scanner
@@ -441,11 +471,24 @@ class OllamaVisionReceiptScannerService:
         subtotal, _ = _money(data.get("subtotal"), allow_zero=True)
         tax, _ = _money(data.get("tax"), allow_zero=True)
         discount, _ = _money(data.get("discount"), allow_zero=True)
-        pm_raw = _n(data.get("payment_method"))
-        pm_up = (pm_raw or "").upper()
-        # Whitelist only known values; anything else (including model
-        # hallucinations) is dropped to null rather than stored blindly.
-        payment_method = pm_up if pm_up and pm_up in _ALLOWED_PM else None
+        service_charge, _ = _money(data.get("service_charge"), allow_zero=True)
+        delivery_fee, _ = _money(data.get("delivery_fee"), allow_zero=True)
+        shipping_fee, _ = _money(data.get("shipping_fee"), allow_zero=True)
+        rounding, _ = _money_signed(data.get("rounding"))
+        other_fee, _ = _money(data.get("other_fee"), allow_zero=True)
+        # Payment: canonical normalization (Tunai/Cash -> TUNAI, Kartu Debit
+        # -> DEBIT, ...); unknown -> None. Provider only via known whitelist.
+        payment_method = normalize_payment_method(data.get("payment_method"))
+        provider_raw = (_n(data.get("payment_provider")) or "").upper()
+        payment_provider = provider_raw if provider_raw in _KNOWN_PROVIDERS else None
+        # Currency/document_type: whitelist-validated, else honest default.
+        currency = (_n(data.get("currency")) or "IDR").upper()[:3]
+        doc_raw = _n(data.get("document_type"))
+        document_type = doc_raw if doc_raw in DOC_TYPES else None
+        merchant_address = _n(data.get("merchant_address"))
+        merchant_phone = _n(data.get("merchant_phone"))
+        receipt_number = _n(data.get("receipt_number"))
+        invoice_number = _n(data.get("invoice_number"))
         items = _clean_items(data.get("items"))
 
         # Critical-field errors collapse the whole result to "failed" so the
@@ -473,7 +516,19 @@ class OllamaVisionReceiptScannerService:
             subtotal=subtotal,
             tax=tax,
             discount=discount,
+            service_charge=service_charge,
+            delivery_fee=delivery_fee,
+            shipping_fee=shipping_fee,
+            rounding=rounding,
+            other_fee=other_fee,
             payment_method=payment_method,
+            payment_provider=payment_provider,
+            currency=currency,
+            document_type=document_type,
+            merchant_address=merchant_address,
+            merchant_phone=merchant_phone,
+            receipt_number=receipt_number,
+            invoice_number=invoice_number,
             items=items,
             raw_text=None,
             status="processed",

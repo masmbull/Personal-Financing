@@ -1,0 +1,10 @@
+{
+  "merchant": "SPBU PERTAMINA 34.101",
+  "total_amount": 173750,
+  "payment_method": "DEBIT",
+  "document_type": "FUEL_RECEIPT",
+  "fuel_product": "PERTAMAX",
+  "fuel_brand": "PERTAMINA",
+  "fuel_liters": 12.5,
+  "fuel_ppl": 13900
+}

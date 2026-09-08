@@ -1,0 +1,11 @@
+{
+  "merchant": "SUPERINDO",
+  "total_amount": 88800,
+  "subtotal": 85000,
+  "tax": 8800,
+  "discount": 5000,
+  "payment_method": "DEBIT",
+  "items_count": 2,
+  "items_total": 85000,
+  "document_type": "SUPERMARKET_RECEIPT"
+}

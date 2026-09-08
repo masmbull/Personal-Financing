@@ -1,0 +1,9 @@
+{
+  "merchant": "INDOMARET",
+  "total_amount": 3000,
+  "subtotal": 3000,
+  "payment_method": "TUNAI",
+  "items_count": 1,
+  "items_total": 3000,
+  "document_type": "MINIMARKET_RECEIPT"
+}

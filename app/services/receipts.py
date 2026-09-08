@@ -294,7 +294,12 @@ _STATUS_SHAPE = {
     ReceiptStatus.FAILED: ("failed", "failed"),
 }
 _OCR_FIELDS = ("merchant", "date", "time", "total_amount", "subtotal", "tax",
-               "discount", "payment_method", "items", "confidence")
+               "discount", "payment_method", "items", "confidence",
+               "document_type", "merchant_address", "merchant_phone",
+               "receipt_number", "invoice_number", "currency",
+               "service_charge", "delivery_fee", "shipping_fee", "rounding",
+               "other_fee", "payment_provider", "qris", "fuel",
+               "field_confidence", "warnings", "confidence_score")
 
 
 def _parse_ocr_data(blob):
@@ -337,16 +342,23 @@ def to_response_dict(receipt: Receipt) -> dict:
     elif data:
         ocr = {k: getattr(data, k, None) for k in _OCR_FIELDS}
         # _parse_ocr_data hands back nested SimpleNamespace objects; the API
-        # schema needs plain dicts for line items, so normalize them here.
+        # schema needs plain dicts/lists, so normalize containers here.
         if ocr.get("items"):
             ocr["items"] = [
                 i if isinstance(i, dict) else (
                     {"name": getattr(i, "name", None),
                      "quantity": getattr(i, "quantity", None),
                      "unit_price": getattr(i, "unit_price", None),
-                     "total_price": getattr(i, "total_price", None)})
+                     "total_price": getattr(i, "total_price", None),
+                     "unit": getattr(i, "unit", None),
+                     "sku": getattr(i, "sku", None),
+                     "discount": getattr(i, "discount", None)})
                 for i in ocr["items"]
             ]
+        for container_key in ("qris", "fuel", "field_confidence"):
+            v = ocr.get(container_key)
+            if v is not None and not isinstance(v, dict):
+                ocr[container_key] = vars(v)
     else:
         ocr = None
 

@@ -93,6 +93,14 @@ class Settings(BaseSettings):
     # larger falls back to Tesseract to avoid OOM in Ollama.
     OLLAMA_MAX_IMAGE_BYTES: int = int(
         os.environ.get("OLLAMA_MAX_IMAGE_BYTES", str(2 * 1024 * 1024)))
+    # Hybrid Vision+OCR cross-check: run ONE extra cheap Tesseract pass over
+    # vision-processed receipts and reconcile totals (agree -> confidence up;
+    # conflict -> TOTAL_CONFLICT warning, never a silent overwrite).
+    RECEIPT_CROSSCHECK_TESSERACT: bool = os.environ.get(
+        "RECEIPT_CROSSCHECK_TESSERACT", "1").lower() in ("1", "true", "yes")
+    # Cap for stored OCR raw text (bounds the ocr_data JSON blob size).
+    RECEIPT_RAW_TEXT_MAX_CHARS: int = int(
+        os.environ.get("RECEIPT_RAW_TEXT_MAX_CHARS", "4000"))
 
     # Canonical timezone for all date-based calculations and daily jobs.
     # Indonesian-first default; override via APP_TIMEZONE env var.

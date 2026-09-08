@@ -1,0 +1,9 @@
+{
+  "merchant": "WARUNG PADANG",
+  "total_amount": 35000,
+  "subtotal": 35000,
+  "payment_method": "TUNAI",
+  "items_count": 1,
+  "items_total": 35000,
+  "document_type": "RESTAURANT_RECEIPT"
+}

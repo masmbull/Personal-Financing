@@ -1,0 +1,13 @@
+{
+  "merchant": "INDOMARET",
+  "date": "2026-08-31",
+  "time": "14:22",
+  "total_amount": 15000,
+  "subtotal": 15000,
+  "payment_method": "TUNAI",
+  "items_count": 3,
+  "items_total": 15000,
+  "document_type": "MINIMARKET_RECEIPT",
+  "merchant_address": "Mawar No 1",
+  "receipt_number": "AB12345"
+}

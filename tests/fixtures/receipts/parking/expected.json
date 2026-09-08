@@ -1,0 +1,8 @@
+{
+  "merchant": "KARCIS PARKIR MOTOR",
+  "total_amount": 5000,
+  "payment_method": "TUNAI",
+  "items_count": 1,
+  "items_total": 5000,
+  "document_type": "PARKING_RECEIPT"
+}

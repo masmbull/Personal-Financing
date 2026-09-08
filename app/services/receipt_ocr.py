@@ -29,10 +29,15 @@ class ReceiptItem:
     quantity: Optional[int] = None
     unit_price: Optional[int] = None
     total_price: Optional[int] = None
+    # Indonesian extensions (additive, backward compatible):
+    unit: Optional[str] = None          # PCS / KG / L ... (visible only)
+    sku: Optional[str] = None
+    discount: Optional[int] = None
 
     def to_dict(self) -> dict:
         return {"name": self.name, "quantity": self.quantity,
-                "unit_price": self.unit_price, "total_price": self.total_price}
+                "unit_price": self.unit_price, "total_price": self.total_price,
+                "unit": self.unit, "sku": self.sku, "discount": self.discount}
 
 
 @dataclass
@@ -51,6 +56,25 @@ class ReceiptScanResult:
     status: str = "processed"           # processed | failed
     error: Optional[str] = None
     estimated_items: Optional[int] = None
+    # ---- Indonesian understanding extensions (additive, never break the
+    # original contract; see docs/RECEIPT_AI_ID.md) ----
+    document_type: Optional[str] = None     # DOC_TYPES entry or None
+    merchant_address: Optional[str] = None
+    merchant_phone: Optional[str] = None
+    receipt_number: Optional[str] = None
+    invoice_number: Optional[str] = None
+    currency: str = "IDR"
+    service_charge: Optional[int] = None
+    delivery_fee: Optional[int] = None
+    shipping_fee: Optional[int] = None
+    rounding: Optional[int] = None
+    other_fee: Optional[int] = None
+    payment_provider: Optional[str] = None  # GOPAY/OVO/... only when visible
+    qris: Optional[dict] = None             # {"detected": bool, ...}
+    fuel: Optional[dict] = None             # {"detected": bool, ...}
+    field_confidence: Optional[dict] = None # {field: 0..1} server-computed
+    warnings: Optional[list] = None         # TOTAL_MISMATCH, ITEM_SUM_MISMATCH...
+    confidence_score: float = 0.0           # 0..1 server-computed
 
     def to_dict(self) -> dict:
         return {
@@ -62,6 +86,21 @@ class ReceiptScanResult:
                       for i in self.items],
             "raw_text": self.raw_text, "confidence": self.confidence,
             "status": self.status, "error": self.error,
+            "document_type": self.document_type,
+            "merchant_address": self.merchant_address,
+            "merchant_phone": self.merchant_phone,
+            "receipt_number": self.receipt_number,
+            "invoice_number": self.invoice_number,
+            "currency": self.currency,
+            "service_charge": self.service_charge,
+            "delivery_fee": self.delivery_fee,
+            "shipping_fee": self.shipping_fee,
+            "rounding": self.rounding, "other_fee": self.other_fee,
+            "payment_provider": self.payment_provider,
+            "qris": self.qris, "fuel": self.fuel,
+            "field_confidence": self.field_confidence,
+            "warnings": self.warnings,
+            "confidence_score": self.confidence_score,
         }
 
 
@@ -507,20 +546,25 @@ def _estimate_item_lines(text):
 # ---------------------------------------------------------------- category
 
 _CATEGORY_KEYWORDS = {
-    "Belanja": ["indomaret", "alfamart", "superindo", "hypermart", "transmart",
-                "guardian", "minimarket", "dunia", "sour sally", "elektronik",
-                "baju", "celana", "sepatu", "tas", "fashion"],
+    "Belanja": ["indomaret", "alfamart", "alfamidi", "superindo", "hypermart",
+                "transmart", "guardian", "minimarket", "dunia", "sour sally",
+                "elektronik", "baju", "celana", "sepatu", "tas", "fashion",
+                "lawson", "borma", "matahari", "watsons"],
     "Transportasi": ["grab", "gojek", "pertamina", "shell", "spbu", "bensin",
-                     "parkir", "tol", "go-car", "go ride"],
+                     "parkir", "tol", "go-car", "go ride", "maxim", "bluebird",
+                     "krl", "mrt", "transjakarta", "bensin"],
     "Makan & Minum": ["mcdonald", "kfc", "burger", "warung", "bakso", "mie ",
                       "mie", "nasi goreng", "restoran", "kopi", "star bucks",
                       "starbucks", "kedai", "ayam", "sate", "gorengan",
-                      "bebek", "cafe"],
+                      "bebek", "cafe", "hokben", "pizzahut", "domino",
+                      "dunkin", "chatime", "mixue", "janji jiwa",
+                      "kopi kenangan", "rumah makan"],
     "Hiburan": ["netflix", "spotify", "disney", "youtube", "bioskop", "cinema",
-                "game", "playstore"],
+                "game", "playstore", "steam", "cgv", "xxi", "cinema21"],
     "Tagihan": ["token listrik", "pdam", "telkom", "indihome", "wifi", "bi ",
-                "pln", "pulsa", "xl", "telkomsel"],
-    "Kesehatan": ["apotek", "kimia farma", "klinik", "dokter", "obat"],
+                "pln", "pulsa", "xl", "telkomsel", "bpjs"],
+    "Kesehatan": ["apotek", "kimia farma", "klinik", "dokter", "obat",
+                  "puskesmas", "rumah sakit", "century"],
 }
 
 
@@ -598,6 +642,12 @@ def parse_receipt_text(raw_text):
         payment_method=extract_payment_method(text),
         items=items, raw_text=text, estimated_items=est)
     result.confidence = compute_confidence(result)
+    # Deterministic Indonesian post-processing: classification, QRIS/fuel
+    # detection, payment normalization, reconciliation warnings, field
+    # confidence (app/services/receipt_id.py). No second OCR pass here -
+    # the text IS the result's own source, so there is no independent signal.
+    from app.services.receipt_id import enrich_scan_result
+    enrich_scan_result(result, ocr_text=text)
     return result
 
 
@@ -740,6 +790,72 @@ class OfflineReceiptScannerService(ReceiptScannerService):
         return ReceiptScanResult(status="failed", raw_text=None)
 
 
+def extract_raw_text(image_path):
+    """Cheap single-pass Tesseract text recovery (psm 6).
+
+    Used by the hybrid Vision+OCR cross-check as an INDEPENDENT second
+    signal over the same image. Returns "" when Tesseract is unavailable
+    or fails - never raises into the scan path. The temporary preprocessed
+    image is removed after the pass.
+    """
+    if not _tesseract_available():
+        return ""
+    proc = None
+    try:
+        pyt = _get_pytesseract()
+        proc = preprocess_image(image_path, mode="standard")
+        kwargs = {}
+        langs = _available_langs()
+        if langs:
+            kwargs["lang"] = "+".join(langs)
+        text = pyt.image_to_string(str(proc), config="--psm 6", **kwargs)
+        return (text or "").strip()
+    except Exception:
+        return ""
+    finally:
+        try:
+            if proc and proc != Path(image_path) and Path(proc).exists():
+                Path(proc).unlink()
+        except OSError:
+            pass
+
+
+class CrossCheckReceiptScannerService(ReceiptScannerService):
+    """Wraps the engine chain with deterministic Indonesian enrichment and,
+    for Vision results (which carry no raw text), an INDEPENDENT single-pass
+    Tesseract cross-check.
+
+    Reconciliation rules (app/services/receipt_id.py):
+    - totals AGREE  -> total_amount confidence increases;
+    - totals CONFLICT -> warning TOTAL_CONFLICT + confidence drop. The vision
+      value is kept but flagged: never silently overwrite, never auto-pick.
+    """
+
+    def __init__(self, inner):
+        self.inner = inner
+
+    def scan(self, image_path):
+        result = self.inner.scan(image_path)
+        if result is None or getattr(result, "status", "failed") == "failed":
+            return result
+        from app.config import settings
+        from app.services.receipt_id import enrich_scan_result
+
+        existing_text = getattr(result, "raw_text", None)
+        text = existing_text or ""
+        ocr_total = None
+        if not text and settings.RECEIPT_CROSSCHECK_TESSERACT:
+            # Vision result: get an independent Tesseract reading.
+            text = extract_raw_text(image_path)
+            if text:
+                ocr_total = extract_total(text)
+        if text and existing_text is None:
+            max_chars = getattr(settings, "RECEIPT_RAW_TEXT_MAX_CHARS", 4000)
+            result.raw_text = text[:max_chars]
+        enrich_scan_result(result, ocr_text=text or None, ocr_total=ocr_total)
+        return result
+
+
 class FallbackReceiptScannerService(ReceiptScannerService):
     """Try each engine in order; stop at the first non-failed result.
 
@@ -798,15 +914,18 @@ def build_scanner():
     from app.config import settings
 
     engines: list = []
+    has_ai = False
 
     if settings.RECEIPT_AI_ENABLED:
         provider = settings.RECEIPT_AI_PROVIDER
         if provider == "ollama":
             from app.services.receipt_ollama import OllamaVisionReceiptScannerService
             engines.append(OllamaVisionReceiptScannerService())
+            has_ai = True
         elif provider == "openai_compat":
             from app.services.receipt_ai import AIVisionReceiptScannerService
             engines.append(AIVisionReceiptScannerService())
+            has_ai = True
 
     # Always keep the proven local engine in the chain when available.
     if settings.RECEIPT_AI_FALLBACK_TESSERACT and _tesseract_available():
@@ -814,9 +933,15 @@ def build_scanner():
     else:
         engines.append(OfflineReceiptScannerService())
 
-    if len(engines) == 1:
+    if len(engines) == 1 and not has_ai:
         return engines[0]
-    return FallbackReceiptScannerService(engines)
+    chain = engines[0] if len(engines) == 1 else FallbackReceiptScannerService(engines)
+    if has_ai:
+        # Hybrid Vision+OCR: deterministic Indonesian enrichment plus an
+        # independent Tesseract cross-check for vision results. Values are
+        # never overwritten - conflicts become warnings for the review UI.
+        return CrossCheckReceiptScannerService(chain)
+    return chain
 
 
 def get_scanner():

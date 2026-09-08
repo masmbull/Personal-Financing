@@ -1,0 +1,10 @@
+{
+  "merchant": "KOPI KENANGAN",
+  "total_amount": 40000,
+  "subtotal": 40000,
+  "payment_method": "E_WALLET",
+  "payment_provider": "GOPAY",
+  "items_count": 2,
+  "items_total": 40000,
+  "document_type": "CAFE_RECEIPT"
+}

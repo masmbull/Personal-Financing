@@ -12,6 +12,9 @@ class ReceiptItemResponse(BaseModel):
     quantity: Optional[int] = None
     unit_price: Optional[int] = None
     total_price: Optional[int] = None
+    unit: Optional[str] = None
+    sku: Optional[str] = None
+    discount: Optional[int] = None
 
 
 class OcrResultResponse(BaseModel):
@@ -28,6 +31,31 @@ class OcrResultResponse(BaseModel):
     confidence: str = "LOW"
     error: Optional[str] = Field(
         None, description="Present only when OCR failed")
+    # ---- Indonesian understanding extensions (additive, optional) ----
+    document_type: Optional[str] = Field(
+        None, description="RETAIL_RECEIPT | FUEL_RECEIPT | ... (informational)")
+    merchant_address: Optional[str] = None
+    merchant_phone: Optional[str] = None
+    receipt_number: Optional[str] = None
+    invoice_number: Optional[str] = None
+    currency: Optional[str] = "IDR"
+    service_charge: Optional[int] = None
+    delivery_fee: Optional[int] = None
+    shipping_fee: Optional[int] = None
+    rounding: Optional[int] = None
+    other_fee: Optional[int] = None
+    payment_provider: Optional[str] = Field(
+        None, description="GOPAY/OVO/... only when actually visible")
+    qris: Optional[dict] = Field(
+        None, description="{detected, merchant_name, merchant_id, reference_number}")
+    fuel: Optional[dict] = Field(
+        None, description="{detected, brand, product, quantity_liters, price_per_liter, total}")
+    field_confidence: Optional[dict] = Field(
+        None, description="{field: 0..1} - computed server-side")
+    warnings: Optional[list] = Field(
+        None, description="TOTAL_MISMATCH / ITEM_SUM_MISMATCH / TOTAL_CONFLICT ...")
+    confidence_score: Optional[float] = Field(
+        None, description="0..1 weighted score computed server-side")
 
 
 class ReceiptResponse(BaseModel):
