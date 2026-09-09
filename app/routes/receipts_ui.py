@@ -4,7 +4,8 @@ These Jinja pages reuse the SAME receipt services as the REST API; no
 business logic lives here. OCR never creates transactions: the confirm
 page posts explicit user-entered values.
 """
-from datetime import date
+import time as _time
+from datetime import date, timezone
 
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -19,6 +20,36 @@ from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
+
+
+def _created_ts_ms(dt) -> int:
+    """Epoch milliseconds for a (naive UTC) datetime.  Used by the detail
+    page's processing UI so the live elapsed timer survives reloads."""
+    if dt is None:
+        return int(_time.time() * 1000)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return int(dt.timestamp() * 1000)
+
+
+def _ocr_estimate() -> tuple[int, str]:
+    """Engine-aware (target_seconds, human_label) for the processing UI.
+
+    The progress bar caps at ``target_seconds``; the label is the realistic
+    range based on the configured OCR engine.  Vision path uses the actual
+    Ollama/openai timeout (CPU inference rarely hits the ceiling, but Tesseract
+    fallback can add ~5s on failure)."""
+    from app.config import settings
+    s = settings
+    if s.RECEIPT_AI_ENABLED and s.RECEIPT_AI_PROVIDER == "ollama":
+        ceil = max(15, int(s.OLLAMA_TIMEOUT_SECONDS))
+        return ceil, f"\u00b115\u2013{ceil} detik"
+    if s.RECEIPT_AI_ENABLED and s.RECEIPT_AI_PROVIDER == "openai_compat":
+        ceil = max(15, int(s.RECEIPT_AI_TIMEOUT_SEC))
+        return ceil, f"\u00b120\u2013{ceil} detik"
+    # Tesseract-only (local CPU) or offline placeholder.
+    return 8, "2\u20138 detik"
+
 
 STATUS_LABELS = {
     ReceiptStatus.PENDING: ("Diupload", "badge-yellow"),
@@ -43,6 +74,7 @@ def _view(r) -> dict:
         "merchant": (tx.description if tx else None) or r.original_filename,
         "amount": tx.amount if tx else None,
         "created": r.created_at,
+        "created_at_ts": _created_ts_ms(r.created_at),
         "size_kb": round(r.size_bytes / 1024, 1),
     }
 
@@ -111,6 +143,7 @@ def receipt_detail(receipt_id: int, request: Request,
     accounts = db.query(Account).filter(
         (Account.user_id == user.id) | (Account.user_id.is_(None))
     ).order_by(Account.name).all()
+    eta_sec, eta_label = _ocr_estimate()
     return templates.TemplateResponse(request, "receipts/detail.html", { "r": view,
         "categories": categories, "accounts": accounts,
         "format_rupiah": format_rupiah,
@@ -118,6 +151,8 @@ def receipt_detail(receipt_id: int, request: Request,
         "just_confirmed": bool(confirmed),
         "error": error,
         "today": today_str(),
+        "ocr_eta_sec": eta_sec,
+        "ocr_eta_label": eta_label,
     })
 
 

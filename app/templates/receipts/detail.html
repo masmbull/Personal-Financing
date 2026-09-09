@@ -56,14 +56,24 @@
     {% elif r.status_value == 'processing' or r.status_value == 'pending' %}
     <div class="rr-card rr-card--centered">
       <div class="rr-loading" role="status" id="rr-ocr-poll">
-        <div class="rr-spinner" aria-hidden="true"></div>
+        <div class="rr-ocr-orb" aria-hidden="true">
+          <svg class="rr-ocr-orb-svg" viewBox="0 0 50 50">
+            <circle class="rr-ocr-track" cx="25" cy="25" r="20"/>
+            <circle class="rr-ocr-prog" cx="25" cy="25" r="20" id="rr-ocr-prog"/>
+          </svg>
+          <span class="rr-ocr-pct" id="rr-ocr-pct">0%</span>
+        </div>
         <p class="rr-loading-text" id="rr-ocr-text">Menyiapkan struk&hellip;</p>
-        <p class="rr-loading-sub" id="rr-ocr-sub">Server sedang membaca struk, mohon tunggu.</p>
+        <p class="rr-loading-sub">Server sedang membaca struk, mohon tunggu.</p>
+        <p class="rr-ocr-eta" id="rr-ocr-eta">Estimasi {{ ocr_eta_label }}</p>
+        <p class="rr-ocr-elapsed" id="rr-ocr-elapsed">Sudah berjalan 0 dtk</p>
       </div>
     </div>
     <script>
     (function(){
       var rid = {{ r.id }};
+      var startMs = {{ r.created_at_ts }};
+      var targetSec = {{ ocr_eta_sec }};
       var phases = [
         'Menyiapkan struk\u2026',
         'Sedang membaca struk\u2026',
@@ -71,9 +81,36 @@
         'Memeriksa hasil\u2026'
       ];
       var idx = 0, retries = 0, maxRetries = 180;
-      var textEl = document.getElementById('rr-ocr-text');
-      var subEl  = document.getElementById('rr-ocr-sub');
-      function tick() {
+      var textEl  = document.getElementById('rr-ocr-text');
+      var subEl   = document.getElementById('rr-ocr-sub');
+      var etaEl   = document.getElementById('rr-ocr-eta');
+      var timerEl = document.getElementById('rr-ocr-elapsed');
+      var pctEl   = document.getElementById('rr-ocr-pct');
+      var progEl  = document.getElementById('rr-ocr-prog');
+      // r=20 -> circumference = 2*pi*20 \u2248 125.66
+      var CIRC = 125.6637;
+      function setPct(p) {
+        var v = Math.max(0, Math.min(99, p));
+        if (progEl) progEl.style.strokeDashoffset = (CIRC * (1 - v/100)).toFixed(2);
+        if (pctEl)  pctEl.textContent = Math.round(v) + '%';
+      }
+      function clockTick() {
+        var elapsed = Math.max(0, (Date.now() - startMs) / 1000);
+        if (timerEl) timerEl.textContent = 'Sudah berjalan ' + Math.floor(elapsed) + ' dtk';
+        // Linear progress capped at 99% until OCR actually finishes.
+        setPct((elapsed / targetSec) * 100);
+        var nidx = 0;
+        if (elapsed > targetSec * 0.25) nidx = 1;
+        if (elapsed > targetSec * 0.50) nidx = 2;
+        if (elapsed > targetSec * 0.80) nidx = 3;
+        if (nidx !== idx && nidx < phases.length) {
+          idx = nidx;
+          if (textEl) textEl.textContent = phases[idx];
+        }
+      }
+      setInterval(clockTick, 500);
+      clockTick();
+      function pollTick() {
         retries++;
         if (retries > maxRetries) {
           if (textEl) textEl.textContent = 'Proses memakan waktu lama.';
@@ -86,8 +123,6 @@
             'style="color:var(--ink-2)">&#x1f5bc;&#xfe0f; Ganti Foto</a>';
           return;
         }
-        if (retries % 6 === 0 && idx < phases.length - 1) { idx++; }
-        if (textEl) textEl.textContent = phases[idx];
         fetch('/receipts/' + rid, {credentials:'same-origin'})
           .then(function(r){ return r.text(); })
           .then(function(html){
@@ -97,10 +132,10 @@
           })
           .catch(function(){});
       }
-      setTimeout(tick, 2000);
-      var timer = setInterval(function(){
-        tick();
-        if (retries > maxRetries) clearInterval(timer);
+      setTimeout(pollTick, 2000);
+      var pollTimer = setInterval(function(){
+        pollTick();
+        if (retries > maxRetries) clearInterval(pollTimer);
       }, 3000);
     })();
     </script>

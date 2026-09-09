@@ -545,6 +545,17 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .rr-loading{text-align:center;padding:30px 16px}
 .rr-loading-text{font-weight:700;margin-top:12px}
 .rr-loading-sub{color:var(--ink-3);font-size:.85rem;margin-top:3px}
+
+/* ---- OCR processing: ring progress + live elapsed + engine-aware ETA ---- */
+.rr-ocr-orb{position:relative;width:76px;height:76px;margin:4px auto 6px}
+.rr-ocr-orb-svg{width:76px;height:76px;transform:rotate(-90deg)}
+.rr-ocr-track{fill:none;stroke:var(--line);stroke-width:6}
+.rr-ocr-prog{fill:none;stroke:var(--blue,#2563eb);stroke-width:6;stroke-linecap:round;
+  stroke-dasharray:125.66;stroke-dashoffset:125.66;transition:stroke-dashoffset .5s ease}
+.rr-ocr-pct{position:absolute;inset:0;display:grid;place-items:center;
+  font-weight:800;font-size:.82rem;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.rr-ocr-eta{font-size:.85rem;color:var(--blue,#2563eb);font-weight:700;margin:12px 0 2px}
+.rr-ocr-elapsed{font-size:.78rem;color:var(--ink-3);margin:0;font-variant-numeric:tabular-nums}
 .rr-modal{position:fixed;inset:0;background:rgba(20,18,12,.85);z-index:400;display:none;align-items:center;justify-content:center;padding:16px}
 .rr-modal.active{display:flex}
 .rr-modal-close{position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:1.5rem;line-height:1;display:grid;place-items:center}
