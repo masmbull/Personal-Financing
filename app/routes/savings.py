@@ -5,6 +5,7 @@ from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.services import savings as savings_service
 from app.utils import format_rupiah
+from app.validation import parse_idr_input
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
@@ -38,7 +39,7 @@ def create_savings(
 ):
     try:
         savings_service.create_goal(
-            db, user_id=user.id, name=name, target_amount=target_amount,
+            db, user_id=user.id, name=name, target_amount=parse_idr_input(target_amount, "Target Jumlah"),
             icon=icon, notes=notes,
         )
     except ValueError as e:
@@ -54,7 +55,7 @@ def deposit_savings(
 ):
     try:
         savings_service.deposit(
-            db, goal_id, user_id=user.id, amount=int(amount),
+            db, goal_id, user_id=user.id, amount=parse_idr_input(amount, "Jumlah"),
             related_account_id=int(related_account_id) if related_account_id else None,
             notes=notes,
         )
@@ -73,7 +74,7 @@ def withdraw_savings(
 ):
     try:
         savings_service.withdraw(
-            db, goal_id, user_id=user.id, amount=int(amount),
+            db, goal_id, user_id=user.id, amount=parse_idr_input(amount, "Jumlah"),
             related_account_id=int(related_account_id) if related_account_id else None,
             notes=notes,
         )

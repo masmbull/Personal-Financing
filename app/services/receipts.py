@@ -11,6 +11,7 @@ import json
 import logging
 import re
 import threading
+import time
 import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
@@ -100,6 +101,7 @@ def _validate_image_bytes(mime: str, content: bytes) -> None:
 def save_receipt(db: Session, upload: UploadFile, user_id: int) -> Receipt:
     """Validate MIME type + size + image bytes, store the file safely,
     compute the duplicate-detection hash, persist metadata."""
+    t0 = time.monotonic()
     mime = (upload.content_type or "").lower()
     ext = ALLOWED_MIME_TYPES.get(mime)
     if not ext:
@@ -111,17 +113,46 @@ def save_receipt(db: Session, upload: UploadFile, user_id: int) -> Receipt:
     max_bytes = settings.RECEIPT_MAX_SIZE_MB * 1024 * 1024
     content = upload.file.read()
     size = len(content)
+    log.info("receipt upload received user_id=%d mime=%s bytes=%d", user_id, mime, size)
     if size == 0:
         raise ReceiptValidationError("Empty file")
     if size > max_bytes:
         raise ReceiptValidationError(
             f"File too large ({size} bytes); max {settings.RECEIPT_MAX_SIZE_MB} MB"
         )
-    _validate_image_bytes(mime, content)
+    try:
+        _validate_image_bytes(mime, content)
+    except ReceiptValidationError:
+        log.warning("receipt upload rejected: decode failed user_id=%d bytes=%d",
+                    user_id, size)
+        raise
 
     file_hash = hashlib.sha256(content).hexdigest()
 
+    # ── Idempotency guard: if the same user just uploaded the identical
+    #    image within the last 30 minutes and it hasn't been confirmed
+    #    yet, reuse the existing receipt instead of creating a duplicate.
+    from datetime import timedelta
+    _dedup_window = timedelta(minutes=30)
     now = _utcnow()
+    existing = (
+        db.query(Receipt)
+        .filter(
+            Receipt.user_id == user_id,
+            Receipt.file_hash == file_hash,
+            Receipt.created_at > (now.replace(tzinfo=None) - _dedup_window),
+            Receipt.transaction_id.is_(None),
+        )
+        .order_by(Receipt.created_at.desc())
+        .first()
+    )
+    if existing is not None:
+        log.info("receipt idempotent hit receipt_id=%d user_id=%d "
+                 "original_created=%.2fs ago",
+                 existing.id, user_id,
+                 (now.replace(tzinfo=None) - existing.created_at).total_seconds())
+        return existing
+
     rel_dir = Path(settings.RECEIPT_UPLOAD_DIR) / f"{now:%Y}" / f"{now:%m}"
     rel_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{uuid.uuid4().hex}{ext}"
@@ -140,6 +171,8 @@ def save_receipt(db: Session, upload: UploadFile, user_id: int) -> Receipt:
     db.add(receipt)
     db.commit()
     db.refresh(receipt)
+    log.info("receipt stored receipt_id=%d user_id=%d path=%s elapsed=%.2fs",
+             receipt.id, user_id, stored_path, time.monotonic() - t0)
     return receipt
 
 
@@ -295,6 +328,81 @@ def run_ocr_background(receipt_id: int, user_id: int,
     t.start()
     log.info("background OCR thread started receipt_id=%d", receipt_id)
     return t
+
+
+# ------------------------------------------------------------------ Retry OCR
+
+def retry_ocr(receipt_id: int, user_id: int,
+              *, _sync: bool = False) -> "threading.Thread | None":
+    """Re-run OCR on a receipt that has NOT been confirmed yet.
+
+    Idempotent: already-confirmed receipts are returned without touching
+    the DB.  Failed and processed receipts can be re-tried — the previous
+    OCR output is replaced.
+    """
+    from app.database.db import SessionLocal
+
+    def _worker():
+        db = SessionLocal()
+        try:
+            receipt = db.query(Receipt).filter(
+                Receipt.id == receipt_id,
+                Receipt.user_id == user_id,
+            ).first()
+            if receipt is None:
+                log.warning("retry_ocr: receipt not found receipt_id=%d", receipt_id)
+                return
+            if receipt.transaction_id is not None:
+                log.info("retry_ocr: already confirmed, skipping receipt_id=%d",
+                         receipt_id)
+                return
+            log.info("retry_ocr: re-running OCR receipt_id=%d", receipt_id)
+            run_ocr(db, receipt_id, user_id)
+        except Exception as exc:  # noqa: BLE001
+            log.error("retry_ocr crashed receipt_id=%d: %s", receipt_id, exc)
+        finally:
+            db.close()
+
+    if _sync:
+        _worker()
+        return None
+
+    t = threading.Thread(target=_worker, daemon=True, name=f"ocr-retry-{receipt_id}")
+    t.start()
+    log.info("retry OCR thread started receipt_id=%d", receipt_id)
+    return t
+
+
+# --------------------------------------------------- Stale OCR recovery
+
+_STALE_SECONDS = 600  # 10 minutes — Ollama on CPU never takes longer
+
+
+def recover_stale_ocr(db: Session) -> int:
+    """Mark stuck PROCESSING/PENDING receipts as FAILED.
+
+    A background thread may have crashed or been OOM-killed.  The user
+    sees the receipt stuck on "reading…" forever.  This catches that case
+    and surfaces a retry-eligible FAILED status.
+
+    Returns the number of receipts recovered (for logging / health checks).
+    """
+    from datetime import timedelta, datetime as _dt
+    cutoff = _dt.utcnow() - timedelta(seconds=_STALE_SECONDS)
+    stuck = db.query(Receipt).filter(
+        Receipt.ocr_status.in_([ReceiptStatus.PROCESSING, ReceiptStatus.PENDING]),
+        Receipt.created_at < cutoff,
+        Receipt.transaction_id.is_(None),
+    ).all()
+    for r in stuck:
+        r.ocr_status = ReceiptStatus.FAILED
+        r.ocr_data = json.dumps({"status": "failed",
+                                  "error": "OCR processing timed out"})
+        log.warning("recover_stale_ocr: marking receipt_id=%d as FAILED "
+                     "(stale > %ds)", r.id, _STALE_SECONDS)
+    if stuck:
+        db.commit()
+    return len(stuck)
 
 
 def delete_receipt(db: Session, receipt_id: int, user_id: int,

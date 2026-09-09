@@ -22,7 +22,7 @@
             <label class="form-label" for="amount">Nominal</label>
             <div class="input-prefix">
                 <span class="prefix">Rp</span>
-                <input type="number" name="amount" id="amount" class="input input-lg" value="{{ tx.amount }}" min="1" required inputmode="numeric">
+                <input type="text" name="amount" id="amount" class="input input-lg" value="{{ tx.amount }}" required inputmode="numeric" pattern="[0-9]*" autocomplete="off">
             </div>
         </div>
 

@@ -20,11 +20,11 @@
         </div>
         <div class="form-group">
             <label class="form-label">Nilai Saat Ini (Rp)</label>
-            <input type="number" name="current_value" class="form-input" required min="0" value="{{ asset.current_value }}">
+            <input type="text" name="current_value" class="form-input" required inputmode="numeric" pattern="[0-9]*" value="{{ asset.current_value }}">
         </div>
         <div class="form-group">
             <label class="form-label">Harga Beli (Rp)</label>
-            <input type="number" name="purchase_value" class="form-input" min="0" value="{{ asset.purchase_value or '' }}">
+            <input type="text" name="purchase_value" class="form-input" inputmode="numeric" pattern="[0-9]*" value="{{ asset.purchase_value or '' }}">
         </div>
         <div class="form-group">
             <label class="form-label">Tanggal Beli</label>

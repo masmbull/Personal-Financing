@@ -18,7 +18,7 @@
     <form method="post" action="/debts/pay/{{ debt.id }}" class="form">
         <div class="form-group">
             <label class="form-label">Jumlah Bayar (Rp)</label>
-            <input type="number" name="amount" class="form-input" required min="1" max="{{ debt.remaining_amount }}" placeholder="0">
+            <input type="text" name="amount" class="form-input" required inputmode="numeric" pattern="[0-9]*" placeholder="0">
         </div>
         <div class="form-group">
             <label class="form-label">Tanggal</label>

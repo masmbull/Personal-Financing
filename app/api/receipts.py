@@ -111,6 +111,27 @@ def confirm_receipt(receipt_id: int, payload: ReceiptConfirmRequest,
     return _out(receipt)
 
 
+@router.post(
+    "/{receipt_id}/retry-ocr",
+    response_model=ReceiptResponse,
+    summary="Re-run OCR on a failed/stuck receipt",
+    description="Idempotent: already-confirmed receipts are silently skipped.",
+)
+def retry_receipt_ocr(receipt_id: int,
+                      db: Session = Depends(get_db),
+                      user: CurrentUser = Depends(get_current_user)):
+    try:
+        receipt = receipts_service.get_receipt(db, receipt_id, user.id)
+    except receipts_service.ReceiptNotFound:
+        from app.api.errors import ApiError
+        raise ApiError(404, "NOT_FOUND", "Receipt not found")
+    if receipt.transaction_id is not None:
+        return _out(receipt)
+    receipts_service.recover_stale_ocr(db)
+    receipts_service.retry_ocr(receipt.id, user.id)
+    return _out(receipt)
+
+
 @router.delete(
     "/{receipt_id}", status_code=http_status.HTTP_204_NO_CONTENT,
     summary="Delete a receipt",

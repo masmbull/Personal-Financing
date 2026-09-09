@@ -39,12 +39,12 @@
             </div>
             <div class="form-row mt-sm">
                 <form method="post" action="/savings/deposit/{{ g.id }}" class="form-row flex-1">
-                    <input type="number" name="amount" class="form-input flex-1" min="1" placeholder="Setor">
+                    <input type="text" name="amount" class="form-input flex-1" inputmode="numeric" pattern="[0-9]*" placeholder="Setor">
                     <button type="submit" class="btn btn-primary btn-sm">Setor</button>
                 </form>
                 {% if g.current_amount > 0 %}
                 <form method="post" action="/savings/withdraw/{{ g.id }}" class="form-row flex-1">
-                    <input type="number" name="amount" class="form-input flex-1" min="1" max="{{ g.current_amount }}" placeholder="Tarik">
+                    <input type="text" name="amount" class="form-input flex-1" inputmode="numeric" pattern="[0-9]*" placeholder="Tarik">
                     <button type="submit" class="btn btn-sm">Tarik</button>
                 </form>
                 {% endif %}

@@ -25,7 +25,7 @@ import pytest
 from PIL import Image
 
 from app.config import settings
-from app.models.models import Receipt, Transaction, User
+from app.models.models import Receipt, ReceiptStatus, Transaction, User
 from app.services import receipt_ollama as oa
 from app.services import receipts as receipts_service
 from app.services.finance import MAX_TX_AMOUNT
@@ -394,6 +394,7 @@ def test_full_upload_review_confirm_creates_exactly_one_transaction(
 
 # ----------------------------------------------------------- 14 duplicate detection
 def test_duplicate_detection_still_works(monkeypatch, client):
+    """Same file hash within 30 min → idempotent hit (same receipt returned)."""
     with _mock_ollama(monkeypatch, GOOD_DICT):
         rid1 = client.post("/api/v1/receipts",
                            files={"file": ("a.png", PNG_BYTES, "image/png")}
@@ -401,10 +402,27 @@ def test_duplicate_detection_still_works(monkeypatch, client):
         rid2 = client.post("/api/v1/receipts",
                            files={"file": ("b.png", PNG_BYTES, "image/png")}
                            ).json()["receipt_id"]
-    assert rid1 != rid2
+    # Idempotency guard: same bytes → same receipt (no dup created).
+    assert rid1 == rid2
+
+    # duplicate_for still works: create a second receipt with same hash directly
     db = TestingSessionLocal()
     try:
-        r2 = db.query(Receipt).filter(Receipt.id == rid2).first()
+        r1 = db.query(Receipt).filter(Receipt.id == rid1).first()
+        # Directly insert a second receipt with same hash (simulates manual DB)
+        import uuid as _uuid
+        r2 = Receipt(
+            user_id=r1.user_id,
+            original_filename="manual.png",
+            stored_path=r1.stored_path,
+            mime_type=r1.mime_type,
+            size_bytes=r1.size_bytes,
+            file_hash=r1.file_hash,
+            ocr_status=ReceiptStatus.PENDING,
+        )
+        db.add(r2)
+        db.commit()
+        db.refresh(r2)
         dup = receipts_service.duplicate_for(db, r2, default_user_id())
         assert dup is not None and dup.id == rid1
     finally:

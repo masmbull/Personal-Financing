@@ -8,6 +8,7 @@ from app.api.deps import get_current_user, CurrentUser
 from app.models.models import DebtType, Account
 from app.services import debts as debts_service
 from app.utils import format_rupiah, today_str
+from app.validation import parse_idr_input, parse_optional_idr
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 
@@ -67,9 +68,9 @@ def create_debt(
         due = date.fromisoformat(due_date) if due_date else None
         debts_service.create_debt(
             db, user_id=user.id, type=DebtType(type), person_name=person_name,
-            description=description, principal_amount=int(principal_amount),
+            description=description, principal_amount=parse_idr_input(principal_amount, "Jumlah"),
             due_date=due,
-            installment_amount=int(installment_amount) if installment_amount else None,
+            installment_amount=parse_optional_idr(installment_amount, "Angsuran"),
             installment_count=int(installment_count) if installment_count else None,
             notes=notes, person_contact=person_contact,
             related_account_id=int(related_account_id) if related_account_id else None,
@@ -104,7 +105,7 @@ def pay_debt(
     try:
         pay_date = date.fromisoformat(date_val) if date_val else None
         debts_service.pay_debt(
-            db, debt_id, user.id, amount=int(amount),
+            db, debt_id, user.id, amount=parse_idr_input(amount, "Jumlah Bayar"),
             account_id=int(account_id) if account_id else None,
             payment_date=pay_date, notes=notes,
         )

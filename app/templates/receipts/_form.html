@@ -11,9 +11,9 @@
     </div>
     <div class="rr-field">
       <label class="rr-label" for="amount">Total</label>
-      <input class="rr-input rr-input--lg" type="number" inputmode="decimal" id="amount"
-             name="amount" min="1" required value="{{ total_val if total_val else '' }}"
-             placeholder="0">
+      <input class="rr-input rr-input--lg" type="text" inputmode="numeric" id="amount"
+             name="amount" required value="{{ total_val if total_val else '' }}"
+             pattern="[0-9]*" placeholder="0" autocomplete="off">
     </div>
     <div class="rr-field">
       <label class="rr-label" for="date">Tanggal</label>

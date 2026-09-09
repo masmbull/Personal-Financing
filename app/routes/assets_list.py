@@ -7,6 +7,7 @@ from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.services import assets as assets_service
 from app.utils import format_rupiah, today_str
+from app.validation import parse_idr_input, parse_optional_idr
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
@@ -36,8 +37,8 @@ def _parse_asset_fields(form: dict) -> dict:
     return {
         "name": form.get("name", ""),
         "asset_type": form.get("asset_type", ""),
-        "current_value": int(form["current_value"]) if form.get("current_value") else 0,
-        "purchase_value": int(form["purchase_value"]) if form.get("purchase_value") else None,
+        "current_value": parse_idr_input(form.get("current_value"), "Nilai Saat Ini") if form.get("current_value") else 0,
+        "purchase_value": parse_optional_idr(form.get("purchase_value"), "Harga Beli"),
         "purchase_date": date.fromisoformat(form["purchase_date"]) if form.get("purchase_date") else None,
         "notes": form.get("notes", ""),
         "icon": form.get("icon", ""),

@@ -7,6 +7,7 @@ from app.models.models import Account
 from app.services.finance import create_transaction
 from app.models.models import TransactionType
 from app.utils import today_str
+from app.validation import parse_idr_input
 from datetime import date
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
@@ -36,12 +37,10 @@ def do_transfer(
     user: CurrentUser = Depends(get_current_user),
 ):
     try:
-        amount_int = int(amount)
+        amount_int = parse_idr_input(amount, "Jumlah")
         tx_date = date.fromisoformat(date_val)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid input")
-    if amount_int <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     try:
         create_transaction(
             db=db, user_id=user.id, type=TransactionType.TRANSFER, amount=amount_int,

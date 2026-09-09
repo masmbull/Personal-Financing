@@ -20,11 +20,11 @@
         </div>
         <div class="form-group">
             <label class="form-label">Jumlah Investasi (Rp)</label>
-            <input type="number" name="amount_invested" class="form-input" required min="1" value="{{ inv.amount_invested }}">
+            <input type="text" name="amount_invested" class="form-input" required inputmode="numeric" pattern="[0-9]*" value="{{ inv.amount_invested }}">
         </div>
         <div class="form-group">
             <label class="form-label">Nilai Saat Ini (Rp)</label>
-            <input type="number" name="current_value" class="form-input" required min="0" value="{{ inv.current_value }}">
+            <input type="text" name="current_value" class="form-input" required inputmode="numeric" pattern="[0-9]*" value="{{ inv.current_value }}">
         </div>
         <div class="form-group">
             <label class="form-label">Tanggal Beli</label>

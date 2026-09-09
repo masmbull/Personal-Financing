@@ -8,6 +8,7 @@ from app.api.deps import get_current_user, CurrentUser
 from app.models.models import BillFrequency, Category, Account, TransactionType
 from app.services import bills as bills_service
 from app.utils import format_rupiah, today_str
+from app.validation import parse_idr_input, parse_int_input
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import or_
 
@@ -51,8 +52,10 @@ def create_bill(
 ):
     try:
         bills_service.create_bill(
-            db, user_id=user.id, name=name, amount=int(amount), frequency=BillFrequency(frequency),
-            due_day=int(due_day) if due_day else None,
+            db, user_id=user.id, name=name,
+            amount=parse_idr_input(amount, "Nominal"),
+            frequency=BillFrequency(frequency),
+            due_day=parse_int_input(due_day, "Tanggal Jatuh Tempo", 1, 31) if due_day else None,
             category_id=int(category_id) if category_id else None,
             account_id=int(account_id) if account_id else None,
             notes=notes,
@@ -71,7 +74,7 @@ def mark_bill_paid(
     try:
         bills_service.pay_bill(
             db, bill_id, user.id,
-            amount=int(amount) if amount else None,
+            amount=parse_idr_input(amount, "Nominal") if amount else None,
             account_id=int(account_id) if account_id else None,
             pay_date=date.fromisoformat(date_val) if date_val else None,
         )

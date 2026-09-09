@@ -29,9 +29,17 @@ class Settings(BaseSettings):
     # CORS: comma-separated list of allowed origins. Never use "*" in production.
     CORS_ORIGINS: str = "http://localhost:8080,http://localhost:3000,http://127.0.0.1:8080"
 
-    # Receipt uploads
+    # Receipt uploads.
+    # Mobile reality: a 50 MP Android camera can produce a 10-20 MB JPEG.
+    # Combined with slow mobile (3G/4G) upstream such uploads exceed
+    # Cloudflare's free-tier 100-second read timeout, causing the browser
+    # to show ERR_CONNECTION_ABORTED.  The frontend now compresses images
+    # client-side to ~150-250 KB, so the SERVER limit just needs to accept
+    # the worst-case compressed body.  3 MB is comfortably above the
+    # worst-case client-side result (1600 px @ q=0.55) while still fitting
+    # inside Cloudflare's free tier on slow mobile.
     RECEIPT_UPLOAD_DIR: str = "data/receipts"
-    RECEIPT_MAX_SIZE_MB: int = 5
+    RECEIPT_MAX_SIZE_MB: int = 3
 
     # Tesseract OCR engine path (set explicitly on Windows; overridable via env)
     TESSERACT_CMD: str = os.environ.get(

@@ -77,8 +77,13 @@
         retries++;
         if (retries > maxRetries) {
           if (textEl) textEl.textContent = 'Proses memakan waktu lama.';
-          if (subEl)  subEl.textContent  = 'Halaman akan muat ulang otomatis bila selesai.';
-          setTimeout(function(){ location.reload(); }, 10000);
+          if (subEl) subEl.innerHTML =
+            'Server mungkin sedang sibuk. ' +
+            '<a href="/receipts/' + rid + '/retry-ocr" ' +
+            'style="color:var(--blue);font-weight:700">&#x1f504; Coba Lagi</a> ' +
+            '&nbsp;|&nbsp; ' +
+            '<a href="/receipts/upload" ' +
+            'style="color:var(--ink-2)">&#x1f5bc;&#xfe0f; Ganti Foto</a>';
           return;
         }
         if (retries % 6 === 0 && idx < phases.length - 1) { idx++; }
@@ -102,8 +107,14 @@
 
     {% elif r.status_value == 'failed' %}
     <div class="rr-flash rr-flash--warn" role="alert">
-      <span>Struk gagal dibaca otomatis. Kamu tetap bisa mencatatnya secara manual di bawah.</span>
+      <span>Struk gagal dibaca otomatis. Kamu bisa coba lagi atau isi manual di bawah.</span>
       <button type="button" class="rr-flash-close" aria-label="Tutup pesan">&times;</button>
+    </div>
+    <div class="rr-fail-actions">
+      <form method="post" action="/receipts/{{ r.id }}/retry-ocr" style="display:inline">
+        <button type="submit" class="rr-btn rr-btn--ghost">&#x1f504; Coba Lagi</button>
+      </form>
+      <a href="/receipts/upload" class="rr-btn rr-btn--ghost">&#x1f5bc;&#xfe0f; Ganti Foto</a>
     </div>
     <div class="rr-grid">
       {% include "receipts/_viewer.html" %}

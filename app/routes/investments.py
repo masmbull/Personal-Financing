@@ -7,6 +7,7 @@ from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.services import investments as investments_service
 from app.utils import format_rupiah, today_str
+from app.validation import parse_idr_input
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
@@ -54,8 +55,8 @@ def create_investment(
     try:
         investments_service.create_investment(
             db, user_id=user.id, name=name, investment_type=investment_type,
-            amount_invested=int(amount_invested),
-            current_value=int(current_value),
+            amount_invested=parse_idr_input(amount_invested, "Jumlah Investasi"),
+            current_value=parse_idr_input(current_value, "Nilai Saat Ini"),
             purchase_date=date.fromisoformat(purchase_date) if purchase_date else None,
             notes=notes, icon=icon,
         )
@@ -88,8 +89,8 @@ def edit_investment(
     try:
         investments_service.update_investment(db, inv_id, user.id, {
             "name": name.strip(), "investment_type": investment_type,
-            "amount_invested": int(amount_invested),
-            "current_value": int(current_value),
+            "amount_invested": parse_idr_input(amount_invested, "Jumlah Investasi"),
+            "current_value": parse_idr_input(current_value, "Nilai Saat Ini"),
             "purchase_date": date.fromisoformat(purchase_date) if purchase_date else None,
             "notes": (notes or "").strip() or None,
             "icon": (icon or "").strip() or None,

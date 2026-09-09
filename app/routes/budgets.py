@@ -5,6 +5,7 @@ from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.services import budgets as budgets_service
 from app.utils import format_rupiah
+from app.validation import parse_idr_input, parse_int_input
 from datetime import date
 from fastapi.templating import Jinja2Templates
 
@@ -33,8 +34,10 @@ def create_budget(
 ):
     try:
         budgets_service.set_budget(
-            db, user_id=user.id, category_id=int(category_id), amount=int(amount),
-            month=int(month), year=int(year),
+            db, user_id=user.id, category_id=int(category_id),
+            amount=parse_idr_input(amount, "Anggaran"),
+            month=parse_int_input(month, "Bulan", 1, 12),
+            year=parse_int_input(year, "Tahun", 2000, 2100),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -7,6 +7,7 @@ from app.api.deps import get_current_user, CurrentUser
 from app.models.models import Transaction, Account, Category, TransactionType
 from app.services.finance import create_transaction, delete_transaction
 from app.utils import format_rupiah, today_str
+from app.validation import parse_idr_input
 from datetime import date
 from fastapi.templating import Jinja2Templates
 
@@ -107,12 +108,10 @@ def add_transaction(
     user: CurrentUser = Depends(get_current_user),
 ):
     try:
-        amount_int = int(amount)
+        amount_int = parse_idr_input(amount, "Nominal")
         tx_date = date.fromisoformat(date_val)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid input")
-    if amount_int <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     try:
         create_transaction(
             db=db, user_id=user.id, type=TransactionType(type), amount=amount_int,
@@ -158,10 +157,10 @@ def edit_transaction(
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
     try:
-        amount_int = int(amount)
+        amount_int = parse_idr_input(amount, "Nominal")
         tx_date = date.fromisoformat(date_val)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid input")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     delete_transaction(db, tx_id, user.id)
     create_transaction(
         db=db, user_id=user.id, type=TransactionType(type), amount=amount_int,

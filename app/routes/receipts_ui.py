@@ -92,6 +92,8 @@ def receipt_detail(receipt_id: int, request: Request,
         receipt = receipts_service.get_receipt(db, receipt_id, user.id)
     except receipts_service.ReceiptNotFound:
         raise HTTPException(status_code=404, detail="Struk tidak ditemukan")
+    # Auto-recover receipts stuck in PROCESSING/PENDING (stale > 10 min).
+    receipts_service.recover_stale_ocr(db)
     view = _view(receipt)
     view["ocr"] = receipts_service._parse_ocr_data(receipt.ocr_data)
     view["status_value"] = receipt.ocr_status.value.lower()
@@ -167,6 +169,22 @@ async def confirm_receipt_page(receipt_id: int, request: Request,
                                user: CurrentUser = Depends(get_current_user)):
     form = await request.form()
     return _confirm(db, receipt_id, form, user.id)
+
+
+@router.post("/receipts/{receipt_id}/retry-ocr")
+async def retry_ocr_page(receipt_id: int,
+                         db: Session = Depends(get_db),
+                         user: CurrentUser = Depends(get_current_user)):
+    """Re-run OCR on a failed/stuck receipt.  Redirects back to detail page.
+    Idempotent: confirmed receipts are silently skipped."""
+    receipts_service.recover_stale_ocr(db)
+    receipt = receipts_service.get_receipt(db, receipt_id, user.id)
+    if receipt.transaction_id is not None:
+        return RedirectResponse(url=f"/receipts/{receipt_id}",
+                                status_code=303)
+    receipts_service.retry_ocr(receipt.id, user.id)
+    return RedirectResponse(url=f"/receipts/{receipt_id}",
+                            status_code=303)
 
 
 @router.post("/receipts/{receipt_id}/delete")

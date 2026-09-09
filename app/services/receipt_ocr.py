@@ -392,14 +392,15 @@ _SUMMARY_LINE_RE = re.compile(
     r'diskon|disc|ppn|pajak|pb1|dpp|'
     r'debit|kredit|qris|gopay|ovo|transfer|'
     r'payment|change|amount\s+tender|'
-    r'no\.?\s*struk|nota|terima\s+kasih|struk\s+belanja|'
+    r'terima\s+kasih|struk\s+belanja|'
     r'harga\s+jual|harga\s+total|'
     r'ppn\s*dibebaskan|ppn\s*:)'
 )
 _NAME_SKIP_RE = re.compile(
     r'(?i)^(total|subtotal|sub\s*total|grand|disc|diskon|ppn|pajak|pb1|'
     r'tunai|cash|debit|kredit|kembali|bayar|belanja|hema|jumlah|qty|vo|'
-    r'payment|change|dpp|no\s*struk)'
+    r'payment|change|dpp|no\.?\s*struk|nota|telp|tel\b|tanggal|tgl|'
+    r'alamat|address|phone|hp)'
 )
 _SEP_LINE_RE = re.compile(r'^[\s.\-=*#~]+$')
 _DATE_LINE_RE = re.compile(r'^[0-9][0-9.,/:-]*[0-9][.,/:-]+[0-9]')
@@ -439,11 +440,18 @@ def _parse_item_line(line):
     qty_from_x = None
     first_fin = fin_indices[0]
     if first_fin > 0:
-        prev = tokens[first_fin - 1].strip()
+        # Skip currency prefix tokens (Rp/rp/RP) between name and price
+        # to find the quantity marker.  Pattern "Name Nx Rp Price" is common
+        # on Indonesian receipts — "Rp" sits between the Nx and the price.
+        offset = 1
+        while (offset <= first_fin
+               and tokens[first_fin - offset].strip().upper() in ('RP', 'RP.')):
+            offset += 1
+        prev = tokens[first_fin - offset].strip() if first_fin - offset >= 0 else ''
         xmatch = re.match(r'^(\d+)\s*[xX*]$', prev)
         if xmatch:
             qty_from_x = int(xmatch.group(1))
-            name_tokens = tokens[:first_fin - 1]
+            name_tokens = tokens[:first_fin - offset]
         else:
             name_tokens = tokens[:first_fin]
     else:
@@ -518,7 +526,20 @@ def extract_items(text):
         if not in_item_section:
             toks = norm.split()
             fc = sum(1 for t in toks if _is_financial_token(t))
-            if fc < 2:
+            if fc < 1:
+                continue
+            # Accept lines with2+ financial tokens (original behavior —
+            # covers "Name Qty Price Total" patterns).
+            # For single-financial-token lines, require a dot/comma price
+            # separator or Nx quantity pattern — this lets us enter item
+            # parsing for "Name Nx Rp Price" patterns while still skipping
+            # non-item lines that happen to have one bare number.
+            has_sep = any(
+                re.search(r'\d[.,]\d', t)
+                for t in toks if _is_financial_token(t)
+            )
+            has_qty = bool(re.search(r'\d+\s*[xX]', norm))
+            if fc < 2 and not (has_sep or has_qty):
                 continue
             in_item_section = True
         item = _parse_item_line(ln)
@@ -537,10 +558,24 @@ def _estimate_item_lines(text):
         norm = re.sub(r'\s+', ' ', norm).strip()
         toks = norm.split()
         fn = sum(1 for t in toks if _is_financial_token(t))
-        if fn >= 2:
+        if fn >= 1:
+            has_sep = any(
+                re.search(r'\d[.,]\d', t)
+                for t in toks if _is_financial_token(t)
+            )
+            has_qty = bool(re.search(r'\d+\s*[xX]', norm))
+            if fn < 2 and not (has_sep or has_qty):
+                continue
             in_section = True
-            if not _SUMMARY_LINE_RE.match(ln):
-                count += 1
+            # Skip lines whose leading tokens match _NAME_SKIP_RE (headers
+            # like "Telp:", "Tanggal:", "No. Struk:" etc.) — these enter the
+            # section due to fc>=2 but are not real item lines.
+            first_word = toks[0].rstrip(':').lower() if toks else ''
+            if _SUMMARY_LINE_RE.match(ln):
+                continue
+            if _NAME_SKIP_RE.match(first_word):
+                continue
+            count += 1
     return count
 
 # ---------------------------------------------------------------- category
@@ -614,7 +649,10 @@ def compute_confidence(result):
             ratio = min(item_sum, result.total_amount) / max(item_sum, result.total_amount)
             score += int(ratio * 20)
     elif result.total_amount:
-        score += 10
+        # ponytail: total_amount exists but no items to cross-check.
+        # Minimal credit — the total is already counted in base fields.
+        # Upgrade: parse line items from raw_text here for real reconciliation.
+        score += 2
     max_score += 15
     if result.raw_text:
         low = result.raw_text.lower()
