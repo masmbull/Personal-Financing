@@ -75,6 +75,7 @@ class ReceiptScanResult:
     field_confidence: Optional[dict] = None # {field: 0..1} server-computed
     warnings: Optional[list] = None         # TOTAL_MISMATCH, ITEM_SUM_MISMATCH...
     confidence_score: float = 0.0           # 0..1 server-computed
+    engine: Optional[str] = None            # ollama / openai / tesseract / offline
 
     def to_dict(self) -> dict:
         return {
@@ -101,6 +102,7 @@ class ReceiptScanResult:
             "field_confidence": self.field_confidence,
             "warnings": self.warnings,
             "confidence_score": self.confidence_score,
+            "engine": self.engine,
         }
 
 
@@ -787,6 +789,8 @@ def _available_langs():
 
 
 class TesseractReceiptScannerService(ReceiptScannerService):
+    name = "tesseract"
+
     def __init__(self):
         self._pytesseract = _get_pytesseract()
         self._langs = _available_langs()
@@ -820,12 +824,15 @@ class TesseractReceiptScannerService(ReceiptScannerService):
                     pass
         result = parse_receipt_text(best_text)
         result.status = "processed"
+        result.engine = self.name
         return result
 
 
 class OfflineReceiptScannerService(ReceiptScannerService):
+    name = "offline"
+
     def scan(self, image_path):
-        return ReceiptScanResult(status="failed", raw_text=None)
+        return ReceiptScanResult(status="failed", raw_text=None, engine=self.name)
 
 
 def extract_raw_text(image_path):
@@ -920,6 +927,9 @@ class FallbackReceiptScannerService(ReceiptScannerService):
             if result is None:
                 continue
             if getattr(result, "status", "failed") != "failed":
+                # Tag the result with the winning engine (for the UI badge).
+                if not getattr(result, "engine", None):
+                    result.engine = getattr(engine, "name", None)
                 return result
             # Keep a failed result so we can report why, if all engines fail.
             last_failed = result

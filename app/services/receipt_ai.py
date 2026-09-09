@@ -100,6 +100,8 @@ def _clean_items(items):
 class AIVisionReceiptScannerService:
     """ReceiptScannerService backed by an OpenAI-compatible vision endpoint."""
 
+    name = "openai"
+
     def __init__(self, base_url: str | None = None, model: str | None = None):
         self.base_url = (base_url or settings.RECEIPT_AI_BASE_URL).rstrip("/")
         self.model = model or settings.RECEIPT_AI_MODEL
@@ -168,6 +170,7 @@ class AIVisionReceiptScannerService:
                 status="processed",
             )
             result.confidence = compute_confidence(result)
+            result.engine = self.name
             return result
         except Exception:
             # Never surface a 500: worst case degrade to a low-confidence
@@ -177,7 +180,7 @@ class AIVisionReceiptScannerService:
                 date=_n(data.get("date")),
                 total_amount=_int(data.get("total_amount")),
                 items=items, raw_text=None, status="processed",
-                confidence="LOW",
+                confidence="LOW", engine=self.name,
             )
 
 

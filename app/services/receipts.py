@@ -453,7 +453,7 @@ _OCR_FIELDS = ("merchant", "date", "time", "total_amount", "subtotal", "tax",
                "receipt_number", "invoice_number", "currency",
                "service_charge", "delivery_fee", "shipping_fee", "rounding",
                "other_fee", "payment_provider", "qris", "fuel",
-               "field_confidence", "warnings", "confidence_score")
+               "field_confidence", "warnings", "confidence_score", "engine")
 
 
 def _parse_ocr_data(blob):

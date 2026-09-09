@@ -778,6 +778,21 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .rr-status-text--mid{color:#ffb74d}
 .rr-status-text--low{color:var(--red)}
 
+/* ---- engine source badge ---- */
+.rr-engine{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 12px; border-radius:var(--r-pill); font-size:.85rem; font-weight:600;
+  margin-top:8px;
+  background:var(--ink-1); color:var(--ink-2);
+}
+.rr-engine-dot{
+  width:8px; height:8px; border-radius:50%; flex:0 0 auto;
+  background:var(--ink-3); opacity:.5;
+}
+.rr-engine-dot--ai{background:var(--purple)}
+.rr-engine-dot--ocr{background:var(--blue)}
+.rr-engine-text{font-weight:600}
+
 /* ---- responsive grid: image | review ---- */
 .rr-grid{
   display:grid; gap:var(--sp-4);

@@ -550,6 +550,7 @@ class OllamaVisionReceiptScannerService:
             raw_text=None,
             status="processed",
         )
+        result.engine = self.name
         # Surface validation issues as a warning string without failing the
         # whole scan (user can still correct values in the review form).
         warnings = []

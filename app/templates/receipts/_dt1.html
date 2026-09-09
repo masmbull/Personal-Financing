@@ -1,5 +1,24 @@
 {# OCR review partial: summary + items + confirm form (included by detail.html). #}
 {% set conf = r.ocr.confidence or 'LOW' %}
+{% set _eng = r.ocr.engine %}
+{% if _eng %}
+<div class="rr-engine" role="note">
+  {% if _eng == 'ollama' %}
+  <span class="rr-engine-dot rr-engine-dot--ai"></span>
+  <span class="rr-engine-text">AI Vision (Ollama)</span>
+  {% elif _eng == 'openai' %}
+  <span class="rr-engine-dot rr-engine-dot--ai"></span>
+  <span class="rr-engine-text">AI Vision (OpenAI)</span>
+  {% elif _eng == 'tesseract' %}
+  <span class="rr-engine-dot rr-engine-dot--ocr"></span>
+  <span class="rr-engine-text">OCR Lokal (Tesseract)</span>
+  {% else %}
+  <span class="rr-engine-dot"></span>
+  <span class="rr-engine-text">{{ _eng }}</span>
+  {% endif %}
+</div>
+{% endif %}
+
 <div class="rr-status" role="status">
   {% if conf == 'HIGH' %}
   <span class="rr-status-dot rr-status-dot--ok"></span>
