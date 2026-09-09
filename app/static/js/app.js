@@ -123,7 +123,98 @@
     var form = document.getElementById('receipt-form');
     if (!input || !form) return;
 
-    var maxMb = parseInt(form.dataset.maxMb || '5', 10);
+    var maxMb = parseInt(form.dataset.maxMb || '3', 10);
+
+    // ---- client-side image compression ----
+    // Production reality: a 50 MP Android camera can produce a 10-20 MB JPEG.
+    // Uploading that on slow mobile (3G/4G) easily exceeds Cloudflare's
+    // 100-second free-tier read timeout and the browser shows
+    // ERR_CONNECTION_ABORTED.  Solution: resize + re-encode in the browser
+    // BEFORE the upload so the body is small (typically 200-500 KB) and the
+    // request finishes in a few seconds on any connection.  Server-side
+    // validation still runs (defence in depth); we never send garbage that
+    // can't be decoded.
+    var _COMPRESS_MAX_WIDTH = 1600;     // ~1280-1600 keeps OCR-grade text legibility
+    var _COMPRESS_QUALITY = 0.82;
+    var _COMPRESS_MIN_BYTES = 50 * 1024; // skip tiny inputs (<50 KB) — already small
+    var _COMPRESS_MAX_BYTES = 250 * 1024; // target: 150-250 KB after compression
+    function compressImage(file, cb) {
+      // GIFs and SVGs are not raster -> skip; pass through.
+      if (!file || !/^image\//.test(file.type)) { cb(file); return; }
+      if (file.type === 'image/gif' || file.type === 'image/svg+xml') { cb(file); return; }
+      // Already small? Don't waste CPU.
+      if (file.size <= _COMPRESS_MIN_BYTES) { cb(file); return; }
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var w = img.naturalWidth || img.width;
+          var h = img.naturalHeight || img.height;
+          if (!w || !h) { URL.revokeObjectURL(url); cb(file); return; }
+          var scale = w > _COMPRESS_MAX_WIDTH ? (_COMPRESS_MAX_WIDTH / w) : 1;
+          var cw = Math.max(1, Math.round(w * scale));
+          var ch = Math.max(1, Math.round(h * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = cw; canvas.height = ch;
+          var ctx = canvas.getContext('2d');
+          if (!ctx) { URL.revokeObjectURL(url); cb(file); return; }
+          ctx.drawImage(img, 0, 0, cw, ch);
+          URL.revokeObjectURL(url);
+          // Always emit JPEG for the body — keeps OCR quality at q=0.82 and
+          // gives a predictable, small payload. Filename + extension track
+          // the original so the user still sees "IMG_20240101.jpg".
+          var origName = (file.name || 'receipt.jpg').replace(/\.[^.]+$/, '') + '.jpg';
+          // Try the target quality; if still too big, drop to 0.7.
+          var tryEncode = function (q, fallback) {
+            canvas.toBlob(function (blob) {
+              if (!blob) { cb(file); return; }
+              if (blob.size > _COMPRESS_MAX_BYTES && q > 0.6) {
+                tryEncode(Math.max(0.55, q - 0.1), true);
+              } else {
+                var compressed = new File([blob], origName, {
+                  type: 'image/jpeg', lastModified: Date.now(),
+                });
+                cb(compressed, { original: file.size, compressed: blob.size,
+                                 width: cw, height: ch });
+              }
+            }, 'image/jpeg', q);
+          };
+          tryEncode(_COMPRESS_QUALITY, false);
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          cb(file);
+        }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); cb(file); };
+      img.src = url;
+    }
+    function adoptCompressed(file, original, opts) {
+      if (!file) { setError('Gagal memproses foto.'); return; }
+      // If compression was a no-op, `opts` is undefined.
+      var wasCompressed = !!(opts && opts.compressed && opts.compressed < original);
+      var dataTransfer = new DataTransfer();
+      dataTransfer.items.add(file);
+      input.files = dataTransfer.files;
+      var prev = document.getElementById('preview');
+      var imgEl = document.getElementById('preview-img');
+      var nameEl = document.getElementById('preview-name');
+      var sizeEl = document.getElementById('preview-size');
+      if (nameEl) nameEl.textContent = file.name;
+      if (sizeEl) {
+        sizeEl.textContent = (file.size / 1024).toFixed(1) + ' KB' +
+          (wasCompressed ? ' (ringan)' : '');
+      }
+      if (imgEl) {
+        imgEl.onload = function () { if (prev) prev.classList.remove('hidden'); };
+        imgEl.src = URL.createObjectURL(file);
+      }
+    }
+    function setError(msg) {
+      var e = document.getElementById('upload-error');
+      if (!e) return;
+      e.textContent = msg;
+      e.classList.remove('hidden');
+    }
 
     // ---- mobile picker (camera / gallery) ----
     var picker = document.getElementById('picker-modal');
@@ -164,16 +255,9 @@
     }
 
     // Move a file picked from either source into the main form input so the
-    // existing validation/preview/submit flow handles it unchanged.
-    function adoptFile(src) {
-      if (src && src.files && src.files[0]) {
-        var dt = new DataTransfer();
-        dt.items.add(src.files[0]);
-        input.files = dt.files;
-        input.dispatchEvent(new Event('change'));
-        closePicker();
-      }
-    }
+    // existing validation/preview/submit flow handles it unchanged.  The
+    // camera/gallery change handlers (below) call compressImage() first and
+    // then adoptCompressed() to write the smaller body into the main input.
 
     if (picker) {
       // On mobile: tap upload zone → open source picker.
@@ -192,14 +276,32 @@
           closePicker();
           inputCamera.click();
         });
-        inputCamera.addEventListener('change', function () { adoptFile(inputCamera); });
+        inputCamera.addEventListener('change', function () {
+          if (inputCamera.files && inputCamera.files[0]) {
+            var picked = inputCamera.files[0];
+            showCompressing('Mengompres foto…');
+            compressImage(picked, function (file, opts) {
+              hideCompressing();
+              adoptCompressed(file, picked.size, opts);
+            });
+          }
+        });
       }
       if (btnGallery && inputGallery) {
         btnGallery.addEventListener('click', function () {
           closePicker();
           inputGallery.click();
         });
-        inputGallery.addEventListener('change', function () { adoptFile(inputGallery); });
+        inputGallery.addEventListener('change', function () {
+          if (inputGallery.files && inputGallery.files[0]) {
+            var picked = inputGallery.files[0];
+            showCompressing('Mengompres foto…');
+            compressImage(picked, function (file, opts) {
+              hideCompressing();
+              adoptCompressed(file, picked.size, opts);
+            });
+          }
+        });
       }
       if (btnCancel) btnCancel.addEventListener('click', closePicker);
       // backdrop click closes
@@ -209,33 +311,58 @@
       });
     }
 
+    function showCompressing(msg) {
+      var zone = document.getElementById('upload-zone');
+      if (!zone) return;
+      var prev = zone.innerHTML;
+      zone.setAttribute('data-prev-html', prev);
+      zone.innerHTML =
+        '<div class="upload-compressing" role="status">' +
+        '<div class="spinner" aria-hidden="true"></div>' +
+        '<div class="upload-compressing-text">' + (msg || 'Mengompres foto…') + '</div>' +
+        '</div>';
+    }
+    function hideCompressing() {
+      var zone = document.getElementById('upload-zone');
+      if (!zone) return;
+      var prev = zone.getAttribute('data-prev-html');
+      if (prev != null) { zone.innerHTML = prev; zone.removeAttribute('data-prev-html'); }
+    }
+
     input.addEventListener('change', function () {
       var err = document.getElementById('upload-error');
       var prev = document.getElementById('preview');
-      var img = document.getElementById('preview-img');
-      var name = document.getElementById('preview-name');
-      var size = document.getElementById('preview-size');
       err.classList.add('hidden');
 
       var f = input.files && input.files[0];
       if (!f) { prev.classList.add('hidden'); return; }
 
       if (!/^image\//.test(f.type)) {
-        err.textContent = 'File harus berupa gambar (JPG/PNG/WebP).';
-        err.classList.remove('hidden');
+        setError('File harus berupa gambar (JPG/PNG/WebP).');
         input.value = ''; prev.classList.add('hidden');
         return;
       }
       if (f.size > maxMb * 1024 * 1024) {
-        err.textContent = 'Ukuran maksimal ' + maxMb + ' MB.';
-        err.classList.remove('hidden');
+        setError('Ukuran maksimal ' + maxMb + ' MB.');
         input.value = ''; prev.classList.add('hidden');
         return;
       }
-      name.textContent = f.name;
-      size.textContent = (f.size / 1024).toFixed(1) + ' KB';
-      img.onload = function () { prev.classList.remove('hidden'); };
-      img.src = URL.createObjectURL(f);
+      // Show preview immediately for the original, then run compression
+      // asynchronously and replace the file with the compressed version.
+      var prevImg = document.getElementById('preview-img');
+      var nameEl = document.getElementById('preview-name');
+      var sizeEl = document.getElementById('preview-size');
+      if (nameEl) nameEl.textContent = f.name;
+      if (sizeEl) sizeEl.textContent = (f.size / 1024).toFixed(1) + ' KB';
+      if (prevImg) {
+        prevImg.onload = function () { prev.classList.remove('hidden'); };
+        prevImg.src = URL.createObjectURL(f);
+      }
+      // Always run compression so we get a small, predictable upload body.
+      // For files already <50 KB this is a no-op.
+      compressImage(f, function (file, opts) {
+        adoptCompressed(file, f.size, opts);
+      });
     });
 
     ['dragover', 'dragleave', 'drop'].forEach(function (ev) {
@@ -250,7 +377,31 @@
       });
     });
 
-    form.addEventListener('submit', function () {
+    form.addEventListener('submit', function (e) {
+      // If a file is selected, ensure it has been through compression before
+      // the form posts.  compressImage() is async — if it's still running, we
+      // delay the submit so the small compressed body goes over the wire.
+      var f = input.files && input.files[0];
+      if (f && f.size > _COMPRESS_MIN_BYTES) {
+        e.preventDefault();
+        var b = document.getElementById('submit-btn');
+        if (b) { b.disabled = true; b.textContent = 'Mengompres…'; }
+        var zone = document.getElementById('upload-zone');
+        if (zone) zone.classList.add('hidden');
+        var err = document.getElementById('upload-error');
+        if (err) err.classList.add('hidden');
+        compressImage(f, function (file) {
+          if (file) {
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+          }
+          if (b) b.textContent = 'Mengupload…';
+          // Re-submit — this time without preventDefault, so it goes through.
+          form.submit();
+        });
+        return;
+      }
       var b = document.getElementById('submit-btn');
       if (b) { b.disabled = true; b.textContent = 'Mengupload…'; }
       var zone = document.getElementById('upload-zone');
@@ -313,11 +464,58 @@
     setTimeout(function () { b.classList.remove('running'); }, 1100);
   }
 
+/* ---------- Money input sanitizer ----------
+   * Conservative: never silently strip invalid characters.
+   * Only canonical Indonesian forms are accepted by the backend:
+   *   optional "Rp" + digits with optional dot thousands separators.
+   * On invalid input we do NOT mutate the value; we flag custom validity
+   * so the browser prevents submit. The backend remains authoritative. */
+  var MONEY_RE = /^\d+(\.\d{3})*$/;
+  function moneySanitize(raw) {
+    var rp = /^[Rr][Pp]\s*/.exec(raw) || /^\s*/.exec(raw);
+    return { prefix: rp[0], rest: raw.slice(rp[0].length) };
+  }
+  function moneyRecognize(raw) {
+    if (raw == null) return null;
+    var p = moneySanitize(String(raw).trim());
+    var rest = p.rest;
+    if (!MONEY_RE.test(rest)) return null;
+    return p.prefix === '' ? p.rest : p.prefix + p.rest;
+  }
+  function initMoneyInputs() {
+    var moneyFields = document.querySelectorAll('input[inputmode="numeric"]');
+    for (var i = 0; i < moneyFields.length; i++) {
+      (function (el) {
+        var setMoneyValidity = function () {
+          var raw = el.value;
+          if (el.hasAttribute('required') && (!raw || moneyRecognize(raw) === null)) {
+            el.setCustomValidity('Nominal harus berupa angka bulat (contoh: 10000 atau 10.000).');
+          } else if (!el.hasAttribute('required') && raw && moneyRecognize(raw) === null) {
+            el.setCustomValidity('Nominal harus berupa angka bulat (contoh: 10000 atau 10.000).');
+          } else {
+            el.setCustomValidity('');
+          }
+        };
+        el.addEventListener('input', setMoneyValidity);
+        el.addEventListener('blur', setMoneyValidity);
+        el.addEventListener('change', setMoneyValidity);
+        // Paste: only allow the clipboard text if it is a valid canonical form.
+        el.addEventListener('paste', function (e) {
+          var text = (e.clipboardData || window.clipboardData).getData('text');
+          if (text && moneyRecognize(text) === null) {
+            e.preventDefault();
+            el.setCustomValidity('Nominal harus berupa angka bulat (contoh: 10000 atau 10.000).');
+          }
+        });
+      })(moneyFields[i]);
+    }
+  }
   document.addEventListener('DOMContentLoaded', function () {
     runLoadbar();
     initReveal();
     initNetWorthChart();
     initReceiptUpload();
     initQuickCats();
+    initMoneyInputs();
   });
 })();

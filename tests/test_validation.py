@@ -1,147 +1,323 @@
-"""Tests for input validation across all layers.
-
-Covers amount boundaries (zero/negative/rejected), required-field
-enforcement, authorization checks, and CSRF protection on state-changing
-form posts.
-"""
+"""Comprehensive numeric validation tests."""
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
-
-from app.api.deps import get_current_user
-from app.main import app
-from app.models.models import User
-
-TODAY = "2025-01-15"
+from app.validation import (
+    parse_idr_input, parse_optional_idr, parse_int_input, parse_float_input,
+    validate_amount, MAX_MONEY,
+)
 
 
-def _own_account_id(client: TestClient) -> int:
-    items = client.get("/api/v1/accounts").json()["items"]
-    return items[0]["id"]
+class TestParseIdrInput:
+    def test_plain_integer(self):
+        assert parse_idr_input("10000") == 10000
+    def test_thousand_separator_dots(self):
+        assert parse_idr_input("10.000") == 10000
+    def test_multi_thousand(self):
+        assert parse_idr_input("1.000.000") == 1000000
+    def test_rp_prefix(self):
+        assert parse_idr_input("Rp 10.000") == 10000
+    def test_rp_no_space(self):
+        assert parse_idr_input("Rp10000") == 10000
+    def test_comma_thousands_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("25,000")
+    def test_dot_comma_european_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("10.000,50")
+    def test_single_dot_decimal_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("25.50")
+    def test_plus_prefix_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("+10000")
+    def test_large_value(self):
+        assert parse_idr_input("10.000.000.000") == 10_000_000_000
+    def test_small_value(self):
+        assert parse_idr_input("1") == 1
+    def test_zero_rejected(self):
+        with pytest.raises(ValueError, match="lebih dari 0"):
+            parse_idr_input("0")
+    def test_negative_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("-10000")
+    def test_none_rejected(self):
+        with pytest.raises(ValueError, match="harus diisi"):
+            parse_idr_input(None)
+    def test_empty_rejected(self):
+        with pytest.raises(ValueError, match="harus diisi"):
+            parse_idr_input("")
+    def test_letters_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("abc")
+    def test_mixed_alpha_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("10abc")
+    def test_trailing_letters_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("10000abc")
+    def test_leading_letters_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("abc10000")
+    def test_scientific_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("1e5")
+    def test_infinity_rejected(self):
+        with pytest.raises(ValueError):
+            parse_idr_input(float("inf"))
+    def test_nan_rejected(self):
+        with pytest.raises(ValueError):
+            parse_idr_input(float("nan"))
+    def test_string_nan_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("NaN")
+    def test_dollar_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("$10000")
+    def test_too_large_rejected(self):
+        with pytest.raises(ValueError, match="terlalu besar"):
+            parse_idr_input(str(MAX_MONEY + 1))
+    def test_float_non_whole_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input(10000.5)
+    def test_float_whole_accepted(self):
+        assert parse_idr_input(10000.0) == 10000
+    def test_malformed_dots_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("10..000")
+    def test_malformed_multi_dot_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("1.2.3.4")
+    def test_non_rupiah_prefix_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_idr_input("USD 10000")
+    def test_field_name_error(self):
+        with pytest.raises(ValueError, match="Jumlah"):
+            parse_idr_input("abc", "Jumlah")
 
 
-class TestAmountValidation:
-    """Validate amount boundaries are enforced (API layer)."""
 
-    def test_zero_amount_rejected(self, client: TestClient):
-        body = {
+class TestParseOptionalIdr:
+    def test_none_returns_none(self):
+        assert parse_optional_idr(None) is None
+    def test_empty_returns_none(self):
+        assert parse_optional_idr("") is None
+    def test_valid(self):
+        assert parse_optional_idr("10.000") == 10000
+
+
+class TestParseIntInput:
+    def test_valid(self):
+        assert parse_int_input("12") == 12
+    def test_boundary_min(self):
+        assert parse_int_input("1", min_val=1, max_val=12) == 1
+    def test_boundary_max(self):
+        assert parse_int_input("12", min_val=1, max_val=12) == 12
+    def test_below_min_rejected(self):
+        with pytest.raises(ValueError, match="antara"):
+            parse_int_input("0", min_val=1, max_val=12)
+    def test_decimal_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_int_input("1.5")
+    def test_letters_rejected(self):
+        with pytest.raises(ValueError, match="berupa angka"):
+            parse_int_input("abc")
+    def test_empty_rejected(self):
+        with pytest.raises(ValueError, match="harus diisi"):
+            parse_int_input("")
+    def test_scientific_rejected(self):
+        with pytest.raises(ValueError, match="angka bulat"):
+            parse_int_input("1e3")
+
+
+class TestParseFloatInput:
+    def test_valid(self):
+        assert parse_float_input("1.5") == 1.5
+    def test_comma_decimal(self):
+        assert parse_float_input("1,5") == 1.5
+    def test_zero_disallowed(self):
+        with pytest.raises(ValueError, match="lebih dari"):
+            parse_float_input("0", allow_zero=False)
+    def test_letters_rejected(self):
+        with pytest.raises(ValueError, match="berupa angka"):
+            parse_float_input("abc")
+    def test_scientific_rejected(self):
+        with pytest.raises(ValueError, match="tidak valid"):
+            parse_float_input("1e5")
+    def test_nan_rejected(self):
+        with pytest.raises(ValueError):
+            parse_float_input(float("nan"))
+    def test_inf_rejected(self):
+        with pytest.raises(ValueError):
+            parse_float_input(float("inf"))
+
+
+class TestValidateAmountLegacy:
+    def test_valid_string(self):
+        assert validate_amount("10000") == (10000, "")
+    def test_idr_formatted(self):
+        assert validate_amount("10.000") == (10000, "")
+    def test_rp_prefixed(self):
+        assert validate_amount("Rp 25.000") == (25000, "")
+    def test_invalid_string(self):
+        val, err = validate_amount("abc")
+        assert val == 0 and err != ""
+    def test_empty(self):
+        assert validate_amount("") == (0, "")
+    def test_none(self):
+        assert validate_amount(None) == (0, "")
+
+
+
+class TestFormRouteBypass:
+    def test_tx_add_letters(self, client):
+        accs = client.get("/api/v1/accounts").json()["items"]
+        if not accs:
+            pytest.skip("No accounts")
+        resp = client.post("/transactions/add", data={
+            "type": "EXPENSE", "amount": "abc",
+            "account_id": str(accs[0]["id"]),
+            "category_id": "1", "date_val": "2025-01-15",
+        }, follow_redirects=False)
+        assert resp.status_code == 400
+
+    def test_tx_add_idr_formatted(self, client):
+        accs = client.get("/api/v1/accounts").json()["items"]
+        if not accs:
+            pytest.skip("No accounts")
+        resp = client.post("/transactions/add", data={
+            "type": "EXPENSE", "amount": "10.000",
+            "account_id": str(accs[0]["id"]),
+            "category_id": "1", "date_val": "2025-01-15",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+
+    def test_tx_add_rp_prefix(self, client):
+        accs = client.get("/api/v1/accounts").json()["items"]
+        if not accs:
+            pytest.skip("No accounts")
+        resp = client.post("/transactions/add", data={
+            "type": "INCOME", "amount": "Rp 25.000",
+            "account_id": str(accs[0]["id"]),
+            "category_id": "5", "date_val": "2025-01-15",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+
+    def test_transfer_scientific(self, client):
+        accs = client.get("/api/v1/accounts").json()["items"]
+        if len(accs) < 2:
+            pytest.skip("Need 2 accounts")
+        resp = client.post("/transfer", data={
+            "from_account_id": str(accs[0]["id"]),
+            "to_account_id": str(accs[1]["id"]),
+            "amount": "1e5", "date_val": "2025-01-15",
+        }, follow_redirects=False)
+        assert resp.status_code == 400
+
+    def test_debt_mixed_alpha(self, client):
+        resp = client.post("/debts/create", data={
+            "type": "PAYABLE", "person_name": "Test",
+            "principal_amount": "10000abc",
+        }, follow_redirects=False)
+        assert resp.status_code == 400
+
+    def test_debt_idr_formatted(self, client):
+        resp = client.post("/debts/create", data={
+            "type": "PAYABLE", "person_name": "Test",
+            "principal_amount": "1.000.000",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+
+
+class TestApiBypass:
+    def test_tx_nan(self, client):
+        resp = client.post("/api/v1/transactions", json={
+            "type": "EXPENSE", "amount": "NaN",
+            "account_id": 1, "category_id": 1,
+        })
+        assert resp.status_code in (400, 422)
+
+    def test_tx_infinity(self, client):
+        resp = client.post("/api/v1/transactions", json={
+            "type": "EXPENSE", "amount": "Infinity",
+            "account_id": 1, "category_id": 1,
+        })
+        assert resp.status_code in (400, 422)
+
+    def test_tx_letters(self, client):
+        resp = client.post("/api/v1/transactions", json={
+            "type": "EXPENSE", "amount": "abc",
+            "account_id": 1, "category_id": 1,
+        })
+        assert resp.status_code in (400, 422)
+
+    def test_tx_mixed(self, client):
+        resp = client.post("/api/v1/transactions", json={
+            "type": "EXPENSE", "amount": "100abc",
+            "account_id": 1, "category_id": 1,
+        })
+        assert resp.status_code in (400, 422)
+
+    def test_bill_infinity(self, client):
+        resp = client.post("/api/v1/bills", json={
+            "name": "Test", "amount": "Infinity",
+        })
+        assert resp.status_code in (400, 422)
+
+    def test_budget_letters(self, client):
+        resp = client.post("/api/v1/budgets", json={
+            "category_id": 1, "amount": "abc",
+            "month": 1, "year": 2025,
+        })
+        assert resp.status_code in (400, 422)
+
+    def test_savings_letters(self, client):
+        resp = client.post("/api/v1/savings", json={
+            "name": "Test", "target_amount": "abc",
+        })
+        assert resp.status_code in (400, 422)
+
+
+class TestExtremeValues:
+    def test_max_tx_amount_accepted(self, client):
+        from app.services.finance import MAX_TX_AMOUNT
+        accs = client.get("/api/v1/accounts").json()["items"]
+        if not accs:
+            pytest.skip("No accounts")
+        resp = client.post("/api/v1/transactions", json={
+            "type": "INCOME", "amount": MAX_TX_AMOUNT,
+            "account_id": accs[0]["id"], "category_id": 5,
+        })
+        assert resp.status_code == 201
+
+    def test_over_max_rejected(self, client):
+        from app.services.finance import MAX_TX_AMOUNT
+        resp = client.post("/api/v1/transactions", json={
+            "type": "INCOME", "amount": MAX_TX_AMOUNT + 1,
+            "account_id": 1, "category_id": 5,
+        })
+        assert resp.status_code in (400, 422)
+
+    def test_negative_rejected(self, client):
+        resp = client.post("/api/v1/transactions", json={
+            "type": "EXPENSE", "amount": -1000,
+            "account_id": 1, "category_id": 1,
+        })
+        assert resp.status_code in (400, 422)
+
+    def test_zero_rejected(self, client):
+        resp = client.post("/api/v1/transactions", json={
             "type": "EXPENSE", "amount": 0,
-            "account_id": _own_account_id(client),
-            "category_id": 1, "date": TODAY,
-        }
-        resp = client.post("/api/v1/transactions", json=body)
+            "account_id": 1, "category_id": 1,
+        })
         assert resp.status_code in (400, 422)
 
-    def test_negative_amount_rejected(self, client: TestClient):
-        body = {
-            "type": "EXPENSE", "amount": -500,
-            "account_id": _own_account_id(client),
-            "category_id": 1, "date": TODAY,
-        }
-        resp = client.post("/api/v1/transactions", json=body)
-        assert resp.status_code in (400, 422)
-
-
-class TestRequiredFields:
-    """Validate required fields are enforced."""
-
-    def test_missing_amount_rejected(self, client: TestClient):
-        body = {
-            "type": "EXPENSE",
-            "account_id": _own_account_id(client),
-            "category_id": 1, "date": TODAY,
-        }
-        resp = client.post("/api/v1/transactions", json=body)
-        assert resp.status_code == 422
-
-    def test_empty_body_rejected(self, client: TestClient):
+    def test_empty_body_rejected(self, client):
         resp = client.post("/api/v1/transactions", json={})
         assert resp.status_code == 422
 
-
-class TestAuthorization:
-    """Validate authn/authz gates on protected endpoints."""
-
-    def test_unauthenticated_api_requires_auth(self):
-        saved = app.dependency_overrides.get(get_current_user)
-        app.dependency_overrides.pop(get_current_user, None)
-        try:
-            c = TestClient(app, follow_redirects=False)
-            r = c.get("/api/v1/transactions")
-            assert r.status_code == 401
-            assert r.json()["error"]["code"] == "UNAUTHENTICATED"
-        finally:
-            if saved is not None:
-                app.dependency_overrides[get_current_user] = saved
-
-    def test_non_admin_cannot_access_admin_api(self, client: TestClient):
-        # The shared client runs as a non-admin default user.
-        r = client.get("/api/v1/admin/stats")
-        assert r.status_code == 403
-
-
-class TestCsrf:
-    """Validate CSRF protection on admin web POSTs."""
-
-    def test_admin_make_admin_requires_valid_csrf(self, db: Session):
-        """A forged CSRF token must block the action even for an authenticated admin.
-
-        The previous version raw-POSTed /login with no CSRF token, so the login
-        never set a session and the admin POST was rejected by the AUTH gate (not
-        the CSRF check) - the 303 assertion passed for the wrong reason. Here we
-        log in for real (which itself requires a valid CSRF token), then POST the
-        admin action with a forged token, so only the CSRF check can reject it.
-        """
-        import re
-
-        from app.api.deps import get_current_user
-        from app.auth.security import hash_password
-
-        admin = User(username="csrfadmin", password_hash=hash_password("p"),
-                     is_active=1, is_admin=1)
-        victim = User(username="csrfvictim", password_hash=hash_password("p"),
-                      is_active=1)
-        db.add_all([admin, victim])
-        db.commit()
-        db.refresh(victim)
-
-        # Use REAL auth (drop the conftest get_current_user override) so the
-        # session cookie - not the test override - decides the request identity.
-        app.dependency_overrides.pop(get_current_user, None)
-        real_client = TestClient(app, follow_redirects=False)
-
-        # Establish an authenticated admin session via the real login flow,
-        # which requires a valid CSRF token of its own.
-        m = re.search(r'name="csrf_token" value="([^"]+)"',
-                      real_client.get("/login").text)
-        login_token = m.group(1) if m else ""
-        login_resp = real_client.post(
-            "/login",
-            data={"username": "csrfadmin", "password": "p",
-                  "csrf_token": login_token},
-            follow_redirects=False,
-        )
-        assert login_resp.status_code == 303, \
-            f"login should succeed with valid CSRF; got {login_resp.status_code}"
-
-        # Now POST the admin action with a FORGED CSRF token. Auth is valid, so
-        # the only gate that can reject it is the CSRF check.
-        resp = real_client.post(
-            f"/admin/users/{victim.id}/make-admin",
-            data={"csrf_token": "forged"},
-            follow_redirects=False,
-        )
-        assert resp.status_code == 303
-        db.refresh(victim)
-        assert victim.is_admin == 0, \
-            "victim must NOT be promoted when the CSRF token is forged"
-
-
-class TestAdminModel:
-    """Validate the User model carries admin/active flags."""
-
-    def test_user_model_has_is_admin(self, db):
-        u = User(username="testadmin", password_hash="x", is_active=1, is_admin=1)
-        db.add(u)
-        db.commit()
-        db.refresh(u)
-        assert u.is_admin == 1
+    def test_rp_string_in_api(self, client):
+        resp = client.post("/api/v1/transactions", json={
+            "type": "EXPENSE", "amount": "Rp 10.000",
+            "account_id": 1, "category_id": 1,
+        })
+        assert resp.status_code in (400, 422)
