@@ -91,10 +91,6 @@
                     <span>Admin</span>
                 </a>
                 {% endif %}
-                <a href="/help" class="sidebar-nav-item {% if '/help' in request.url.path %}active{% endif %}">
-                    <span class="icon">📚</span>
-                    <span>Bantuan</span>
-                </a>
             </nav>
             <div class="sidebar-bottom">
                 <div class="sidebar-user">👤 {{ request.state.user.username }}</div>
