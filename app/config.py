@@ -51,62 +51,54 @@ class Settings(BaseSettings):
     # OCR language fallback chain: ind+eng -> eng -> none
     RECEIPT_OCR_LANG: str = os.environ.get("RECEIPT_OCR_LANG", "ind+eng")
 
-    # Optional AI vision OCR engine. Preferred over Tesseract when the
-    # endpoint+model respond; otherwise local path is kept.
-    # Back-compat: these stay as defaults; Ollama scanner reads OLLAMA_*
-    # below.
-    RECEIPT_AI_BASE_URL: str = os.environ.get(
-        "RECEIPT_AI_BASE_URL", "http://localhost:11434/v1")
-    RECEIPT_AI_MODEL: str = os.environ.get(
-        "RECEIPT_AI_MODEL", "llama3.2-vision")
-    RECEIPT_AI_TIMEOUT_SEC: float = float(
-        os.environ.get("RECEIPT_AI_TIMEOUT_SEC", "120"))
-    RECEIPT_AI_FALLBACK_TESSERACT: bool = os.environ.get(
-        "RECEIPT_AI_FALLBACK_TESSERACT", "1").lower() in ("1", "true", "yes")
-    RECEIPT_AI_MAX_IMAGE_WIDTH: int = int(
-        os.environ.get("RECEIPT_AI_MAX_IMAGE_WIDTH", "1280"))
-    # JPEG quality for the temporary downscaled inference image (higher keeps
-    # more small text, larger bytes; 80 is the documented low-RAM default).
-    RECEIPT_AI_JPEG_QUALITY: int = int(
-        os.environ.get("RECEIPT_AI_JPEG_QUALITY", "80"))
 
-    # ---- AI vision provider dispatch (PHASE: Ollama integration) ----
-    # Provider selector: "ollama" (native /api/chat) or "openai_compat"
-    # (/v1/chat/completions). Empty/disabled means AI off -> Tesseract only.
+    # ---- AI vision provider dispatch ----
+    # Provider selector: "openai" (default), "gemini", "ollama" (rollback),
+    # or "none" (Tesseract only). Empty/disabled means AI off -> Tesseract only.
     RECEIPT_AI_ENABLED: bool = os.environ.get(
         "RECEIPT_AI_ENABLED", "true").lower() in ("1", "true", "yes")
     RECEIPT_AI_PROVIDER: str = os.environ.get(
-        "RECEIPT_AI_PROVIDER", "ollama").strip().lower()
+        "RECEIPT_AI_PROVIDER", "openai").strip().lower()
 
     # ---- Native Ollama (moondream:1.8b-v2-q4_K_S on 127.0.0.1:11434) ----
-    # Production default (STANDARBENGKEL: ~3.6 GiB RAM, CPU-only, no GPU):
-    # moondream 1.8b Q4_K_S is the vision model. qwen2.5vl:3b pushed the box
-    # to ~99% RAM + swap, so it is NOT the production default. The model is a
-    # runtime env var on purpose - never hardcode it into pipeline code.
-    # Ollama runs on the HOST machine, NOT in a container - inside Docker
-    # this 127.0.0.1 would point at the container itself. Production here
-    # uses systemd (not Docker) so 127.0.0.1 reaches the host's Ollama.
-    # If/when containerised, override with host.docker.internal:11434
-    # (Docker Desktop) or the bridge gateway (e.g. 172.17.0.1:11434).
+    # Optional / rollback only. Not the default after cloud-provider support.
     OLLAMA_BASE_URL: str = os.environ.get(
         "OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     OLLAMA_VISION_MODEL: str = os.environ.get(
         "OLLAMA_VISION_MODEL", "moondream:1.8b-v2-q4_K_S")
     OLLAMA_TIMEOUT_SECONDS: float = float(
         os.environ.get("OLLAMA_TIMEOUT_SECONDS", "60"))
-    # num_ctx bounds KV-cache RAM on a 3.6 GB box; 2048 is enough for one
-    # receipt image + a short JSON reply.
     OLLAMA_NUM_CTX: int = int(os.environ.get("OLLAMA_NUM_CTX", "2048"))
-    # Max base64 size we'll send (~2 MB raw -> ~2.7 MB base64). Anything
-    # larger falls back to Tesseract to avoid OOM in Ollama.
     OLLAMA_MAX_IMAGE_BYTES: int = int(
         os.environ.get("OLLAMA_MAX_IMAGE_BYTES", str(2 * 1024 * 1024)))
-    # Hybrid Vision+OCR cross-check: run ONE extra cheap Tesseract pass over
-    # vision-processed receipts and reconcile totals (agree -> confidence up;
-    # conflict -> TOTAL_CONFLICT warning, never a silent overwrite).
+
+    # ---- OpenAI (cloud vision) ----
+    OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    OPENAI_BASE_URL: str = os.environ.get(
+        "OPENAI_BASE_URL", "https://api.openai.com/v1")
+    OPENAI_TIMEOUT_SECONDS: float = float(
+        os.environ.get("OPENAI_TIMEOUT_SECONDS", "60"))
+
+    # ---- Gemini / Google AI Studio (cloud vision, OpenAI-compatible endpoint) ----
+    GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "")
+    GEMINI_MODEL: str = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    # OpenAI-compatible shim for Gemini. Override for private/enterprise endpoints.
+    GEMINI_BASE_URL: str = os.environ.get(
+        "GEMINI_BASE_URL",
+        "https://generativelanguage.googleapis.com/v1beta/openai/")
+    GEMINI_TIMEOUT_SECONDS: float = float(
+        os.environ.get("GEMINI_TIMEOUT_SECONDS", "60"))
+
+    # ---- Shared image-preprocessing + cross-check knobs (used by all providers) ----
+    RECEIPT_AI_FALLBACK_TESSERACT: bool = os.environ.get(
+        "RECEIPT_AI_FALLBACK_TESSERACT", "1").lower() in ("1", "true", "yes")
+    RECEIPT_AI_MAX_IMAGE_WIDTH: int = int(
+        os.environ.get("RECEIPT_AI_MAX_IMAGE_WIDTH", "1280"))
+    RECEIPT_AI_JPEG_QUALITY: int = int(
+        os.environ.get("RECEIPT_AI_JPEG_QUALITY", "80"))
     RECEIPT_CROSSCHECK_TESSERACT: bool = os.environ.get(
         "RECEIPT_CROSSCHECK_TESSERACT", "1").lower() in ("1", "true", "yes")
-    # Cap for stored OCR raw text (bounds the ocr_data JSON blob size).
     RECEIPT_RAW_TEXT_MAX_CHARS: int = int(
         os.environ.get("RECEIPT_RAW_TEXT_MAX_CHARS", "4000"))
 

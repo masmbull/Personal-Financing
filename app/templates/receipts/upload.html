@@ -12,7 +12,7 @@
           data-max-mb="{{ max_mb }}">
         <label class="upload-zone" id="upload-zone">
             <input type="file" id="file-input" name="file" accept="image/*"
-                   capture="environment" class="sr-only" required>
+                   class="sr-only" required>
             <span class="upload-emoji">📷</span>
             <span class="upload-main">Ambil Foto Struk</span>
             <span class="upload-alt">🖼️ atau pilih dari galeri</span>
@@ -57,8 +57,4 @@
     </div>
 </div>
 
-{# Two dedicated inputs — one per source. Both feed the main form. #}
-<input type="file" id="file-input-camera" name="file" accept="image/*"
-       capture="environment" hidden>
-<input type="file" id="file-input-gallery" name="file" accept="image/*" hidden>
 {% endblock %}

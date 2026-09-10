@@ -1,8 +1,8 @@
-"""Unit tests for the optional AI-vision receipt scanner.
+"""Unit tests for the cloud AI-vision receipt scanner (OpenAI/Gemini).
 
-These never touch a live Ollama instance - they verify the pure parsing and
-encoding helpers plus the graceful-unavailable path. Live endpoint tests are
-left to test_real.py against a running Ollama.
+These never touch a live cloud API - they verify the pure parsing and
+encoding helpers plus the graceful-unavailable path. Provider injection is
+used instead of HTTP mocks where possible.
 """
 import os
 import sys
@@ -34,11 +34,16 @@ class TestExtractJson:
 
 
 class TestCoercion:
-    def test_int_none_and_bool(self):
-        assert ai._int(None) is None
-        assert ai._int(True) is None
-        assert ai._int("25000") == 25000
-        assert ai._int("25.000") is None  # not a valid int string
+    def test_money_coercion_none_bool_and_garbage(self):
+        # Money fields go through parse_id_money: None/bools/garbage -> None
+        # (never raises), and Indonesian thousands separators are honoured.
+        out = ai._clean_items([{"name": "A", "quantity": True,
+                                "unit_price": "25.000",
+                                "total_price": "not-a-number"}])
+        assert len(out) == 1
+        assert out[0].quantity is None
+        assert out[0].unit_price == 25000  # "25.000" == 25000 in IDR format
+        assert out[0].total_price is None
 
     def test_n_strips_whitespace(self):
         assert ai._n("  Indomaret  ") == "Indomaret"
@@ -56,32 +61,32 @@ class TestCoercion:
         assert out[0].total_price == 6000
 
 
+class _FakeProvider:
+    """Minimal vision provider: injectable so no HTTP mocking is needed."""
+
+    def __init__(self, data, name="openai"):
+        self._data = data
+        self.name = name
+
+    def extract(self, image_b64):
+        return self._data
+
+
 class TestScanResultCoercion:
     def test_scan_builds_receipt_scan_result(self, monkeypatch):
-        svc = ai.AIVisionReceiptScannerService(
-            base_url="http://test.invalid/v1", model="m")
-        svc._available = True  # bypass probing
-
         fake = {"merchant": "Indomaret", "date": "2026-08-31",
                 "time": "14:22", "total_amount": 17500, "subtotal": 17500,
                 "tax": None, "discount": None, "payment_method": "DEBIT",
                 "items": [{"name": "Susu", "quantity": 1,
                            "unit_price": 17500, "total_price": 17500}]}
+        svc = ai.CloudReceiptScannerService(provider=_FakeProvider(fake))
         monkeypatch.setattr(
-            ai.httpx, "post",
-            lambda *a, json=None, timeout=None, **k: _FakeResp(200, {
-                "choices": [{"message": {"content": '{"merchant": '
-                                                    '"Indomaret","date": "2026-08-31",'
-                                                    '"time": "14:22","total_amount": 17500,'
-                                                    '"subtotal": 17500,"tax": null,'
-                                                    '"discount": null,"payment_method": "DEBIT",'
-                                                    '"items": [{"name": "Susu","quantity": 1,'
-                                                    '"unit_price": 17500,"total_price": 17500}]}'}}]}))
-        monkeypatch.setattr(ai, "_image_to_b64", lambda p: "data:image/jpeg;base64,xxx")
+            ai, "_image_to_b64", lambda p: "data:image/jpeg;base64,xxx")
 
         res = svc.scan("some.jpg")
         assert isinstance(res, ReceiptScanResult)
         assert res.status == "processed"
+        assert res.engine == "cloud-openai"
         assert res.merchant == "Indomaret"
         assert res.total_amount == 17500
         assert res.payment_method == "DEBIT"
@@ -90,47 +95,15 @@ class TestScanResultCoercion:
         assert res.confidence in ("HIGH", "MEDIUM", "LOW")
 
 
-class _FakeResp:
-    def __init__(self, status, body):
-        self._b = body
-
-    def raise_for_status(self):
-        return None
-
-    def json(self):
-        return self._b
-
-
 class TestNever500OnBadModelData:
     def test_malformed_items_still_return_processed(self, monkeypatch):
         # Model returned garbage that compute_confidence would choke on; the
         # scanner must degrade (processed/LOW) and NEVER bubble a 500.
-        svc = ai.AIVisionReceiptScannerService(
-            base_url="http://test.invalid/v1", model="m")
-        svc._available = True
-        # items entries that survive _clean_items but break compute_confidence
-        # (e.g. a float total_price -> sum still works; force a crash by making
-        # compute_confidence raise via a member with a bad attribute type).
-        from app.services.receipt_ocr import ReceiptItem
-
-        def fake_post(url, *, json=None, timeout=None, **k):
-            content = json["messages"][1]["content"]
-
-            class R:
-                def raise_for_status(self):
-                    return None
-
-                def json(self):
-                    return {"choices": [{"message": {"content": '{"merchant": "X",'
-                                                        '"total_amount": 100,'
-                                                        '"items": [{"name": "A",'
-                                                        '"total_price": "not-a-number"}]}'}}]}
-            return R()
-
-        monkeypatch.setattr(ai.httpx, "post", fake_post)
+        fake = {"merchant": "X", "total_amount": 100,
+                "items": [{"name": "A", "total_price": "not-a-number"}]}
+        svc = ai.CloudReceiptScannerService(provider=_FakeProvider(fake))
         monkeypatch.setattr(ai, "_image_to_b64", lambda p: "data:x")
         # Force the result-build path to raise so the degrade branch is hit.
-        real_ci = __import__("app.services.receipt_ocr", fromlist=["compute_confidence"]).compute_confidence
         monkeypatch.setattr(
             __import__("app.services.receipt_ocr", fromlist=["compute_confidence"]),
             "compute_confidence",
@@ -139,13 +112,15 @@ class TestNever500OnBadModelData:
         res = svc.scan("x.jpg")
         assert res.status == "processed"
         assert res.confidence == "LOW"
-
+        assert res.merchant == "X"
+        assert res.total_amount == 100
 
 
 class TestUnavailable:
-    def test_probe_service_returns_none_when_offline(self, monkeypatch):
-        # Mock httpx.get to fail fast (simulating unreachable Ollama).
-        def fake_get(*a, **k):
-            raise Exception("Connection refused")
-        monkeypatch.setattr(ai.httpx, "get", fake_get)
-        assert ai._probe_service() is None
+    def test_get_cloud_scanner_returns_none_without_key(self, monkeypatch):
+        # Missing API key must degrade to "no cloud scanner", never raise.
+        for provider, key in (("openai", "OPENAI_API_KEY"),
+                              ("gemini", "GEMINI_API_KEY")):
+            monkeypatch.setattr(ai.settings, "RECEIPT_AI_PROVIDER", provider)
+            monkeypatch.setattr(ai.settings, key, "")
+            assert ai.get_cloud_scanner() is None

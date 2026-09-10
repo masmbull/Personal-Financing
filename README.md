@@ -228,7 +228,14 @@ Database disimpan di `./data/finance.db` (persistent via bind mount `./data:/app
 | `AUTH_BOOTSTRAP_PASSWORD` | (kosong) | Password admin otomatis saat startup pertama |
 | `TESSERACT_CMD` | `tesseract` | Path ke executable Tesseract |
 | `RECEIPT_AI_ENABLED` | `true` | Enable AI-vision OCR |
-| `RECEIPT_AI_PROVIDER` | `ollama` | Provider AI (`ollama` / `openai_compat`) |
+| `RECEIPT_AI_PROVIDER` | `openai` | Provider AI (`openai` / `gemini` / `ollama` / `none`) |
+| `OPENAI_API_KEY` | (kosong) | API key OpenAI vision — wajib jika provider=openai |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Model vision OpenAI |
+| `OPENAI_TIMEOUT_SECONDS` | `60` | Timeout inference OpenAI (detik) |
+| `GEMINI_API_KEY` | (kosong) | API key Gemini vision — wajib jika provider=gemini |
+| `GEMINI_MODEL` | `gemini-2.0-flash` | Model vision Gemini |
+| `GEMINI_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` | Endpoint kompatibel OpenAI untuk Gemini |
+| `GEMINI_TIMEOUT_SECONDS` | `60` | Timeout inference Gemini (detik) |
 | `RECEIPT_AI_MAX_IMAGE_WIDTH` | `1280` | Resolusi maks gambar dikirim ke AI |
 | `RECEIPT_AI_JPEG_QUALITY` | `80` | JPEG quality gambar inference temp |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | URL Ollama (localhost only) |

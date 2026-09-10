@@ -44,8 +44,10 @@ def _ocr_estimate() -> tuple[int, str]:
     if s.RECEIPT_AI_ENABLED and s.RECEIPT_AI_PROVIDER == "ollama":
         ceil = max(15, int(s.OLLAMA_TIMEOUT_SECONDS))
         return ceil, f"\u00b115\u2013{ceil} detik"
-    if s.RECEIPT_AI_ENABLED and s.RECEIPT_AI_PROVIDER == "openai_compat":
-        ceil = max(15, int(s.RECEIPT_AI_TIMEOUT_SEC))
+    if s.RECEIPT_AI_ENABLED and s.RECEIPT_AI_PROVIDER in ("openai", "gemini"):
+        key = "OPENAI" if s.RECEIPT_AI_PROVIDER == "openai" else "GEMINI"
+        timeout = getattr(s, f"{key}_TIMEOUT_SECONDS")
+        ceil = max(20, int(timeout))
         return ceil, f"\u00b120\u2013{ceil} detik"
     # Tesseract-only (local CPU) or offline placeholder.
     return 8, "2\u20138 detik"

@@ -56,10 +56,10 @@ from app.models.models import (
 
 # Disable AI vision probe network calls in tests (no Ollama available;
 # would hang on TCP timeout even with short timeout). Patched before any
-# receipt path can trigger build_scanner() -> _probe_service().
+# receipt path can trigger build_scanner() -> get_cloud_scanner().
 import app.services.receipt_ai as _ai_mod
-_ai_mod._probe_service = lambda: None
-_ai_mod.AIVisionReceiptScannerService.available = lambda self: False
+_ai_mod.get_cloud_scanner = lambda: None
+_ai_mod.CloudReceiptScannerService.available = lambda self: False
 
 # Force background OCR to run synchronously in tests so daemon threads
 # don't race with setup_db's drop_all / create_all between tests.

@@ -221,21 +221,13 @@
     var btnCamera = document.getElementById('btn-camera');
     var btnGallery = document.getElementById('btn-gallery');
     var btnCancel = document.getElementById('btn-cancel');
-    var inputCamera = document.getElementById('file-input-camera');
-    var inputGallery = document.getElementById('file-input-gallery');
 
-    // Move picker modal and hidden inputs to <body> so position:fixed works
-    // even though the template renders inside <main> which has a CSS transform
-    // animation (pageIn).  Parent transforms create a containing block that
-    // breaks fixed positioning.
+    // Move the picker modal to <body> so position:fixed works even though the
+    // template renders inside <main> which has a CSS transform animation
+    // (pageIn).  Parent transforms create a containing block that breaks fixed
+    // positioning.  The single canonical file input stays inside the form.
     if (picker && picker.parentNode !== document.body) {
       document.body.appendChild(picker);
-    }
-    if (inputCamera && inputCamera.parentNode !== document.body) {
-      document.body.appendChild(inputCamera);
-    }
-    if (inputGallery && inputGallery.parentNode !== document.body) {
-      document.body.appendChild(inputGallery);
     }
 
     var pickerMql = window.matchMedia('(max-width: 768px)');
@@ -250,8 +242,6 @@
         picker.classList.remove('show');
         picker.setAttribute('hidden', '');
       }
-      if (inputCamera) inputCamera.value = '';
-      if (inputGallery) inputGallery.value = '';
     }
 
     // Move a file picked from either source into the main form input so the
@@ -271,36 +261,21 @@
           openPicker();
         });
       }
-      if (btnCamera && inputCamera) {
+      if (btnCamera) {
         btnCamera.addEventListener('click', function () {
           closePicker();
-          inputCamera.click();
-        });
-        inputCamera.addEventListener('change', function () {
-          if (inputCamera.files && inputCamera.files[0]) {
-            var picked = inputCamera.files[0];
-            showCompressing('Mengompres foto…');
-            compressImage(picked, function (file, opts) {
-              hideCompressing();
-              adoptCompressed(file, picked.size, opts);
-            });
-          }
+          input.setAttribute('capture', 'environment');
+          input.click();
+          // Clear the capture flag shortly after so the gallery path and any
+          // subsequent camera pick both start from a clean state.
+          setTimeout(function () { input.removeAttribute('capture'); }, 500);
         });
       }
-      if (btnGallery && inputGallery) {
+      if (btnGallery) {
         btnGallery.addEventListener('click', function () {
           closePicker();
-          inputGallery.click();
-        });
-        inputGallery.addEventListener('change', function () {
-          if (inputGallery.files && inputGallery.files[0]) {
-            var picked = inputGallery.files[0];
-            showCompressing('Mengompres foto…');
-            compressImage(picked, function (file, opts) {
-              hideCompressing();
-              adoptCompressed(file, picked.size, opts);
-            });
-          }
+          input.removeAttribute('capture');
+          input.click();
         });
       }
       if (btnCancel) btnCancel.addEventListener('click', closePicker);
@@ -378,11 +353,19 @@
     });
 
     form.addEventListener('submit', function (e) {
+      // Guard: if no file is actually loaded in the canonical input, the
+      // browser would show its generic "Please select a file" validation
+      // message.  Show a clear Indonesian message instead and block submit.
+      var f = input.files && input.files[0];
+      if (!f) {
+        e.preventDefault();
+        setError('Silakan pilih foto struk terlebih dahulu.');
+        return;
+      }
       // If a file is selected, ensure it has been through compression before
       // the form posts.  compressImage() is async — if it's still running, we
       // delay the submit so the small compressed body goes over the wire.
-      var f = input.files && input.files[0];
-      if (f && f.size > _COMPRESS_MIN_BYTES) {
+      if (f.size > _COMPRESS_MIN_BYTES) {
         e.preventDefault();
         var b = document.getElementById('submit-btn');
         if (b) { b.disabled = true; b.textContent = 'Mengompres…'; }

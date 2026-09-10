@@ -10,6 +10,7 @@ OCR NEVER creates a transaction. Only the explicit confirmation endpoint may
 do that, and the values used are always the user-edited form values.
 """
 import json
+import logging
 import re
 import tempfile
 from dataclasses import dataclass, field
@@ -18,6 +19,8 @@ from pathlib import Path
 from typing import Optional
 
 from app.services.receipts import ReceiptScannerService
+
+log = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------ result model
@@ -947,32 +950,43 @@ _scanner = None
 def build_scanner():
     """Assemble the production receipt scanner as a per-scan fallback chain.
 
-    Order: AI vision (Ollama native, or OpenAI-compat) -> Tesseract -> offline.
+    Order: AI vision (cloud OpenAI/Gemini, or optional Ollama rollback)
+    -> Tesseract -> offline.
     The chain is wrapped in ``FallbackReceiptScannerService`` so a failure of
-    the preferred engine at SCAN TIME (Ollama stopped, model missing, timeout,
-    out-of-memory, rejected output) transparently falls through to the next
+    the preferred engine at SCAN TIME (provider down, missing key, timeout,
+    rate limit, rejected output) transparently falls through to the next
     engine - the upload -> review -> confirm -> transaction lifecycle always
     works. AI is only included when ``RECEIPT_AI_ENABLED`` is set and a
     provider is selected.
 
-    Ollama wins when reachable (it reads the image directly and is far more
-    accurate than OCR+regex on Indonesian receipts), but never blocks the
-    lifecycle when it is down.
+    Cloud providers (openai/gemini) are the default. Ollama remains available
+    as an optional rollback provider but is NOT required.
     """
     from app.config import settings
 
     engines: list = []
     has_ai = False
 
-    if settings.RECEIPT_AI_ENABLED:
+    if settings.RECEIPT_AI_ENABLED and settings.RECEIPT_AI_PROVIDER != "none":
         provider = settings.RECEIPT_AI_PROVIDER
-        if provider == "ollama":
+        if provider in ("openai", "gemini"):
+            from app.services.receipt_ai import (
+                CloudReceiptScannerService, ProviderNotConfigured,
+            )
+            try:
+                engines.append(CloudReceiptScannerService())
+            except ProviderNotConfigured:
+                # Missing/blank API key - the cloud engine cannot be built.
+                # Skip it so the upload -> OCR lifecycle still works via the
+                # local chain (tesseract/offline) instead of crashing at
+                # scanner build time on hosts without credentials.
+                log.info("cloud provider %r not configured; skipping engine",
+                         provider)
+            else:
+                has_ai = True
+        elif provider == "ollama":
             from app.services.receipt_ollama import OllamaVisionReceiptScannerService
             engines.append(OllamaVisionReceiptScannerService())
-            has_ai = True
-        elif provider == "openai_compat":
-            from app.services.receipt_ai import AIVisionReceiptScannerService
-            engines.append(AIVisionReceiptScannerService())
             has_ai = True
 
     # Always keep the proven local engine in the chain when available.

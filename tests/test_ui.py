@@ -112,7 +112,7 @@ def test_receipts_empty_state():
 def test_receipt_upload_page_mobile_attributes():
     t = client.get("/receipts/upload").text
     assert 'accept="image/*"' in t
-    assert 'capture="environment"' in t
+    assert "capture" not in t  # capture is toggled dynamically by JS
     assert "Upload Struk" in t
     assert "data-max-mb=" in t
 
