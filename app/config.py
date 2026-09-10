@@ -82,7 +82,7 @@ class Settings(BaseSettings):
 
     # ---- Gemini / Google AI Studio (cloud vision, OpenAI-compatible endpoint) ----
     GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "")
-    GEMINI_MODEL: str = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    GEMINI_MODEL: str = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
     # OpenAI-compatible shim for Gemini. Override for private/enterprise endpoints.
     GEMINI_BASE_URL: str = os.environ.get(
         "GEMINI_BASE_URL",

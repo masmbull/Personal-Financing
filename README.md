@@ -233,7 +233,7 @@ Database disimpan di `./data/finance.db` (persistent via bind mount `./data:/app
 | `OPENAI_MODEL` | `gpt-4o-mini` | Model vision OpenAI |
 | `OPENAI_TIMEOUT_SECONDS` | `60` | Timeout inference OpenAI (detik) |
 | `GEMINI_API_KEY` | (kosong) | API key Gemini vision — wajib jika provider=gemini |
-| `GEMINI_MODEL` | `gemini-2.0-flash` | Model vision Gemini |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | Model vision Gemini (2.0-flash sudah dimatikan Google) |
 | `GEMINI_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai/` | Endpoint kompatibel OpenAI untuk Gemini |
 | `GEMINI_TIMEOUT_SECONDS` | `60` | Timeout inference Gemini (detik) |
 | `RECEIPT_AI_MAX_IMAGE_WIDTH` | `1280` | Resolusi maks gambar dikirim ke AI |

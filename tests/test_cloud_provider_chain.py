@@ -45,3 +45,23 @@ def test_build_scanner_includes_cloud_engine_with_openai_key(monkeypatch):
     monkeypatch.setattr(cfg.settings, "OPENAI_API_KEY", "sk-test-placeholder")
     scanner = ocr_mod.build_scanner()
     assert "cloud-openai" in _chain_names(scanner)
+
+
+def test_build_scanner_includes_cloud_engine_with_gemini_key(monkeypatch):
+    monkeypatch.setattr(cfg.settings, "RECEIPT_AI_ENABLED", True)
+    monkeypatch.setattr(cfg.settings, "RECEIPT_AI_PROVIDER", "gemini")
+    monkeypatch.setattr(cfg.settings, "GEMINI_API_KEY", "gemini-test-placeholder")
+    scanner = ocr_mod.build_scanner()
+    assert "cloud-gemini" in _chain_names(scanner)
+
+
+def test_gemini_provider_dispatch_and_defaults(monkeypatch):
+    """RECEIPT_AI_PROVIDER=gemini must select GeminiVisionProvider with the
+    current vision model (gemini-2.0-flash was shut down by Google)."""
+    monkeypatch.setattr(cfg.settings, "GEMINI_API_KEY", "gemini-test-placeholder")
+    from app.services.receipt_ai import GeminiVisionProvider
+    prov = GeminiVisionProvider()
+    assert isinstance(prov, GeminiVisionProvider)
+    assert prov.name == "gemini"
+    assert prov.model == "gemini-2.5-flash"
+    assert prov.base_url == "https://generativelanguage.googleapis.com/v1beta/openai"
