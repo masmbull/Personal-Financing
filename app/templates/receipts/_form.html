@@ -1,8 +1,8 @@
 {# Form & helpers reused across all receipt-review entry states.
    Macros are isolated: every external value is passed as an arg. #}
-{% macro confirm_form(rid, merchant_val, total_val, date_val, cats, accs, desc_val) %}
+{% macro confirm_form(rid, merchant_val, total_val, date_val, cats, accs, desc_val, fmt_rupiah) %}
 <form method="post" action="/receipts/{{ rid }}/confirm" class="rr-form">
-      <input type="hidden" name="type" value="EXPENSE">
+  <input type="hidden" name="type" value="EXPENSE">
   <div>
     <div class="rr-field">
       <label class="rr-label" for="merchant">Merchant</label>
@@ -11,9 +11,13 @@
     </div>
     <div class="rr-field">
       <label class="rr-label" for="amount">Total</label>
-      <input class="rr-input rr-input--lg" type="text" inputmode="numeric" id="amount"
-             name="amount" required value="{{ total_val if total_val else '' }}"
-             pattern="[0-9]*" placeholder="0" autocomplete="off">
+      <div class="rr-input-wrap">
+        <span class="rr-input-prefix" aria-hidden="true">Rp</span>
+        <input class="rr-input rr-input--lg" type="text" inputmode="numeric" id="amount"
+               name="amount" required value="{{ fmt_rupiah(total_val).replace('Rp ', '') if total_val else '' }}"
+               placeholder="0" autocomplete="off" data-rr-money>
+      </div>
+      <span class="rr-hint">Contoh: 20000 atau 20.000</span>
     </div>
     <div class="rr-field">
       <label class="rr-label" for="date">Tanggal</label>

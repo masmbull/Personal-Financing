@@ -7,6 +7,8 @@ from app.api.deps import get_current_user, CurrentUser
 from app.models.models import Account, AccountType, TransactionType
 from app.services import accounts as accounts_service
 from app.utils import format_rupiah
+from app.validation import parse_idr_input
+from app.account_icons import ACCOUNT_ICON_POOLS, bank_brand
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
@@ -16,6 +18,24 @@ router = APIRouter()
 def _user_has_accounts(db: Session, user_id: int) -> bool:
     """Gate: user must own at least one account before seeing the dashboard."""
     return db.query(Account.id).filter(Account.user_id == user_id).first() is not None
+
+
+def _account_balance_total(db: Session, user_id: int) -> int:
+    """Sum of current_balance across own accounts (sidebar indicator)."""
+    return db.query(func.coalesce(func.sum(Account.current_balance), 0)).filter(
+        Account.user_id == user_id
+    ).scalar() or 0
+
+
+def _parse_balance(raw: str) -> int:
+    """Balance input parser: blank/0 -> 0, else strict IDR (20.000 -> 20000)."""
+    s = (raw or "").strip()
+    if not s or s == "0":
+        return 0
+    try:
+        return parse_idr_input(s, "Saldo")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -105,18 +125,25 @@ def dashboard(request: Request, db: Session = Depends(get_db),
 def list_accounts(request: Request, db: Session = Depends(get_db),
                   user: CurrentUser = Depends(get_current_user)):
     groups = accounts_service.list_accounts_grouped(db, user.id)
+    total = sum(g["total"] for g in groups)
     return templates.TemplateResponse(request, "accounts/list.html", {
         "groups": groups,
         "account_types": AccountType,
         "format_rupiah": format_rupiah,
+        "bank_brand": bank_brand,
+        "sidebar_accounts_total": total,
     })
 
 
 @router.get("/accounts/create", response_class=HTMLResponse)
 def create_account_form(request: Request,
+                        db: Session = Depends(get_db),
                         user: CurrentUser = Depends(get_current_user)):
     return templates.TemplateResponse(request, "accounts/create.html", {
         "account_types": AccountType,
+        "icon_pools": ACCOUNT_ICON_POOLS,
+        "format_rupiah": format_rupiah,
+        "sidebar_accounts_total": _account_balance_total(db, user.id),
     })
 
 
@@ -124,19 +151,15 @@ def create_account_form(request: Request,
 def create_account(
     name: str = Form(...),
     type: str = Form(...),
-    initial_balance: str = Form("0"),
     icon: str = Form(""),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
-    try:
-        init_bal = int(initial_balance) if initial_balance else 0
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid initial balance")
+    """Pure add-account: balance stays 0, set later via \"Isi Saldo\"."""
     try:
         accounts_service.create_account(
             db, user_id=user.id, name=name, type_=AccountType(type),
-            initial_balance=init_bal, icon=icon or None,
+            initial_balance=0, icon=icon or None,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -150,7 +173,11 @@ def edit_account_form(account_id: int, request: Request,
     account = accounts_service.get_account(db, account_id, user.id)
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    return templates.TemplateResponse(request, "accounts/edit.html", { "account": account, "account_types": AccountType,
+    return templates.TemplateResponse(request, "accounts/edit.html", {
+        "account": account, "account_types": AccountType,
+        "icon_pools": ACCOUNT_ICON_POOLS,
+        "format_rupiah": format_rupiah,
+        "sidebar_accounts_total": _account_balance_total(db, user.id),
     })
 
 
@@ -159,10 +186,10 @@ def edit_account(account_id: int, name: str = Form(...), type: str = Form(...),
                  initial_balance: str = Form("0"), icon: str = Form(""),
                  db: Session = Depends(get_db),
                  user: CurrentUser = Depends(get_current_user)):
-    try:
-        init_bal = int(initial_balance) if initial_balance else 0
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid initial balance")
+    # Ownership FIRST so intruders always get 404, never a balance parse error.
+    if not accounts_service.get_own_account(db, account_id, user.id):
+        raise HTTPException(status_code=404, detail="Account not found")
+    init_bal = _parse_balance(initial_balance)
     try:
         accounts_service.update_account(
             db, account_id, user.id, name=name.strip(), type=AccountType(type),

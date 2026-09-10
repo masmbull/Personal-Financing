@@ -21,18 +21,9 @@
             </select>
         </div>
 
-        <div class="form-group">
-            <label class="form-label" for="initial_balance">Saldo Awal</label>
-            <div class="input-prefix">
-                <span class="prefix">Rp</span>
-                <input type="number" name="initial_balance" id="initial_balance" class="input" value="0" min="0" inputmode="numeric">
-            </div>
-        </div>
+        {% include "accounts/_icon_picker.html" %}
 
-        <div class="form-group">
-            <label class="form-label" for="icon">Icon (opsional)</label>
-            <input type="text" name="icon" id="icon" class="input" placeholder="Emoji, contoh: 🏦" maxlength="5">
-        </div>
+        <p class="form-hint">Saldo bisa diisi setelah akun dibuat, lewat <strong>Isi Saldo</strong> di halaman Akun.</p>
 
         <button type="submit" class="btn btn-primary btn-block">Simpan Akun</button>
     </form>

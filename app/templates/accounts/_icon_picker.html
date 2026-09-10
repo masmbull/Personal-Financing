@@ -1,0 +1,55 @@
+{% set current_icon = account.icon if account is defined and account and account.icon else '' %}
+<div class="form-group">
+    <label class="form-label">Icon (opsional)</label>
+    <input type="hidden" name="icon" id="icon" value="{{ current_icon }}">
+    {% for type_, icons in icon_pools.items() %}
+    <div class="icon-pool" data-type="{{ type_.value }}">
+        {% for icon in icons %}
+        <label class="icon-option">
+            <input type="radio" name="icon-choice" value="{{ icon }}"
+                   {% if current_icon == icon %}checked{% endif %}>
+            <span class="icon-symbol">{{ icon }}</span>
+        </label>
+        {% endfor %}
+    </div>
+    {% endfor %}
+    <p class="form-hint">Pilih ikon sesuai tipe akun.</p>
+</div>
+
+<script>
+(function () {
+    var typeSel = document.getElementById('type');
+    var hidden = document.getElementById('icon');
+    if (!typeSel || !hidden) return;
+    var pools = Array.prototype.slice.call(document.querySelectorAll('.icon-pool'));
+    var radios = Array.prototype.slice.call(document.querySelectorAll('input[name="icon-choice"]'));
+
+    function activeChecked() {
+        var sel = typeSel.value, i, p = null;
+        for (i = 0; i < pools.length; i++) {
+            if (pools[i].getAttribute('data-type') === sel) { p = pools[i]; break; }
+        }
+        return p ? p.querySelector('input[name="icon-choice"]:checked') : null;
+    }
+
+    function sync() {
+        for (var i = 0; i < pools.length; i++) {
+            var isActive = pools[i].getAttribute('data-type') === typeSel.value;
+            pools[i].classList.toggle('active', isActive);
+            if (!isActive) {
+                // never leave stale checked radios in hidden pools
+                var stale = pools[i].querySelector('input[name="icon-choice"]:checked');
+                if (stale) stale.checked = false;
+            }
+        }
+        var c = activeChecked();          // keep previous icon until a new one is picked
+        if (c) hidden.value = c.value;
+    }
+
+    typeSel.addEventListener('change', sync);
+    radios.forEach(function (r) {
+        r.addEventListener('change', function () { hidden.value = r.value; });
+    });
+    sync();
+})();
+</script>

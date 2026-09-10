@@ -40,9 +40,10 @@
                 <label class="form-label" for="initial_balance">Saldo Awal</label>
                 <div class="input-prefix">
                     <span class="prefix">Rp</span>
-                    <input type="number" name="initial_balance" id="initial_balance" class="input"
-                           value="0" min="0" inputmode="numeric" step="1000">
+                    <input type="text" name="initial_balance" id="initial_balance" class="input" placeholder="0"
+                           inputmode="numeric" autocomplete="off">
                 </div>
+                <p class="form-hint">Contoh: 20000 atau 20.000 — opsional</p>
             </div>
 
             <button type="submit" class="btn btn-primary btn-block">

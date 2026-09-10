@@ -13,9 +13,10 @@ from sqlalchemy.orm import Session
 
 from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
-from app.models.models import Account, Category, ReceiptStatus
+from app.models.models import Account, AccountType, Category, ReceiptStatus
 from app.services import receipts as receipts_service
 from app.utils import format_rupiah, today_str
+from app.validation import parse_idr_input
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
@@ -142,9 +143,20 @@ def receipt_detail(receipt_id: int, request: Request,
     view["duplicate_id"] = dup.id if dup else None
 
     categories = db.query(Category).order_by(Category.name).all()
-    accounts = db.query(Account).filter(
-        (Account.user_id == user.id) | (Account.user_id.is_(None))
-    ).order_by(Account.name).all()
+    accounts = (db.query(Account)
+                .filter((Account.user_id == user.id) |
+                        (Account.user_id.is_(None)))
+                .order_by(Account.name).all())
+
+    # Pilihan akun: hanya akun yang bisa dipakai membayar (ada saldo, atau
+    # kartu kredit dengan limit). Kalau tak ada, jatuh ke semua akun agar
+    # form tidak pernah kosong.
+    def _funded(a):
+        if (a.current_balance or 0) > 0:
+            return True
+        return a.type == AccountType.CREDIT_CARD and (a.credit_limit or 0) > 0
+    funded = [a for a in accounts if _funded(a)]
+    accounts = funded or accounts
     eta_sec, eta_label = _ocr_estimate()
     return templates.TemplateResponse(request, "receipts/detail.html", { "r": view,
         "categories": categories, "accounts": accounts,
@@ -179,7 +191,7 @@ def _confirm(db: Session, receipt_id: int, form, user_id: int) -> RedirectRespon
         receipts_service.confirm_receipt(
             db, receipt_id, user_id,
             type=form.get("type", "EXPENSE"),
-            amount=int(form.get("amount") or 0),
+            amount=parse_idr_input(form.get("amount", "")),
             account_id=int(form.get("account_id") or 0) or None,
             category_id=int(form.get("category_id") or 0) or None,
             tx_date=date.fromisoformat(form.get("date") or today_str()),
