@@ -3,6 +3,7 @@ from datetime import date
 
 # Shared client/DB helpers live in tests/conftest.py
 from tests.conftest import PNG_BYTES, client  # noqa: E402,F401
+from app.time_utils import today_in_tz
 
 TODAY = date.today().isoformat()
 
@@ -492,7 +493,12 @@ def test_net_worth_history_snapshot_upsert():
     assert second["count"] == 1
 
     nw = client.get("/api/v1/reports/net-worth").json()["current"]
-    today_point = next(p for p in second["points"] if p["date"] == str(date.today()))
+    # App records snapshots with the canonical app timezone (today_in_tz),
+    # which can differ from the runner's local date near midnight UTC
+    # (Asia/Jakarta is UTC+7). Compare against that same canonical date.
+    today_point = next(
+        p for p in second["points"] if p["date"] == str(today_in_tz())
+    )
     assert today_point["net_worth"] == nw["net_worth"]
     assert today_point["total_assets"] == nw["total_assets"]
     assert today_point["total_liabilities"] == nw["total_liabilities"]
