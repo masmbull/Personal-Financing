@@ -106,6 +106,7 @@ ACCOUNT_ICON_POOLS = {
 # deliberately small.
 BANK_BRANDS = {
     "bca digital": ("blu", "#2b3a8f", "#ffffff"),
+    "jenius": ("Jenius", "#00aed6", "#ffffff"),
     "bca": ("BCA", "#0060af", "#ffffff"),
     "mandiri": ("M", "#003b7c", "#ffc832"),
     "bni": ("BNI", "#f7941e", "#00437a"),
@@ -137,9 +138,12 @@ BANK_BRANDS = {
 }
 
 
-# Bundled official logo per BANK_BRANDS key (app/static/bank-logos/<file>).
-# Key without an entry (e.g. "bca digital"/blu) falls back to the monogram mark.
+# Bundled official logo per BANK_BRANDS key (app/static/bank-logos/<file>),
+# fetched from online references (bank sites, App Store, Wikimedia).
+# Key without an entry falls back to the monogram mark.
 BRAND_LOGOS = {
+    "bca digital": "blu.png",
+    "jenius": "jenius.png",
     "bca": "bca.png", "mandiri": "mandiri.png", "bni": "bni.png",
     "bri": "bri.png", "btn": "btn.png", "cimb": "cimb.png",
     "danamon": "danamon.png", "permata": "permata.png", "maybank": "maybank.png",

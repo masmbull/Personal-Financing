@@ -159,16 +159,16 @@ def test_bank_brand_resolves_known_and_falls_back():
     blu = SimpleNamespace(type=AccountType.BANK, institution="BCA Digital", name="Blu")
     blu_result = bank_brand(blu)
     assert blu_result["mark"] == "blu"
-    assert blu_result["logo"] is None        # no bundled logo -> monogram fallback
+    assert blu_result["logo"] == "blu.png"   # static image from online reference
     cash = SimpleNamespace(type=AccountType.CASH, institution=None, name="Cash")
     assert bank_brand(cash) is None
 
 
 def test_list_renders_brand_badge_for_bank():
-    """Accounts page shows the logo img + monogram fallback for seeded bank accounts."""
+    """Accounts page shows a static brand-logo image for seeded bank accounts."""
     r = client.get("/accounts")
     assert r.status_code == 200
     assert 'class="acc-icon acc-icon-brand"' in r.text
-    # logo image renders (real logo, not just monogram text)
-    assert 'src="/static/bank-logos/bca.png?v=1"' in r.text
+    # static logo image renders (no icon/monogram when a logo file exists)
+    assert 'src="/static/bank-logos/bca.png?v=2"' in r.text
     assert 'class="acc-brand-logo"' in r.text
