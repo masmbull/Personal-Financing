@@ -37,10 +37,8 @@ class AccountInUse(Exception):
 
 
 def _visible_account_query(db: Session, user_id: int):
-    """Own accounts + global master accounts (user_id NULL)."""
-    return db.query(Account).filter(
-        (Account.user_id == user_id) | (Account.user_id.is_(None))
-    )
+    """Strictly own accounts. Legacy NULL rows (old seeds) are hidden."""
+    return db.query(Account).filter(Account.user_id == user_id)
 
 
 def get_account(db: Session, account_id: int, user_id: int) -> Account | None:

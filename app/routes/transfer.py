@@ -20,7 +20,7 @@ router = APIRouter()
 def transfer_form(request: Request, db: Session = Depends(get_db),
                   user: CurrentUser = Depends(get_current_user)):
     accounts = db.query(Account).filter(
-        (Account.user_id == user.id) | (Account.user_id.is_(None))
+        Account.user_id == user.id
     ).order_by(Account.name).all()
     return templates.TemplateResponse(request, "transfer/index.html", { "accounts": accounts, "today": today_str(),
     })

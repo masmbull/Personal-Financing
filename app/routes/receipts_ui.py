@@ -144,8 +144,7 @@ def receipt_detail(receipt_id: int, request: Request,
 
     categories = db.query(Category).order_by(Category.name).all()
     accounts = (db.query(Account)
-                .filter((Account.user_id == user.id) |
-                        (Account.user_id.is_(None)))
+                .filter(Account.user_id == user.id)
                 .order_by(Account.name).all())
 
     # Pilihan akun: hanya akun yang bisa dipakai membayar (ada saldo, atau

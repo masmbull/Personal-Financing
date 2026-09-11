@@ -47,7 +47,7 @@ def create_debt_form(request: Request, debt_type: str = "PAYABLE",
                      db: Session = Depends(get_db),
                      user: CurrentUser = Depends(get_current_user)):
     accounts = db.query(Account).filter(
-        (Account.user_id == user.id) | (Account.user_id.is_(None))
+        Account.user_id == user.id
     ).order_by(Account.name).all()
     return templates.TemplateResponse(request, "debts/create.html", { "debt_type": debt_type, "accounts": accounts,
         "today": today_str(), "DebtType": DebtType,

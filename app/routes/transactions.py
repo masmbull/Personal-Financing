@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc, or_
+from sqlalchemy import desc
 from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.models.models import Transaction, Account, Category, TransactionType
@@ -28,9 +28,9 @@ def _set_tx_display(tx):
 
 
 def _visible_accounts(db: Session, user_id: int):
-    """Own accounts + global master accounts (user_id NULL)."""
+    """Strictly own accounts. Legacy NULL rows hidden."""
     return db.query(Account).filter(
-        or_(Account.user_id == user_id, Account.user_id.is_(None))
+        Account.user_id == user_id
     ).order_by(Account.name).all()
 
 

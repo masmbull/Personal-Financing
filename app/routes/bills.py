@@ -35,7 +35,7 @@ def create_bill_form(request: Request, db: Session = Depends(get_db),
         .order_by(Category.name).all()
     )
     accounts = db.query(Account).filter(
-        (Account.user_id == user.id) | (Account.user_id.is_(None))
+        Account.user_id == user.id
     ).order_by(Account.name).all()
     return templates.TemplateResponse(request, "bills/create.html", { "categories": categories, "accounts": accounts,
         "BillFrequency": BillFrequency,

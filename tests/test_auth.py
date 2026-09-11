@@ -289,7 +289,7 @@ def test_user_a_cannot_access_user_b_budget():
 # ==================== global master data ====================
 
 
-def test_global_bank_master_accessible_to_all_authenticated_users():
+def test_legacy_global_account_rows_hidden_strictly_own():
     db = get_test_db()
     master = Account(name="BCA Glob", type="BANK", user_id=None,
                      initial_balance=0, current_balance=0)
@@ -301,7 +301,8 @@ def test_global_bank_master_accessible_to_all_authenticated_users():
     u2 = _gen_user_client("master_u2")
     names1 = [a["name"] for a in u1.get("/api/v1/accounts").json()["items"]]
     names2 = [a["name"] for a in u2.get("/api/v1/accounts").json()["items"]]
-    assert "BCA Glob" in names1 and "BCA Glob" in names2
+    # accounts are strictly own-only; legacy user_id=NULL rows stay hidden
+    assert "BCA Glob" not in names1 and "BCA Glob" not in names2
 
 
 def test_global_category_master_accessible_to_all_authenticated_users():
