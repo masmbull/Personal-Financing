@@ -417,6 +417,39 @@
       });
   }
 
+  /* ---------- count-up money numbers (data-amount, respects reduced motion) ---------- */
+  function initCountUp() {
+    var els = document.querySelectorAll('[data-amount]');
+    if (!els.length) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var fmt = function (n) {
+      var neg = n < 0; n = Math.round(Math.abs(n));
+      var s = n.toLocaleString('id-ID');
+      return (neg ? '- Rp ' : 'Rp ') + s;
+    };
+    [].forEach.call(els, function (el) {
+      var target = parseInt(el.getAttribute('data-amount'), 10) || 0;
+      if (reduce) { el.textContent = fmt(target); return; }
+      var t0 = null, dur = 700, from = Math.round(target * 0.6);
+      el.classList.add('num');
+      function step(ts) {
+        if (!t0) t0 = ts;
+        var p = Math.min((ts - t0) / dur, 1);
+        var e = 1 - Math.pow(1 - p, 3); /* ease-out cubic */
+        el.textContent = fmt(from + (target - from) * e);
+        if (p < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
+  /* ---------- stagger: set --i on children of .stagger lists ---------- */
+  function initStagger() {
+    [].forEach.call(document.querySelectorAll('.stagger'), function (list) {
+      [].forEach.call(list.children, function (c, i) { c.style.setProperty('--i', i); });
+    });
+  }
+
   /* ---------- scroll reveal (global, auto-tag + IntersectionObserver) ---------- */
   var REVEAL_SEL = '.top-bar,.page-header,.balance-card,.worth-grid,.quick-actions,.summary-cards,.section,.transaction-item,.account-card,.more-row,.budget-row,.bill-row,.debt-tile';
   function initReveal() {
@@ -495,6 +528,8 @@
   }
   document.addEventListener('DOMContentLoaded', function () {
     runLoadbar();
+    initStagger();
+    initCountUp();
     initReveal();
     initNetWorthChart();
     initReceiptUpload();

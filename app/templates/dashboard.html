@@ -18,7 +18,7 @@
 
     <section class="balance-card hero reveal" aria-label="Saldo tersedia">
         <div class="balance-label">Saldo tersedia</div>
-        <div class="balance-amount">{{ format_rupiah(data.available_cash) }}</div>
+        <div class="balance-amount" data-amount="{{ data.available_cash }}">{{ format_rupiah(data.available_cash) }}</div>
         <div class="balance-trend {% if data.cashflow >= 0 %}up{% else %}down{% endif %}">
             {% if data.cashflow >= 0 %}▲{% else %}▼{% endif %}
             {{ format_rupiah(data.cashflow if data.cashflow >= 0 else -data.cashflow) }} {{ data.period_label }}
@@ -28,15 +28,15 @@
     <section class="worth-grid reveal" aria-label="Kekayaan bersih">
         <a href="/assets" class="worth-tile">
             <span class="worth-label">Total aset</span>
-            <span class="worth-value">{{ format_rupiah(data.total_assets) }}</span>
+            <span class="worth-value" data-amount="{{ data.total_assets }}">{{ format_rupiah(data.total_assets) }}</span>
         </a>
         <a href="/debts" class="worth-tile">
             <span class="worth-label">Kewajiban</span>
-            <span class="worth-value text-red">{{ format_rupiah(data.total_liabilities) }}</span>
+            <span class="worth-value text-red" data-amount="{{ data.total_liabilities }}">{{ format_rupiah(data.total_liabilities) }}</span>
         </a>
         <div class="worth-tile worth-net">
             <span class="worth-label">Net worth</span>
-            <span class="worth-value {% if data.net_worth >= 0 %}text-green{% else %}text-red{% endif %}">{{ format_rupiah(data.net_worth) }}</span>
+            <span class="worth-value {% if data.net_worth >= 0 %}text-green{% else %}text-red{% endif %}" data-amount="{{ data.net_worth }}">{{ format_rupiah(data.net_worth) }}</span>
         </div>
     </section>
 
@@ -48,17 +48,17 @@
     <section class="summary-cards reveal">
         <div class="summary-card">
             <div class="summary-label">Uang masuk</div>
-            <div class="summary-value text-green">{{ format_rupiah(data.income) }}</div>
+            <div class="summary-value text-green" data-amount="{{ data.income }}">{{ format_rupiah(data.income) }}</div>
             <div class="summary-sub">{{ data.period_label }}</div>
         </div>
         <div class="summary-card">
             <div class="summary-label">Pengeluaran</div>
-            <div class="summary-value text-red">{{ format_rupiah(data.expense) }}</div>
+            <div class="summary-value text-red" data-amount="{{ data.expense }}">{{ format_rupiah(data.expense) }}</div>
             <div class="summary-sub">{{ data.period_label }}</div>
         </div>
         <div class="summary-card">
             <div class="summary-label">Cashflow</div>
-            <div class="summary-value {% if data.cashflow >= 0 %}text-green{% else %}text-red{% endif %}">{{ format_rupiah(data.cashflow) }}</div>
+            <div class="summary-value {% if data.cashflow >= 0 %}text-green{% else %}text-red{% endif %}" data-amount="{{ data.cashflow }}">{{ format_rupiah(data.cashflow) }}</div>
             <div class="summary-sub">{{ data.period_label }}</div>
         </div>
         <div class="summary-card">

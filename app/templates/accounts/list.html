@@ -10,7 +10,7 @@
     {% set total_all = groups|map(attribute='total')|sum %}
     <section class="acc-hero">
         <div class="acc-hero-label">Total Saldo</div>
-        <div class="acc-hero-amount">{{ format_rupiah(total_all) }}</div>
+        <div class="acc-hero-amount" data-amount="{{ total_all }}">{{ format_rupiah(total_all) }}</div>
         <div class="acc-hero-meta">{{ groups|length }} grup • {{ groups|map(attribute='accounts')|map('length')|sum }} akun</div>
     </section>
 
@@ -18,9 +18,9 @@
     <section class="acc-section">
         <div class="acc-group-head">
             <span class="acc-group-title">{{ group.name }}</span>
-            <span class="acc-group-total">{{ format_rupiah(group.total) }}</span>
+            <span class="acc-group-total" data-amount="{{ group.total }}">{{ format_rupiah(group.total) }}</span>
         </div>
-        <div class="account-list">
+        <div class="account-list stagger">
             {% for acc in group.accounts %}
             {% set brand = bank_brand(acc) %}
             <div class="account-card">
