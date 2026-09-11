@@ -273,6 +273,10 @@ def generate_bill_occurrences(db: Session, *, as_of: date | None = None,
         # the occurrence genuinely represents payable work for this user.
         if not bill.due_day or not bill.account_id:
             continue
+        # Legacy ownerless bills (user_id NULL from old seeds) can't have
+        # occurrences - the column is NOT NULL and nobody would see them.
+        if bill.user_id is None:
+            continue
         # Expand from a base date far enough back to catch overdue bills.
         # Use the earliest of (as_of - 2 years) or the bill's creation.
         # Minus 1 day so a due date in the SAME month as creation, after the
