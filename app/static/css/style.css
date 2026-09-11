@@ -200,20 +200,26 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .tx-transfer{color:var(--purple)}
 .tx-date-header{font-size:.74rem;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em;padding:6px 2px 2px}
 
-/* ---- account list: blue hover + soft glow on every side ---- */
+/* ---- accounts page: hero + groups + logo cards ---- */
 .account-list{display:flex;flex-direction:column;gap:8px}
-.acc-group-title{font-size:.78rem;font-weight:700;color:var(--ink-2);margin:8px 2px 2px}
-.account-card{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg-card);border:1px solid var(--line);border-radius:var(--r-md);padding:14px;box-shadow:var(--sh-1);transition:all var(--tr);position:relative}
-.account-card::before{content:"";position:absolute;inset:-1px;border-radius:inherit;box-shadow:0 0 0 2px var(--blue-bg);animation:accCardGlow 4.5s ease-in-out infinite;pointer-events:none;z-index:0}
-.account-card>*{position:relative;z-index:1}
+.acc-hero{background:linear-gradient(135deg,#1d4ed8,#2563eb 55%,#3b82f6);color:#fff;border-radius:var(--r-lg);padding:20px 22px;box-shadow:var(--sh-2);margin-bottom:6px}
+.acc-hero-label{font-size:.78rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+.acc-hero-amount{font-size:1.9rem;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.25;margin-top:2px}
+.acc-hero-meta{font-size:.78rem;opacity:.75;margin-top:4px}
+.acc-section{margin-top:18px}
+.acc-group-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 2px 8px}
+.acc-group-title{font-size:.8rem;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em}
+.acc-group-total{font-size:.8rem;font-weight:700;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.account-card{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg-card);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px;box-shadow:var(--sh-1);transition:all var(--tr)}
 .account-card:hover{border-color:var(--blue);box-shadow:var(--sh-2)}
 .acc-left{display:flex;align-items:center;gap:11px;min-width:0}
-.acc-icon{width:44px;height:44px;border-radius:var(--r-sm);background:var(--blue-bg);display:grid;place-items:center;font-size:1.3rem;flex-shrink:0}
-.acc-icon .acc-icon-emoji{display:inline-block;animation:accIconFloat 3.5s ease-in-out infinite}
-.acc-icon-brand{position:relative;font-weight:800;letter-spacing:.02em;font-size:1rem}
-.acc-icon-brand .acc-icon-emoji{animation-duration:3s}
-.acc-brand-logo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:4px;background:#fff;border-radius:inherit;box-sizing:border-box}
-.acc-icon-brand.brand-logo-failed .acc-brand-logo{display:none}
+.acc-logo-chip{position:relative;width:46px;height:46px;border-radius:var(--r-sm);background:#fff;border:1px solid var(--line);display:grid;place-items:center;flex-shrink:0;overflow:hidden;box-shadow:var(--sh-1)}
+.acc-brand-logo{max-width:40px;max-height:40px;width:auto;height:auto;object-fit:contain;display:block}
+.acc-icon-emoji{font-size:1.5rem;line-height:1}
+.acc-brand-logo.brand-logo-failed{display:none}
+.acc-icon{display:grid;place-items:center;font-size:1.25rem}
+.acc-icon-fallback{display:none;width:100%;height:100%;font-size:.62rem;font-weight:800;letter-spacing:.01em}
+.acc-logo-chip.logo-missing .acc-icon-fallback{display:grid}
 .acc-info{display:flex;flex-direction:column;min-width:0}
 .acc-name{font-weight:700;font-size:.95rem}
 .acc-type{font-size:.76rem;color:var(--ink-2)}

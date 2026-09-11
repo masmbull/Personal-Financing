@@ -7,39 +7,48 @@
         <a href="/accounts/create" class="btn btn-primary btn-sm">+ Akun</a>
     </header>
 
+    {% set total_all = groups|map(attribute='total')|sum %}
+    <section class="acc-hero">
+        <div class="acc-hero-label">Total Saldo</div>
+        <div class="acc-hero-amount">{{ format_rupiah(total_all) }}</div>
+        <div class="acc-hero-meta">{{ groups|length }} grup • {{ groups|map(attribute='accounts')|map('length')|sum }} akun</div>
+    </section>
+
     {% for group in groups %}
-    <div class="acc-group-title">{{ group.name }} • {{ format_rupiah(group.total) }}</div>
-    <div class="account-list">
-        {% for acc in group.accounts %}
-        <div class="account-card">
-            <div class="acc-left">
-                {% set brand = bank_brand(acc) %}
-                {% if brand %}
-                <span class="acc-icon acc-icon-brand" style="background:{{ brand.bg }};color:{{ brand.fg }}">
-                    {% if brand.logo %}
-                    <img class="acc-brand-logo" src="/static/bank-logos/{{ brand.logo }}?v=2" alt="{{ brand.mark }}" onerror="this.parentElement.classList.add('brand-logo-failed')">
-                    {% else %}
-                    <span class="acc-icon-emoji">{{ brand.mark }}</span>
-                    {% endif %}
-                </span>
-                {% else %}
-                <span class="acc-icon"><span class="acc-icon-emoji">{{ acc.icon or '💳' }}</span></span>
-                {% endif %}
-                <div class="acc-info">
-                    <span class="acc-name">{{ acc.name }}</span>
-                    <span class="acc-type">{{ acc.type.value.replace('_', ' ').title() }}</span>
-                </div>
-            </div>
-            <div class="acc-right">
-                <span class="acc-balance">{{ format_rupiah(acc.current_balance) }}</span>
-                <div class="acc-actions">
-                    <a href="/accounts/edit/{{ acc.id }}" class="btn-link">Isi Saldo</a>
-                    <a href="/accounts/delete/{{ acc.id }}" class="btn-link text-red" onclick="return confirm('Hapus akun {{ acc.name }}?')">Hapus</a>
-                </div>
-            </div>
+    <section class="acc-section">
+        <div class="acc-group-head">
+            <span class="acc-group-title">{{ group.name }}</span>
+            <span class="acc-group-total">{{ format_rupiah(group.total) }}</span>
         </div>
-        {% endfor %}
-    </div>
+        <div class="account-list">
+            {% for acc in group.accounts %}
+            {% set brand = bank_brand(acc) %}
+            <div class="account-card">
+                <div class="acc-left">
+                    <span class="acc-logo-chip"{% if brand %} style="border-color:{{ brand.bg }}22"{% endif %}>
+                        {% if brand and brand.logo %}
+                        <img class="acc-brand-logo" src="/static/bank-logos/{{ brand.logo }}?v=3" alt="{{ brand.mark }}" onerror="this.classList.add('brand-logo-failed');this.parentElement.classList.add('logo-missing')">
+                        <span class="acc-icon acc-icon-fallback" style="background:{{ brand.bg }};color:{{ brand.fg }}">{{ brand.mark }}</span>
+                        {% else %}
+                        <span class="acc-icon acc-icon-emoji">{{ acc.icon or '💳' }}</span>
+                        {% endif %}
+                    </span>
+                    <div class="acc-info">
+                        <span class="acc-name">{{ acc.name }}</span>
+                        <span class="acc-type">{{ acc.type.value.replace('_', ' ').title() }}</span>
+                    </div>
+                </div>
+                <div class="acc-right">
+                    <span class="acc-balance">{{ format_rupiah(acc.current_balance) }}</span>
+                    <div class="acc-actions">
+                        <a href="/accounts/edit/{{ acc.id }}" class="btn-link">Isi Saldo</a>
+                        <a href="/accounts/delete/{{ acc.id }}" class="btn-link text-red" onclick="return confirm('Hapus akun {{ acc.name }}?')">Hapus</a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
     {% endfor %}
 
     {% if not groups %}

@@ -25,51 +25,12 @@ logger = logging.getLogger("app.main")
 
 
 def seed_default_data():
+    """Seed reference data only. No default accounts: the Akun menu starts
+    EMPTY (just the "+ Akun" button); users add their own real accounts."""
     db = SessionLocal()
     try:
         from app.services.seed_categories import seed_categories
         seed_categories(db)
-        existing_accs = db.query(Account).count()
-        if existing_accs == 0:
-            defaults = [
-                ("Cash", AccountType.CASH, "\U0001f4b5", None),
-                # Bank umum (retail)
-                ("BCA", AccountType.BANK, "\U0001f3e6", "BCA"),
-                ("Mandiri", AccountType.BANK, "\U0001f3e6", "Mandiri"),
-                ("BNI", AccountType.BANK, "\U0001f3e6", "BNI"),
-                ("BRI", AccountType.BANK, "\U0001f3e6", "BRI"),
-                ("BTN", AccountType.BANK, "\U0001f3e6", "BTN"),
-                ("CIMB Niaga", AccountType.BANK, "\U0001f3e6", "CIMB Niaga"),
-                ("Danamon", AccountType.BANK, "\U0001f3e6", "Danamon"),
-                ("Permata", AccountType.BANK, "\U0001f3e6", "Permata"),
-                ("Maybank", AccountType.BANK, "\U0001f3e6", "Maybank"),
-                ("OCBC NISP", AccountType.BANK, "\U0001f3e6", "OCBC NISP"),
-                ("BTPN", AccountType.BANK, "\U0001f3e6", "BTPN"),
-                ("Mega", AccountType.BANK, "\U0001f3e6", "Bank Mega"),
-                ("Sinarmas", AccountType.BANK, "\U0001f3e6", "Bank Sinarmas"),
-                ("Panin", AccountType.BANK, "\U0001f3e6", "Bank Panin"),
-                ("UOB", AccountType.BANK, "\U0001f3e6", "Bank UOB Indonesia"),
-                ("DBS", AccountType.BANK, "\U0001f3e6", "Bank DBS Indonesia"),
-                # Bank digital
-                ("Jago", AccountType.BANK, "\U0001f3e6", "Bank Jago"),
-                ("SeaBank", AccountType.BANK, "\U0001f3e6", "SeaBank"),
-                ("Blu", AccountType.BANK, "\U0001f3e6", "BCA Digital"),
-                ("Neo Commerce", AccountType.BANK, "\U0001f3e6", "Bank Neo Commerce"),
-                ("Allo Bank", AccountType.BANK, "\U0001f3e6", "Allo Bank"),
-                # Bank syariah
-                ("BSI", AccountType.BANK, "\U0001f3e6", "Bank Syariah Indonesia"),
-                ("Muamalat", AccountType.BANK, "\U0001f3e6", "Bank Muamalat"),
-                # E-wallet (uang elektronik berizin BI)
-                ("DANA", AccountType.E_WALLET, "\U0001f4f1", "DANA"),
-                ("GoPay", AccountType.E_WALLET, "\U0001f4f1", "GoPay"),
-                ("OVO", AccountType.E_WALLET, "\U0001f4f1", "OVO"),
-                ("ShopeePay", AccountType.E_WALLET, "\U0001f4f1", "ShopeePay"),
-                ("LinkAja", AccountType.E_WALLET, "\U0001f4f1", "LinkAja"),
-                ("i.Saku", AccountType.E_WALLET, "\U0001f4f1", "i.Saku"),
-            ]
-            for name, atype, icon, inst in defaults:
-                db.add(Account(name=name, type=atype, initial_balance=0, current_balance=0, icon=icon, institution=inst))
-            db.commit()
     finally:
         db.close()
 

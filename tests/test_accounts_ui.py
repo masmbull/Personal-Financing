@@ -168,7 +168,7 @@ def test_list_renders_brand_badge_for_bank():
     """Accounts page shows a static brand-logo image for seeded bank accounts."""
     r = client.get("/accounts")
     assert r.status_code == 200
-    assert 'class="acc-icon acc-icon-brand"' in r.text
-    # static logo image renders (no icon/monogram when a logo file exists)
-    assert 'src="/static/bank-logos/bca.png?v=2"' in r.text
+    assert 'class="acc-logo-chip"' in r.text
+    # static logo image renders (real logo picture, not a favicon icon)
+    assert 'src="/static/bank-logos/bca.png?v=3"' in r.text
     assert 'class="acc-brand-logo"' in r.text
