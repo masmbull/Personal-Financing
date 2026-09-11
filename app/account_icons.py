@@ -137,13 +137,29 @@ BANK_BRANDS = {
 }
 
 
+# Bundled official logo per BANK_BRANDS key (app/static/bank-logos/<file>).
+# Key without an entry (e.g. "bca digital"/blu) falls back to the monogram mark.
+BRAND_LOGOS = {
+    "bca": "bca.png", "mandiri": "mandiri.png", "bni": "bni.png",
+    "bri": "bri.png", "btn": "btn.png", "cimb": "cimb.png",
+    "danamon": "danamon.png", "permata": "permata.png", "maybank": "maybank.png",
+    "ocbc": "ocbc.png", "btpn": "btpn.png", "bank mega": "mega.png",
+    "sinarmas": "sinarmas.png", "panin": "panin.png", "uob": "uob.png",
+    "dbs": "dbs.png", "jago": "jago.png", "seabank": "seabank.png",
+    "neo commerce": "neo.png", "allo": "allo.png", "bsi": "bsi.png",
+    "muamalat": "muamalat.png", "gopay": "gopay.png", "ovo": "ovo.png",
+    "dana": "dana.png", "shopeepay": "shopeepay.png", "linkaja": "linkaja.png",
+    "i.saku": "isaku.png",
+}
+
+
 def bank_brand(account) -> dict[str, str] | None:
-    """Brand mark + colours for BANK/E_WALLET accounts, else None (emoji fallback)."""
+    """Brand mark + colours + logo for BANK/E_WALLET accounts, else None (emoji fallback)."""
     if account.type not in (AccountType.BANK, AccountType.E_WALLET):
         return None
     haystack = " ".join(filter(None, (account.institution, account.name))).lower()
     for key in sorted(BANK_BRANDS, key=len, reverse=True):
         if key in haystack:
             mark, bg, fg = BANK_BRANDS[key]
-            return {"mark": mark, "bg": bg, "fg": fg}
+            return {"mark": mark, "bg": bg, "fg": fg, "logo": BRAND_LOGOS.get(key)}
     return None

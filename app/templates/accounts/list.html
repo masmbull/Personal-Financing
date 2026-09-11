@@ -15,7 +15,12 @@
             <div class="acc-left">
                 {% set brand = bank_brand(acc) %}
                 {% if brand %}
-                <span class="acc-icon acc-icon-brand" style="background:{{ brand.bg }};color:{{ brand.fg }}"><span class="acc-icon-emoji">{{ brand.mark }}</span></span>
+                <span class="acc-icon acc-icon-brand" style="background:{{ brand.bg }};color:{{ brand.fg }}">
+                    {% if brand.logo %}
+                    <img class="acc-brand-logo" src="/static/bank-logos/{{ brand.logo }}?v=1" alt="{{ brand.mark }}" onerror="this.parentElement.classList.add('brand-logo-failed')">
+                    {% endif %}
+                    <span class="acc-icon-emoji">{{ brand.mark }}</span>
+                </span>
                 {% else %}
                 <span class="acc-icon"><span class="acc-icon-emoji">{{ acc.icon or '💳' }}</span></span>
                 {% endif %}
