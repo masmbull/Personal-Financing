@@ -430,6 +430,8 @@ def read_receipt_file(db: Session, receipt_id: int, user_id: int):
     tampered DB path can never expose arbitrary filesystem content.
     """
     receipt = get_receipt(db, receipt_id, user_id)
+    if not receipt.stored_path:
+        return None
     try:
         stored = Path(receipt.stored_path).resolve()
     except (OSError, ValueError):

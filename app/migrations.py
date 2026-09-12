@@ -389,11 +389,31 @@ def run_receipts_columns_migration(engine: Engine) -> bool:
         additions.append("transaction_id INTEGER")
     if "file_hash" not in cols:
         additions.append("file_hash VARCHAR(64)")
-    if not additions:
-        return False
+    # NULL-backfill: some servers already have these columns (from an older
+    # deploy) but rows created before the defaults existed hold NULL, which
+    # crashes list rendering (round(None / 1024) -> TypeError).  Always run
+    # the backfill; it is idempotent and counts as a change only when rows
+    # were actually repaired.
+    backfills = []
+    if "size_bytes" in cols:
+        backfills.append(
+            "UPDATE receipts SET size_bytes = 0 WHERE size_bytes IS NULL")
+    if "ocr_status" in cols:
+        backfills.append(
+            "UPDATE receipts SET ocr_status = 'PENDING' WHERE ocr_status IS NULL")
+    if "original_filename" in cols:
+        backfills.append(
+            "UPDATE receipts SET original_filename = '' "
+            "WHERE original_filename IS NULL")
+    changed = False
     with engine.begin() as conn:
         for ddl in additions:
             conn.execute(text(f"ALTER TABLE receipts ADD COLUMN {ddl}"))
+            changed = True
+        for stmt in backfills:
+            res = conn.execute(text(stmt))
+            if res.rowcount:
+                changed = True
         if "ix_receipts_user_id" not in {i["name"] for i in insp.get_indexes("receipts")}:
             conn.execute(text(
                 "CREATE INDEX IF NOT EXISTS ix_receipts_user_id ON receipts(user_id)"
@@ -410,5 +430,9 @@ def run_receipts_columns_migration(engine: Engine) -> bool:
             f"INSERT OR IGNORE INTO {_MARKER_TABLE} (name, applied_at) "
             "VALUES ('receipts_columns', datetime('now'))"
         ))
-    logger.info("Migrated receipts: added %s", ", ".join(additions))
-    return True
+    if changed:
+        if additions:
+            logger.info("Migrated receipts: added %s", ", ".join(additions))
+        else:
+            logger.info("Migrated receipts: backfilled NULL columns")
+    return changed

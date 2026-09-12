@@ -78,7 +78,7 @@ def _view(r) -> dict:
         "amount": tx.amount if tx else None,
         "created": r.created_at,
         "created_at_ts": _created_ts_ms(r.created_at),
-        "size_kb": round(r.size_bytes / 1024, 1),
+        "size_kb": round(int(r.size_bytes or 0) / 1024, 1),
     }
 
 

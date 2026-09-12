@@ -114,3 +114,66 @@ def test_receipts_list_works_after_migration():
         assert "struk" in r.text.lower()
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+def test_migration_backfills_null_size_bytes_and_list_renders():
+    """Server case: receipts table ALREADY has the late-arrival columns (so
+    no ALTER is needed) but legacy rows hold NULL size_bytes/ocr_status.
+    round(None / 1024) crashed GET /receipts with a 500.  The migration must
+    backfill the NULLs and the list page must render."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from tests.conftest import engine as test_engine
+    from tests.conftest import DEFAULT_USER
+    from app.database.db import SessionLocal
+    from app.api.deps import get_current_user, CurrentUser
+    from app.models.models import User
+
+    db = SessionLocal()
+    uid = db.query(User).filter(User.username == DEFAULT_USER).first().id
+    db.close()
+
+    with test_engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS receipts"))
+        conn.execute(text(
+            "CREATE TABLE receipts ("
+            "  id INTEGER PRIMARY KEY,"
+            "  user_id INTEGER,"
+            "  original_filename VARCHAR(255),"
+            "  stored_path VARCHAR(500) NOT NULL,"
+            "  mime_type VARCHAR(100) NOT NULL,"
+            "  size_bytes INTEGER,"
+            "  ocr_status VARCHAR(16),"
+            "  ocr_data TEXT,"
+            "  transaction_id INTEGER,"
+            "  file_hash VARCHAR(64),"
+            "  created_at DATETIME"
+            ")"
+        ))
+        conn.execute(text(
+            "INSERT INTO receipts (user_id, stored_path, mime_type, "
+            "size_bytes, ocr_status, created_at) "
+            "VALUES (:uid, 'null-size.png', 'image/png', NULL, NULL, datetime('now'))"
+        ).bindparams(uid=uid))
+
+    # Columns exist -> no ALTER, but NULL backfill counts as a change.
+    assert run_receipts_columns_migration(test_engine) is True
+    with test_engine.begin() as conn:
+        row = conn.execute(text(
+            "SELECT size_bytes, ocr_status FROM receipts "
+            "WHERE stored_path = 'null-size.png'"
+        )).fetchone()
+        assert row.size_bytes == 0
+        assert row.ocr_status == "PENDING"
+
+    # Idempotent: repaired rows are not rewritten on the next boot.
+    assert run_receipts_columns_migration(test_engine) is False
+
+    app.dependency_overrides[get_current_user] = (
+        lambda: CurrentUser(id=uid, username=DEFAULT_USER,
+                            display_name=DEFAULT_USER))
+    try:
+        client = TestClient(app, follow_redirects=False)
+        r = client.get("/receipts")
+        assert r.status_code == 200, r.text[:500]
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
