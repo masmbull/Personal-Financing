@@ -898,6 +898,7 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
   margin-bottom:22px;
 }
 @media(min-width:920px){.rr-hero{grid-template-columns:minmax(260px,330px) 1fr;gap:28px}}
+.rr-hero-info{display:flex;flex-direction:column;min-width:0}
 
 .rr-hero-media{display:flex;flex-direction:column}
 .rr-paper-tilt{
