@@ -261,21 +261,72 @@
           openPicker();
         });
       }
-      if (btnCamera) {
-        btnCamera.addEventListener('click', function () {
+
+      // iOS silently ignores .click() on <input type="file"> when the input's
+      // containing block is transformed/animated (the <main> pageIn animation).
+      // So we never click the in-form input on mobile: instead we attach a
+      // throwaway input directly to <body>, click THAT, then hand the picked
+      // file back into the canonical form input via compressImage/adopt.
+      var lastTmp = null;
+      function cleanupTmp() {
+        if (lastTmp && lastTmp.parentNode) lastTmp.parentNode.removeChild(lastTmp);
+        lastTmp = null;
+      }
+      function ensureHiddenInput(camera) {
+        cleanupTmp();
+        var tmp = document.createElement('input');
+        tmp.type = 'file';
+        tmp.accept = 'image/*';
+        tmp.style.cssText =
+          'position:fixed;left:-150px;top:0;width:1px;height:1px;opacity:0;';
+        if (camera) tmp.setAttribute('capture', 'environment');
+        lastTmp = tmp;
+        tmp.addEventListener('change', function () {
+          var f = tmp.files && tmp.files[0];
           closePicker();
-          input.setAttribute('capture', 'environment');
-          input.click();
-          // Clear the capture flag shortly after so the gallery path and any
-          // subsequent camera pick both start from a clean state.
-          setTimeout(function () { input.removeAttribute('capture'); }, 500);
+          if (!f) return;
+          var prev = document.getElementById('preview');
+          if (!/^image\//.test(f.type)) {
+            input.value = '';
+            if (prev) prev.classList.add('hidden');
+            setError('File harus berupa gambar (JPG/PNG/WebP).');
+            return;
+          }
+          if (f.size > maxMb * 1024 * 1024) {
+            input.value = '';
+            if (prev) prev.classList.add('hidden');
+            setError('Ukuran maksimal ' + maxMb + ' MB.');
+            return;
+          }
+          compressImage(f, function (file, opts) {
+            adoptCompressed(file, f.size, opts);
+          });
+        });
+        document.body.appendChild(tmp);
+        return tmp;
+      }
+      function pickFromSource(camera) {
+        if (!input) return;
+        // Click synchronously while the user gesture is still active, then
+        // hide the sheet — opening the dialog is async anyway.
+        var tmp = ensureHiddenInput(camera);
+        tmp.click();
+        closePicker();
+        // Auto-remove the leftover temp input in case the dialog is cancelled
+        // via a back gesture and 'change' never fires.
+        setTimeout(cleanupTmp, 60000);
+      }
+
+      if (btnCamera) {
+        btnCamera.addEventListener('click', function (e) {
+          e.preventDefault();
+          pickFromSource(true);
         });
       }
       if (btnGallery) {
-        btnGallery.addEventListener('click', function () {
-          closePicker();
-          input.removeAttribute('capture');
-          input.click();
+        btnGallery.addEventListener('click', function (e) {
+          e.preventDefault();
+          pickFromSource(false);
         });
       }
       if (btnCancel) btnCancel.addEventListener('click', closePicker);

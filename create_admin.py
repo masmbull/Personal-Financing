@@ -2,7 +2,8 @@
 """Create or promote an admin user for the FINANCE app (admin tool).
 
 Usage (run from repo root):
-    python create_admin.py <username> <password>
+    python create_admin.py <username> <password>   create/promote an admin
+    python create_admin.py --list                  list all users + admins
 
 If the user does not exist it is created with admin rights. If it already
 exists its admin flag is set (and it is re-activated). Uses the app's own
@@ -103,8 +104,39 @@ def _validate_password(pw):
 
 
 def main():
+    if len(_sys.argv) == 2 and _sys.argv[1] == "--list":
+        # Diagnostics: print every user and their admin/active state so the
+        # admin can see whether the account they are logging in with actually
+        # has admin rights (and how sessions look).
+        db = SessionLocal()
+        try:
+            users = db.query(User).order_by(User.id).all()
+            if not users:
+                print("Database users table is EMPTY.")
+                print("After first boot with AUTH_BOOTSTRAP_USERNAME/PASSWORD")
+                print("set, the app auto-creates that admin account.")
+            for u in users:
+                flag = "ADMIN" if u.is_admin else "user"
+                state = "active" if u.is_active else "INACTIVE"
+                created = u.created_at.strftime("%Y-%m-%d %H:%M") if u.created_at else "-"
+                print("id=%s  %-20s %-6s %-8s created=%s"
+                      % (u.id, u.username, flag, state, created))
+            admins = [u for u in users if u.is_admin]
+            print()
+            if admins:
+                print("Admin account(s): %s"
+                      % ", ".join(u.username for u in admins))
+                print("If login fails, reset the password:")
+                print("    python %s <admin_username> <password_baru_min8>" % _sys.argv[0])
+            else:
+                print("NO ADMIN USER EXISTS. Create one:")
+                print("    python %s <username> <password_baru_min8>" % _sys.argv[0])
+        finally:
+            db.close()
+        return
     if len(_sys.argv) != 3:
         _sys.stderr.write("Usage: python create_admin.py <username> <password>\n")
+        _sys.stderr.write("       python create_admin.py --list\n")
         _sys.exit(2)
     username = _sys.argv[1].strip().lower()
     password = _sys.argv[2]
