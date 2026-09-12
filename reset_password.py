@@ -20,17 +20,17 @@ username = sys.argv[1].strip().lower()
 new_password = sys.argv[2]
 
 if len(new_password) < 8:
-    print("ERROR: password must be at least 8 characters", file=sys.stderr)
+    sys.stderr.write("ERROR: password must be at least 8 characters\n")
     sys.exit(1)
 
 db = SessionLocal()
 try:
     user = db.query(User).filter(User.username == username).first()
     if user is None:
-        print(f"ERROR: user '{username}' not found", file=sys.stderr)
+        sys.stderr.write("ERROR: user '%s' not found\n" % username)
         sys.exit(1)
     user.password_hash = hash_password(new_password)
     db.commit()
-    print(f"OK: password for '{username}' (id={user.id}) has been reset.")
+    print("OK: password for '%s' (id=%s) has been reset." % (username, user.id))
 finally:
     db.close()
