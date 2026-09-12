@@ -18,7 +18,11 @@ from app.auth.sessions import (
 from app.database.db import get_db
 from app.models.models import AccountType
 from app.services import accounts as accounts_service
-from app.services.users import UsernameTaken, authenticate, create_user
+from app.auth.security import verify_password
+from app.services.users import (
+    UsernameTaken, authenticate, change_password, create_user,
+    invalidate_other_sessions,
+)
 from app.validation import validate_username, validate_password, validate_amount, validate_account_name
 
 templates = Jinja2Templates(directory="app/templates")
@@ -216,3 +220,53 @@ def setup_skip(request: Request, db: Session = Depends(get_db)):
             type_=AccountType.CASH, initial_balance=0,
         )
     return RedirectResponse(url="/", status_code=303)
+
+
+@router.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request, db: Session = Depends(get_db)):
+    """Self-service account settings (change password)."""
+    user = resolve_request_user(request, db)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+    if request.state.user.is_impersonating:
+        # Support sessions must not change credentials for the real user.
+        return RedirectResponse(url="/", status_code=303)
+    return _render_auth(request, "settings/change_password.html",
+                        error=request.query_params.get("error", ""))
+
+
+@router.post("/settings/change-password")
+def change_password_submit(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    confirm_password: str = Form(...),
+    csrf_token: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Update the signed-in user's password after verifying the old one."""
+    user = resolve_request_user(request, db)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+    if not csrf_ok(request.cookies.get(CSRF_COOKIE), csrf_token):
+        return RedirectResponse(url="/settings?error=csrf", status_code=303)
+
+    if not verify_password(current_password, user.password_hash):
+        resp = RedirectResponse(url="/settings?error=current", status_code=303)
+        resp.delete_cookie(CSRF_COOKIE, path="/")
+        return resp
+    if new_password != confirm_password:
+        resp = RedirectResponse(url="/settings?error=mismatch", status_code=303)
+        resp.delete_cookie(CSRF_COOKIE, path="/")
+        return resp
+    valid, err = validate_password(new_password)
+    if not valid:
+        resp = RedirectResponse(url="/settings?error=weak", status_code=303)
+        resp.delete_cookie(CSRF_COOKIE, path="/")
+        return resp
+
+    change_password(db, user, new_password)
+    # Keep only the current session; revoke every other device.
+    invalidate_other_sessions(db, user.id, request.cookies.get(SESSION_COOKIE))
+    return RedirectResponse(url="/settings?done=1", status_code=303)
+

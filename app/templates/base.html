@@ -87,6 +87,10 @@
                 </div>
                 {% endif %}
                 <div class="sidebar-divider"></div>
+                <a href="/settings" class="sidebar-nav-item {% if '/settings' in request.url.path %}active{% endif %}">
+                    <span class="icon">🔑</span>
+                    <span>Ganti Password</span>
+                </a>
                 <a href="/help" class="sidebar-nav-item {% if '/help' in request.url.path %}active{% endif %}">
                     <span class="icon">❓</span>
                     <span>Bantuan</span>

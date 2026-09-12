@@ -710,6 +710,7 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .auth-sub{font-size:.82rem;color:var(--ink-2);margin-top:2px}
 .auth-form{margin-top:8px}
 .auth-error{background:var(--red-bg);color:var(--red);border-radius:var(--r-sm);padding:10px 12px;font-size:.85rem;margin-bottom:14px;text-align:center}
+.auth-success{background:var(--green-bg);color:var(--green);border-radius:var(--r-sm);padding:10px 12px;font-size:.85rem;margin-bottom:14px;text-align:center}
 .auth-alt{text-align:center;margin-top:16px;font-size:.88rem;color:var(--ink-2)}
 .setup-skip{margin-top:12px}
 .setup-skip a{font-size:.82rem;color:var(--ink-3)}

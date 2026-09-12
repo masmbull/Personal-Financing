@@ -8,7 +8,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from app.auth.security import hash_password, verify_password
-from app.models.models import User
+from app.models.models import User, UserSession
 
 logger = logging.getLogger("app.services.users")
 
@@ -101,6 +101,35 @@ def list_users(db: Session) -> list[User]:
     return db.query(User).order_by(User.created_at).all()
 
 
-def count_users(db: Session) -> int:
-    """Count total users."""
-    return db.query(User).count()
+def change_password(db: Session, user: User, new_password: str) -> None:
+    """Replace a user's password hash (already validated by the caller)."""
+    user.password_hash = hash_password(new_password)
+    db.commit()
+    db.refresh(user)
+    logger.info("Changed password for user id=%s", user.id)
+
+
+def invalidate_other_sessions(db: Session, user_id: int, keep_token: str | None) -> int:
+    """Revoke all of a user's DB sessions except ``keep_token``.
+
+    Returns the number of sessions revoked. Pass ``keep_token=None`` to revoke
+    every session (force re-login everywhere).
+    """
+    from app.auth.sessions import _hash_token
+
+    q = db.query(UserSession).filter(UserSession.user_id == user_id)
+    revoked = 0
+    for row in q.all():
+        if keep_token is not None and row.token_hash == _hash_token(keep_token):
+            continue
+        if row.revoked_at is None:
+            row.revoked_at = _utcnow()
+            revoked += 1
+    if revoked:
+        db.commit()
+    return revoked
+
+
+def _utcnow() -> "datetime":
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).replace(tzinfo=None)
