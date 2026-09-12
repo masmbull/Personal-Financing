@@ -352,7 +352,7 @@ def test_receipt_detail_renders_with_items_namespace():
     assert "Review Struk" in detail.text
     assert "rr-form" in detail.text
     # items section should render without TypeError
-    assert "rr-items" in detail.text
+    assert "rr-paper" in detail.text
 
 
 def test_receipt_detail_failed_status_shows_manual_form():
@@ -377,7 +377,7 @@ def test_receipt_detail_failed_status_shows_manual_form():
 
     resp = client.get(f"/receipts/{rid}")
     assert resp.status_code == 200, resp.text[:500]
-    assert "gagal dibaca otomatis" in resp.text
+    assert "gagal dibaca" in resp.text
     # Must have a manual entry form (not just a warning)
     assert "rr-form" in resp.text
     assert "Simpan Transaksi" in resp.text
@@ -550,7 +550,7 @@ def test_receipt_detail_renders_ocr_items_without_typeerror():
     detail = client.get(f"/receipts/{rid}?uploaded=1")
     assert detail.status_code == 200
     assert "rr-form" in detail.text
-    assert "rr-items" in detail.text
+    assert "rr-paper" in detail.text
     assert "Review Struk" in detail.text
 
 

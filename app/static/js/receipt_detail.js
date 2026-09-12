@@ -23,7 +23,8 @@ function initReceiptDetail() {
     } else {
       viewerImg.addEventListener('load', function () { viewerImg.classList.add('loaded'); });
     }
-    var ghost = viewerImg.closest('.rr-viewer') && viewerImg.closest('.rr-viewer').querySelector('.rr-viewer-ghost');
+    var tilt = viewerImg.closest('.rr-paper-tilt');
+    var ghost = tilt && tilt.querySelector('.rr-viewer-ghost');
     if (ghost) {
       if (viewerImg.classList.contains('loaded')) { ghost.classList.add('hidden'); }
       else viewerImg.addEventListener('load', function () { ghost.classList.add('hidden'); });

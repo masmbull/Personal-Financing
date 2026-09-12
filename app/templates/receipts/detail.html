@@ -141,38 +141,56 @@
     </script>
 
     {% elif r.status_value == 'failed' %}
-    <div class="rr-flash rr-flash--warn" role="alert">
-      <span>Struk gagal dibaca otomatis. Kamu bisa coba lagi atau isi manual di bawah.</span>
-      <button type="button" class="rr-flash-close" aria-label="Tutup pesan">&times;</button>
-    </div>
-    <div class="rr-fail-actions">
-      <form method="post" action="/receipts/{{ r.id }}/retry-ocr" style="display:inline">
-        <button type="submit" class="rr-btn rr-btn--ghost">&#x1f504; Coba Lagi</button>
-      </form>
-      <a href="/receipts/upload" class="rr-btn rr-btn--ghost">&#x1f5bc;&#xfe0f; Ganti Foto</a>
-    </div>
-    <div class="rr-grid">
-      {% include "receipts/_viewer.html" %}
-      <div class="rr-col-review">
-        <div class="rr-card">
-          <p class="rr-card-sub">OCR gagal memproses struk ini. Isi data transaksi secara manual.</p>
-          {{ rrform.confirm_form(r.id, r.merchant or '', None, today, categories, accounts, '', format_rupiah) }}
+    <div class="rr-stage">
+      <div class="rr-hero">
+        {% include "receipts/_viewer.html" %}
+        <div class="rr-hero-info">
+          <div class="rr-merchant-card">
+            <span class="rr-kicker">Status</span>
+            <h2 class="rr-merchant">Struk gagal dibaca</h2>
+            <p class="rr-merchant-sub">OCR tidak bisa memproses struk ini. Coba lagi atau isi data secara manual di bawah.</p>
+            <div class="rr-fail-actions">
+              <form method="post" action="/receipts/{{ r.id }}/retry-ocr" style="margin:0">
+                <button type="submit" class="rr-btn rr-btn--ghost">&#x1f504; Coba Lagi</button>
+              </form>
+              <a href="/receipts/upload" class="rr-btn rr-btn--ghost">&#x1f5bc;&#xfe0f; Ganti Foto</a>
+            </div>
+          </div>
         </div>
+      </div>
+      <div class="rr-form-card">
+        <div class="rr-form-head">
+          <h2 class="rr-card-title">Data Transaksi</h2>
+          <p class="rr-card-sub">Isi data transaksi secara manual.</p>
+        </div>
+        {{ rrform.confirm_form(r.id, r.merchant or '', None, today, categories, accounts, '', format_rupiah) }}
         {% include "receipts/_danger.html" %}
       </div>
     </div>
 
     {% elif r.ocr %}
-    {% include "receipts/_dt1.html" %}
+    <div class="rr-stage">
+      {% include "receipts/_dt1.html" %}
+    </div>
 
     {% else %}
-    <div class="rr-grid">
-      {% include "receipts/_viewer.html" %}
-      <div class="rr-col-review">
-        <div class="rr-card">
-          <p class="rr-card-sub">Belum ada data OCR. Kamu bisa mencatat transaksi secara manual di bawah.</p>
-          {{ rrform.confirm_form(r.id, r.merchant or '', None, today, categories, accounts, '', format_rupiah) }}
+    <div class="rr-stage">
+      <div class="rr-hero">
+        {% include "receipts/_viewer.html" %}
+        <div class="rr-hero-info">
+          <div class="rr-merchant-card">
+            <span class="rr-kicker">Merchant</span>
+            <h2 class="rr-merchant">{{ r.merchant or 'Struk' }}</h2>
+            <p class="rr-merchant-sub">Belum ada data OCR. Catat transaksi ini secara manual.</p>
+          </div>
         </div>
+      </div>
+      <div class="rr-form-card">
+        <div class="rr-form-head">
+          <h2 class="rr-card-title">Data Transaksi</h2>
+          <p class="rr-card-sub">Catat transaksi secara manual.</p>
+        </div>
+        {{ rrform.confirm_form(r.id, r.merchant or '', None, today, categories, accounts, '', format_rupiah) }}
         {% include "receipts/_danger.html" %}
       </div>
     </div>

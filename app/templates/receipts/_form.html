@@ -3,11 +3,12 @@
 {% macro confirm_form(rid, merchant_val, total_val, date_val, cats, accs, desc_val, fmt_rupiah) %}
 <form method="post" action="/receipts/{{ rid }}/confirm" class="rr-form">
   <input type="hidden" name="type" value="EXPENSE">
-  <div>
-    <div class="rr-field">
-      <label class="rr-label" for="merchant">Merchant</label>
+  <div class="rr-fields">
+    <div class="rr-field rr-field--full">
+      <label class="rr-label" for="merchant">Merchant / Toko</label>
       <input class="rr-input" type="text" id="merchant" name="merchant"
-             value="{{ merchant_val or '' }}" maxlength="200">
+             value="{{ merchant_val or '' }}" maxlength="200"
+             placeholder="Nama toko dari struk">
     </div>
     <div class="rr-field">
       <label class="rr-label" for="amount">Total</label>
@@ -15,7 +16,7 @@
         <span class="rr-input-prefix" aria-hidden="true">Rp</span>
         <input class="rr-input rr-input--lg" type="text" inputmode="numeric" id="amount"
                name="amount" required value="{{ fmt_rupiah(total_val).replace('Rp ', '') if total_val else '' }}"
-               placeholder="0" autocomplete="off" data-rr-money>
+               placeholder="0" autocomplete="off">
       </div>
       <span class="rr-hint">Contoh: 20000 atau 20.000</span>
     </div>
@@ -38,20 +39,20 @@
         {% for a in accs %}<option value="{{ a.id }}">{{ a.icon or '' }} {{ a.name }}</option>{% endfor %}
       </select>
     </div>
-    <div class="rr-field">
+    <div class="rr-field rr-field--full">
       <label class="rr-label" for="description">Deskripsi</label>
       <input class="rr-input" type="text" id="description" name="description"
              value="{{ desc_val or '' }}" placeholder="Opsional" maxlength="200">
     </div>
   </div>
-  <div class="rr-submit-hint">
-    <span>Periksa nominal, tanggal, dan kategori sebelum menyimpan.</span>
-  </div>
-  <div class="rr-actions">
-    <button type="submit" class="rr-btn rr-btn--primary rr-btn--block rr-btn--lg" data-rr-save>
-      <span class="rr-btn-label">Simpan Transaksi</span>
-      <span class="rr-spinner" aria-hidden="true"></span>
-    </button>
+  <div class="rr-savebar">
+    <p class="rr-submit-hint">✔ Periksa nominal, tanggal, dan kategori sebelum menyimpan.</p>
+    <div class="rr-savebar-actions">
+      <button type="submit" class="rr-btn rr-btn--primary rr-btn--lg" data-rr-save>
+        <span class="rr-btn-label">Simpan Transaksi</span>
+        <span class="rr-spinner" aria-hidden="true"></span>
+      </button>
+    </div>
   </div>
 </form>
 {% endmacro %}

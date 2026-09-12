@@ -1,4 +1,4 @@
-{# OCR review partial: summary + items + confirm form (included by detail.html). #}
+{# OCR review partial: hero (paper | merchant) + receipt-paper items + form sheet. #}
 {% set conf = r.ocr.confidence or 'LOW' %}
 {% set _eng = r.ocr.engine %}
 <div class="rr-meta-chips">
@@ -36,84 +36,82 @@
   </span>
 </div>
 
-<div class="rr-grid">
+<div class="rr-hero">
   {% include "receipts/_viewer.html" %}
-  <div class="rr-col-review">
-    <div class="rr-card rr-merchant-card">
-      <h2 class="rr-card-title">Toko / Merchant</h2>
-      <h3 class="rr-merchant">{{ r.ocr.merchant or 'Struk' }}</h3>
+  <div class="rr-hero-info">
+    <div class="rr-merchant-card">
+      <span class="rr-kicker">Merchant</span>
+      <h2 class="rr-merchant">{{ r.ocr.merchant or 'Struk' }}</h2>
       {% if r.ocr.merchant_address %}
       <p class="rr-merchant-sub">{{ r.ocr.merchant_address }}</p>
       {% endif %}
-      <div class="rr-summary">
+      <div class="rr-hero-tags">
         {% if r.ocr.date %}
-        <div class="rr-sum-row"><span class="rr-sum-label">Tanggal</span><span class="rr-sum-value">{{ r.ocr.date }}</span></div>
-        {% endif %}
-        {% if r.ocr.subtotal %}
-        <div class="rr-sum-row"><span class="rr-sum-label">Subtotal</span><span class="rr-sum-value">{{ format_rupiah(r.ocr.subtotal) }}</span></div>
-        {% endif %}
-        {% if r.ocr.discount %}
-        <div class="rr-sum-row"><span class="rr-sum-label">Diskon</span><span class="rr-sum-value rr-dl-neg">-{{ format_rupiah(r.ocr.discount) }}</span></div>
-        {% endif %}
-        {% if r.ocr.tax %}
-        <div class="rr-sum-row"><span class="rr-sum-label">Pajak</span><span class="rr-sum-value">{{ format_rupiah(r.ocr.tax) }}</span></div>
+        <span class="rr-chip">📅 {{ r.ocr.date }}</span>
         {% endif %}
         {% if r.ocr.payment_method %}
-        <div class="rr-sum-row"><span class="rr-sum-label">Pembayaran</span><span class="rr-sum-value">{{ r.ocr.payment_method }}</span></div>
+        <span class="rr-chip">💳 {{ r.ocr.payment_method }}</span>
         {% endif %}
       </div>
-    </div>
-
-    {% if r.ocr.items %}
-    <div class="rr-card rr-items-card">
-      <div class="rr-items-head">
-        <h2 class="rr-card-title">Item</h2>
-        <span class="rr-badge">{{ r.ocr.items|length }} barang</span>
+      {% if r.ocr.total_amount %}
+      <div class="rr-hero-total">
+        <span class="rr-total-label">TOTAL BAYAR</span>
+        <span class="rr-amount-hero">{{ format_rupiah(r.ocr.total_amount) }}</span>
       </div>
-      <div class="rr-items-table" role="table" aria-label="Daftar item hasil scan">
-        <div class="rr-itable-row rr-itable-head" role="row">
-          <span role="columnheader">Nama Barang</span>
-          <span role="columnheader">Jumlah</span>
-          <span role="columnheader">Harga Satuan</span>
-          <span role="columnheader" class="rr-ta-right">Total</span>
-        </div>
-        {% for item in r.ocr.items %}
-        <div class="rr-itable-row" role="row">
-          <span class="rr-itable-name" role="cell">{{ item.name or '-' }}</span>
-          <span role="cell">
-            {%- if item.quantity -%}
-            <span class="rr-qty">x{{ item.quantity }}{% if item.unit %} {{ item.unit }}{% endif %}</span>
-            {%- else -%}
-            <span class="rr-dim">-</span>
-            {%- endif -%}
-          </span>
-          <span role="cell" class="rr-itable-mono">{% if item.unit_price %}{{ format_rupiah(item.unit_price).replace('Rp ', '') }}{% else %}<span class="rr-dim">-</span>{% endif %}</span>
-          <span role="cell" class="rr-itable-mono rr-ta-right">{% if item.total_price %}{{ format_rupiah(item.total_price).replace('Rp ', '') }}{% else %}<span class="rr-dim">-</span>{% endif %}</span>
-        </div>
-        {% endfor %}
-      </div>
+      {% endif %}
     </div>
-    {% else %}
-    <div class="rr-card rr-items-list">
-      <p class="rr-card-sub">Tidak ada item terdeteksi dari struk. Tambahkan manual bila perlu.</p>
-    </div>
-    {% endif %}
-
-    <div class="rr-card rr-card--confirm">
-      <div class="rr-confirm-head">
-        <div class="rr-confirm-head-txt">
-          <h2 class="rr-card-title">Periksa Sebelum Disimpan</h2>
-          <p class="rr-confirm-sub">Data dari hasil scan. Kamu bisa mengubahnya sebelum transaksi dibuat.</p>
-        </div>
-        {% if r.ocr.total_amount %}
-        <div class="rr-total-block">
-          <span class="rr-total-label">Total Bayar</span>
-          <span class="rr-amount-hero">{{ format_rupiah(r.ocr.total_amount) }}</span>
-        </div>
-        {% endif %}
-      </div>
-      {{ rrform.confirm_form(r.id, r.ocr.merchant or r.merchant or '', r.ocr.total_amount, r.ocr.date or today, categories, accounts, r.ocr.merchant or '', format_rupiah) }}
-    </div>
-    {% include "receipts/_danger.html" %}
   </div>
+</div>
+
+{% if r.ocr.items %}
+<div class="rr-paper" role="table" aria-label="Daftar item hasil scan">
+  <div class="rr-paper-head">
+    <span class="rr-kicker">Rincian Struk</span>
+    <span class="rr-badge">{{ r.ocr.items|length }} item</span>
+  </div>
+  {% for item in r.ocr.items %}
+  <div class="rr-paper-item" role="row">
+    <span class="rr-paper-name" role="cell">{{ item.name or '-' }}
+      {%- if item.quantity %}<small>×{{ item.quantity }}{% if item.unit %} {{ item.unit }}{% endif %}</small>{%- endif %}
+    </span>
+    <span class="rr-dots" aria-hidden="true"></span>
+    <span class="rr-paper-price" role="cell">
+      {%- if item.total_price -%}{{ format_rupiah(item.total_price).replace('Rp ', '') }}
+      {%- elif item.unit_price -%}{{ format_rupiah(item.unit_price).replace('Rp ', '') }}
+      {%- else -%}-{%- endif -%}
+    </span>
+  </div>
+  {% endfor %}
+  <div class="rr-paper-totals">
+    {% if r.ocr.subtotal %}
+    <div class="rr-paper-row"><span>Subtotal</span><span>{{ format_rupiah(r.ocr.subtotal).replace('Rp ', '') }}</span></div>
+    {% endif %}
+    {% if r.ocr.discount %}
+    <div class="rr-paper-row rr-dl-neg"><span>Diskon</span><span>-{{ format_rupiah(r.ocr.discount).replace('Rp ', '') }}</span></div>
+    {% endif %}
+    {% if r.ocr.tax %}
+    <div class="rr-paper-row"><span>Pajak</span><span>{{ format_rupiah(r.ocr.tax).replace('Rp ', '') }}</span></div>
+    {% endif %}
+    <div class="rr-paper-row rr-paper-grand">
+      <span>Total</span>
+      <span>{{ format_rupiah(r.ocr.total_amount).replace('Rp ', '') if r.ocr.total_amount else '-' }}</span>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="rr-paper">
+  <div class="rr-paper-head">
+    <span class="rr-kicker">Rincian Striuk</span>
+  </div>
+  <p class="rr-paper-empty">Tidak ada item terdeteksi dari struk. Tambahkan manual bila perlu.</p>
+</div>
+{% endif %}
+
+<div class="rr-form-card">
+  <div class="rr-form-head">
+    <h2 class="rr-card-title">Data Transaksi</h2>
+    <p class="rr-card-sub">Data hasil scan — sesuaikan sebelum disimpan.</p>
+  </div>
+  {{ rrform.confirm_form(r.id, r.ocr.merchant or r.merchant or '', r.ocr.total_amount, r.ocr.date or today, categories, accounts, r.ocr.merchant or '', format_rupiah) }}
+  {% include "receipts/_danger.html" %}
 </div>
