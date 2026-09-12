@@ -22,12 +22,17 @@ def _reexec(candidate):
 
 
 # 1) Under Python 2, re-exec with the first available python3.
+#    Use only py2-safe APIs (subprocess.call, os.devnull) here.
 if sys.version_info[0] < 3:
     import subprocess
+    devnull = open(os.devnull, "w")
     for cand in ("python3", "python3.11", "python3.12", "python3.10"):
-        if subprocess.run([cand, "--version"],
-                          stdout=subprocess.DEVNULL,
-                          stderr=subprocess.DEVNULL).returncode == 0:
+        try:
+            rc = subprocess.call([cand, "--version"],
+                                 stdout=devnull, stderr=devnull)
+        except OSError:
+            rc = 1
+        if rc == 0:
             _reexec(cand)
     sys.stderr.write("ERROR: Python 3 is required to run this script.\n")
     sys.exit(1)
