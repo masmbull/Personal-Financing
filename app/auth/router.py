@@ -60,6 +60,14 @@ def login_page(request: Request, db: Session = Depends(get_db),
                         error=(error == "1"))
 
 
+@router.get("/forgot-password", response_class=HTMLResponse)
+def forgot_password_page(request: Request, db: Session = Depends(get_db)):
+    if resolve_request_user(request, db) is not None:
+        return RedirectResponse(url="/", status_code=303)
+    return _render_auth(request, "auth/forgot_password.html")
+
+
+
 @router.post("/login")
 def login_submit(
     request: Request,
