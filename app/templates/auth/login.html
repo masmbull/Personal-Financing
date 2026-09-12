@@ -26,8 +26,11 @@
 
             <div class="form-group">
                 <label class="form-label" for="password">Password</label>
-                <input type="password" name="password" id="password" class="input"
-                       placeholder="••••••••" required autocomplete="current-password">
+                <div class="pw-wrap">
+                    <input type="password" name="password" id="password" class="input"
+                           placeholder="••••••••" required autocomplete="current-password">
+                    <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Tampilkan password" data-shown="0">👁️</button>
+                </div>
             </div>
 
             <button type="submit" class="btn btn-primary btn-block">
@@ -44,6 +47,18 @@
 (function () {
     var form = document.getElementById('login-form');
     if (!form) return;
+    var pw = document.getElementById('password');
+    var toggle = document.getElementById('pw-toggle');
+    if (pw && toggle) {
+        toggle.addEventListener('click', function () {
+            var shown = toggle.getAttribute('data-shown') === '1';
+            shown = !shown;
+            pw.type = shown ? 'text' : 'password';
+            toggle.setAttribute('data-shown', shown ? '1' : '0');
+            toggle.textContent = shown ? '🙈' : '👁️';
+            toggle.setAttribute('aria-label', shown ? 'Sembunyikan password' : 'Tampilkan password');
+        });
+    }
     form.addEventListener('submit', function () {
         var btn = form.querySelector('button[type="submit"]');
         btn.disabled = true;
