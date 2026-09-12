@@ -361,3 +361,54 @@ def run_password_reset_request_migration(engine: Engine) -> bool:
         ))
     logger.info("Created password_reset_requests table")
     return True
+
+
+def run_receipts_columns_migration(engine: Engine) -> bool:
+    """Add late-arrival Receipt columns to an existing receipts table.
+
+    `Base.metadata.create_all` only creates missing TABLES, never missing
+    columns, so a server that booted with an older Receipt model keeps its old
+    column set and every `SELECT` on receipts raises "no such column" (an
+    Internal Server Error on /receipts). Add the columns that appeared after
+    the original schema, idempotently.
+    """
+    insp = inspect(engine)
+    if "receipts" not in insp.get_table_names():
+        return False
+    cols = {c["name"] for c in insp.get_columns("receipts")}
+    additions = []
+    if "original_filename" not in cols:
+        additions.append("original_filename VARCHAR(255)")
+    if "size_bytes" not in cols:
+        additions.append("size_bytes INTEGER DEFAULT 0")
+    if "ocr_status" not in cols:
+        additions.append("ocr_status VARCHAR(16) DEFAULT 'PENDING'")
+    if "ocr_data" not in cols:
+        additions.append("ocr_data TEXT")
+    if "transaction_id" not in cols:
+        additions.append("transaction_id INTEGER")
+    if "file_hash" not in cols:
+        additions.append("file_hash VARCHAR(64)")
+    if not additions:
+        return False
+    with engine.begin() as conn:
+        for ddl in additions:
+            conn.execute(text(f"ALTER TABLE receipts ADD COLUMN {ddl}"))
+        if "ix_receipts_user_id" not in {i["name"] for i in insp.get_indexes("receipts")}:
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_receipts_user_id ON receipts(user_id)"
+            ))
+        if "ix_receipts_file_hash" not in {i["name"] for i in insp.get_indexes("receipts")}:
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_receipts_file_hash ON receipts(file_hash)"
+            ))
+        conn.execute(text(
+            f"CREATE TABLE IF NOT EXISTS {_MARKER_TABLE} "
+            "(name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)"
+        ))
+        conn.execute(text(
+            f"INSERT OR IGNORE INTO {_MARKER_TABLE} (name, applied_at) "
+            "VALUES ('receipts_columns', datetime('now'))"
+        ))
+    logger.info("Migrated receipts: added %s", ", ".join(additions))
+    return True

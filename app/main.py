@@ -74,6 +74,8 @@ async def lifespan(app: FastAPI):
     run_institution_fk_migration(engine)
     from app.migrations import run_password_reset_request_migration
     run_password_reset_request_migration(engine)
+    from app.migrations import run_receipts_columns_migration
+    run_receipts_columns_migration(engine)
     seed_default_data()
     try:
         from app.services.seed_master import seed_master_data
