@@ -42,8 +42,8 @@ def _find_venv_python():
     """Walk up from the script dir and cwd looking for a venv python that
     can import sqlalchemy and the app package. Returns path or None."""
     import subprocess
-    roots = []
     here = os.path.dirname(os.path.abspath(__file__))
+    roots = []
     d = here
     for _ in range(4):
         roots.append(d)
@@ -56,25 +56,30 @@ def _find_venv_python():
     for root in roots:
         for vn in ("venv", ".venv", "env", "virtualenv"):
             for sub in ("bin", "Scripts"):
-                exe = os.path.join(root, vn, sub, "python")
-                if sys.platform == "win32":
-                    exe += ".exe"
-                if exe in seen or not os.path.exists(exe):
+                bindir = os.path.join(root, vn, sub)
+                if not os.path.isdir(bindir):
                     continue
-                seen.add(exe)
-                probe = (
-                    "import importlib.util as u;"
-                    "print('OK' if u.find_spec('sqlalchemy') and u.find_spec('app') else 'NO')"
-                )
-                try:
-                    out = subprocess.run([exe, "-c", probe],
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.DEVNULL,
-                                         timeout=15).stdout.decode().strip()
-                except Exception:
-                    continue
-                if out == "OK":
-                    return exe
+                for name in ("python", "python3", "python3.11", "python3.12",
+                             "python3.10", "python3.9"):
+                    exe = os.path.join(bindir, name)
+                    if sys.platform == "win32":
+                        exe += ".exe"
+                    if exe in seen or not os.path.exists(exe):
+                        continue
+                    seen.add(exe)
+                    probe = (
+                        "import importlib.util as u;"
+                        "print('OK' if u.find_spec('sqlalchemy') and u.find_spec('app') else 'NO')"
+                    )
+                    try:
+                        out = subprocess.run([exe, "-c", probe], cwd=here,
+                                             stdout=subprocess.PIPE,
+                                             stderr=subprocess.DEVNULL,
+                                             timeout=15).stdout.decode().strip()
+                    except Exception:
+                        continue
+                    if out == "OK":
+                        return exe
     return None
 
 
