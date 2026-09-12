@@ -18,7 +18,6 @@
     <section class="acc-section">
         <div class="acc-group-head">
             <span class="acc-group-title">{{ group.name }}</span>
-            <span class="acc-group-total" data-amount="{{ group.total }}">{{ format_rupiah(group.total) }}</span>
         </div>
         <div class="account-list stagger">
             {% for acc in group.accounts %}

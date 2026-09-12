@@ -209,7 +209,6 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .acc-section{margin-top:18px}
 .acc-group-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:0 2px 8px}
 .acc-group-title{font-size:.8rem;font-weight:700;color:var(--ink-2);text-transform:uppercase;letter-spacing:.06em}
-.acc-group-total{font-size:.8rem;font-weight:700;color:var(--ink-3);font-variant-numeric:tabular-nums}
 .account-card{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg-card);border:1px solid var(--line);border-radius:var(--r-md);padding:13px 14px;box-shadow:var(--sh-1);transition:all var(--tr)}
 .account-card:hover{border-color:var(--blue);box-shadow:var(--sh-2)}
 .acc-left{display:flex;align-items:center;gap:11px;min-width:0}

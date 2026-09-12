@@ -79,7 +79,10 @@ def test_set_balance_rejects_malformed():
     assert r.status_code == 400, r.text
 
 
-def test_list_shows_balance_and_sidebar_total():
+def test_list_shows_hero_total_without_sidebar_widget():
+    """One grand total (hero) + per-account balances.  The sidebar balance
+    widget and per-group subtotals are intentionally NOT rendered on the
+    list page - three copies of the same number is visual noise."""
     rid = _html_create(client, "SideCash", "CASH")
     client.post(f"/accounts/edit/{rid}", data={
         "name": "SideCash", "type": "CASH", "initial_balance": "100.000", "icon": "",
@@ -87,9 +90,9 @@ def test_list_shows_balance_and_sidebar_total():
     r = client.get("/accounts")
     assert r.status_code == 200
     assert "Rp 100.000" in r.text
-    # sidebar indicator only rendered on account pages
-    assert "Saldo Akun" in r.text
-    assert "sidebar-balance-value" in r.text
+    assert "Total Saldo" in r.text            # hero keeps the single total
+    assert "sidebar-balance-value" not in r.text   # no sidebar duplicate
+    assert "acc-group-total" not in r.text         # no group subtotal
 
 
 def test_edit_form_is_balance_focused():

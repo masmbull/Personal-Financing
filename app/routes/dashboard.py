@@ -125,13 +125,11 @@ def dashboard(request: Request, db: Session = Depends(get_db),
 def list_accounts(request: Request, db: Session = Depends(get_db),
                   user: CurrentUser = Depends(get_current_user)):
     groups = accounts_service.list_accounts_grouped(db, user.id)
-    total = sum(g["total"] for g in groups)
     return templates.TemplateResponse(request, "accounts/list.html", {
         "groups": groups,
         "account_types": AccountType,
         "format_rupiah": format_rupiah,
         "bank_brand": bank_brand,
-        "sidebar_accounts_total": total,
     })
 
 
