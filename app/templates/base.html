@@ -2,13 +2,13 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <script>document.documentElement.classList.add('js-ready');</script>
+    <script>document.documentElement.classList.add('js-ready');try{if(localStorage.getItem('pf_hide_balance')==='1')document.documentElement.classList.add('bal-hidden')}catch(e){}</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>{% block title %}Finance{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=17">
+    <link rel="stylesheet" href="/static/css/style.css?v=18">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
@@ -83,7 +83,8 @@
                 {% if sidebar_accounts_total is defined %}
                 <div class="sidebar-balance">
                     <span class="sidebar-balance-label">Saldo Akun</span>
-                    <span class="sidebar-balance-value">{{ format_rupiah(sidebar_accounts_total) }}</span>
+                    <span class="sidebar-balance-value priv-amount">{{ format_rupiah(sidebar_accounts_total) }}</span>
+                    <button type="button" class="priv-toggle priv-toggle--sm" aria-pressed="false" aria-label="Tampilkan atau sembunyikan saldo"><span class="eye-on">👁️</span><span class="eye-off">🙈</span></button>
                 </div>
                 {% endif %}
                 <div class="sidebar-divider"></div>

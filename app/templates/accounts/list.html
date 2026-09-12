@@ -9,8 +9,9 @@
 
     {% set total_all = groups|map(attribute='total')|sum %}
     <section class="acc-hero">
+        <button type="button" class="priv-toggle" aria-pressed="false" aria-label="Tampilkan atau sembunyikan saldo"><span class="eye-on">👁️</span><span class="eye-off">🙈</span></button>
         <div class="acc-hero-label">Total Saldo</div>
-        <div class="acc-hero-amount" data-amount="{{ total_all }}">{{ format_rupiah(total_all) }}</div>
+        <div class="acc-hero-amount priv-amount" data-amount="{{ total_all }}">{{ format_rupiah(total_all) }}</div>
         <div class="acc-hero-meta">{{ groups|length }} grup • {{ groups|map(attribute='accounts')|map('length')|sum }} akun</div>
     </section>
 
@@ -38,7 +39,7 @@
                     </div>
                 </div>
                 <div class="acc-right">
-                    <span class="acc-balance">{{ format_rupiah(acc.current_balance) }}</span>
+                    <span class="acc-balance priv-amount">{{ format_rupiah(acc.current_balance) }}</span>
                     <div class="acc-actions">
                         <a href="/accounts/edit/{{ acc.id }}" class="btn-link">Isi Saldo</a>
                         <a href="/accounts/delete/{{ acc.id }}" class="btn-link text-red" onclick="return confirm('Hapus akun {{ acc.name }}?')">Hapus</a>

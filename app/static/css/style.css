@@ -293,6 +293,20 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .sidebar-balance-label{font-size:.68rem;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em}
 .sidebar-balance-value{font-size:.95rem;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink)}
 
+/* ---- balance privacy toggle (show/hide money) ---- */
+.acc-hero{position:relative}
+.priv-toggle{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:10px;border:none;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center;font-size:1.05rem;line-height:1;cursor:pointer;transition:background var(--tr);padding:0}
+.priv-toggle:hover{background:rgba(255,255,255,.3)}
+.priv-toggle .eye-off{display:none}
+.bal-hidden .priv-toggle .eye-on{display:none}
+.bal-hidden .priv-toggle .eye-off{display:inline}
+.bal-hidden .priv-amount{color:transparent !important;position:relative}
+.bal-hidden .priv-amount::before{content:'Rp \2022\2022\2022\2022\2022\2022';position:absolute;left:0;top:0;color:var(--ink-2);font-size:inherit;font-weight:inherit;letter-spacing:.04em}
+.bal-hidden .acc-hero .priv-amount::before{color:#fff}
+.priv-toggle--sm{position:absolute;top:50%;right:8px;transform:translateY(-50%);width:30px;height:30px;border-radius:8px;background:transparent;color:var(--ink-3);font-size:.95rem}
+.priv-toggle--sm:hover{background:rgba(0,0,0,.06)}
+.sidebar-balance{position:relative;padding-right:44px}
+
 /* ---- account balance entry ---- */
 .account-balance-pill{font-size:.85rem;font-weight:800;color:var(--green);font-variant-numeric:tabular-nums}
 .account-details{margin:0;padding:12px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--bg-card)}

@@ -588,3 +588,22 @@
     initMoneyInputs();
   });
 })();
+/* ---------- balance privacy toggle (eye) ---------- */
+(function(){
+  var root = document.documentElement;
+  function isHidden(){ return root.classList.contains('bal-hidden'); }
+  function sync(){
+    var h = isHidden() ? 'true' : 'false';
+    var btns = document.querySelectorAll('.priv-toggle');
+    for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', h);
+  }
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest ? e.target.closest('.priv-toggle') : null;
+    if (!btn) return;
+    var nowHidden = !isHidden();
+    root.classList.toggle('bal-hidden', nowHidden);
+    try { localStorage.setItem('pf_hide_balance', nowHidden ? '1' : '0'); } catch (err) {}
+    sync();
+  });
+  sync();
+})();

@@ -175,3 +175,17 @@ def test_list_renders_brand_badge_for_bank():
     # static logo image renders (real logo picture, not a favicon icon)
     assert 'src="/static/bank-logos/bca.png?v=3"' in r.text
     assert 'class="acc-brand-logo"' in r.text
+
+def test_balance_privacy_toggle_present():
+    """Accounts page exposes an eye toggle + hide-able amounts; the sidebar
+    widget on create/edit pages is hide-able too (confidential in public)."""
+    rid = _html_create(client, "Priv", "CASH")
+    r = client.get("/accounts")
+    assert r.status_code == 200
+    assert "priv-toggle" in r.text
+    assert "priv-amount" in r.text
+    assert "Total Saldo" in r.text
+    re_ = client.get(f"/accounts/edit/{rid}")
+    assert re_.status_code == 200
+    assert "priv-amount" in re_.text          # sidebar value hide-able
+    assert "priv-toggle--sm" in re_.text      # small eye in sidebar widget
