@@ -350,9 +350,9 @@ def test_receipt_detail_renders_with_items_namespace():
     detail = client.get(f"/receipts/{rid}?uploaded=1")
     assert detail.status_code == 200, detail.text[:500]
     assert "Review Struk" in detail.text
-    assert "rr-form" in detail.text
+    assert 'class="form"' in detail.text
     # items section should render without TypeError
-    assert "rr-paper" in detail.text
+    assert "Rincian Item" in detail.text
 
 
 def test_receipt_detail_failed_status_shows_manual_form():
@@ -379,7 +379,7 @@ def test_receipt_detail_failed_status_shows_manual_form():
     assert resp.status_code == 200, resp.text[:500]
     assert "gagal dibaca" in resp.text
     # Must have a manual entry form (not just a warning)
-    assert "rr-form" in resp.text
+    assert 'class="form"' in resp.text
     assert "Simpan Transaksi" in resp.text
 
 
@@ -527,7 +527,7 @@ def test_receipt_detail_renders_review_header():
     _wait_ocr(rid)
     t = client.get(f"/receipts/{rid}?uploaded=1").text
     assert "Review Struk" in t
-    assert "rr-form" in t
+    assert 'class="form"' in t
     import os
     try: os.remove(stored)
     except OSError: pass
@@ -549,8 +549,8 @@ def test_receipt_detail_renders_ocr_items_without_typeerror():
     _wait_ocr(rid)
     detail = client.get(f"/receipts/{rid}?uploaded=1")
     assert detail.status_code == 200
-    assert "rr-form" in detail.text
-    assert "rr-paper" in detail.text
+    assert 'class="form"' in detail.text
+    assert "Rincian Item" in detail.text
     assert "Review Struk" in detail.text
 
 

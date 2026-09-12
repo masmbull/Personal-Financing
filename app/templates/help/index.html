@@ -2,159 +2,145 @@
 {% block title %}Bantuan - Finance{% endblock %}
 {% block content %}
 <div class="page">
-    <div class="top-bar reveal">
+    <div class="top-bar">
         <div>
-            <div class="greeting">?? Panduan Penggunaan</div>
+            <div class="greeting">&#10067; Panduan Penggunaan</div>
             <h1 class="page-title-large">Pusat Bantuan</h1>
         </div>
     </div>
 
-    <section class="section reveal">
-        <div class="section-header">
-            <h2 class="section-title">?? Memulai</h2>
-        </div>
-        <div class="card">
-            <h3 style="margin-bottom:12px">Selamat datang di Finance App!</h3>
-            <p>Aplikasi ini membantu Anda mencatat dan mengelola keuangan pribadi dengan mudah. Berikut langkah awal:</p>
-            <ol style="margin-top:12px;padding-left:20px;line-height:1.8">
-                <li><strong>Daftar</strong> — Buat akun baru di halaman Register</li>
-                <li><strong>Setup Akun</strong> — Masukkan akun pertama Anda (Cash, Bank, atau E-Wallet) dengan saldo awal</li>
-                <li><strong>Dashboard</strong> — Lihat ringkasan keuangan Anda</li>
-                <li><strong>Catat Transaksi</strong> — Tambah pemasukan atau pengeluaran</li>
-            </ol>
-        </div>
+    <nav class="help-nav" aria-label="Daftar isi">
+        <div class="help-nav-title">Daftar Isi</div>
+        <a class="help-nav-item" href="#memulai">&#128640; Memulai</a>
+        <a class="help-nav-item" href="#dashboard">&#128202; Dashboard</a>
+        <a class="help-nav-item" href="#akun">&#127974; Akun</a>
+        <a class="help-nav-item" href="#transaksi">&#128184; Transaksi</a>
+        <a class="help-nav-item" href="#struk">&#129534; Scan Struk</a>
+        <a class="help-nav-item" href="#budget">&#128197; Budget</a>
+        <a class="help-nav-item" href="#tabungan">&#127919; Tabungan</a>
+        <a class="help-nav-item" href="#laporan">&#128200; Laporan</a>
+        <a class="help-nav-item" href="#lainnya">&#129513; Fitur Lainnya</a>
+        <a class="help-nav-item" href="#keamanan">&#128272; Keamanan</a>
+        <a class="help-nav-item" href="#tips">&#128161; Tips</a>
+        <a class="help-nav-item" href="#admin">&#128736;&#65039; Admin</a>
+    </nav>
+
+    <section class="help-section" id="memulai">
+        <h2>&#128640; Memulai</h2>
+        <p>Selamat datang! Aplikasi ini membantu Anda mencatat dan mengelola keuangan pribadi. Empat langkah awal:</p>
+        <div class="help-step"><strong>1. Daftar</strong> &mdash; buat akun baru di halaman Register.</div>
+        <div class="help-step"><strong>2. Tambah Akun</strong> &mdash; masukkan akun pertama Anda (Cash, Bank, atau E-Wallet) beserta saldo awal.</div>
+        <div class="help-step"><strong>3. Cek Dashboard</strong> &mdash; lihat ringkasan keuangan Anda.</div>
+        <div class="help-step"><strong>4. Catat Transaksi</strong> &mdash; tambahkan pemasukan atau pengeluaran, atau langsung <a class="link-more" href="/receipts/upload">scan struk</a>.</div>
     </section>
 
-    <section class="section reveal">
-        <div class="section-header">
-            <h2 class="section-title">?? Dashboard</h2>
-        </div>
-        <div class="card">
-            <p>Dashboard menampilkan:</p>
-            <ul style="margin-top:8px;padding-left:20px;line-height:1.8">
-                <li><strong>Saldo Tersedia</strong> — Total uang di semua akun likuid (Cash, Bank, E-Wallet, Tabungan)</li>
-                <li><strong>Total Aset</br> — Nilai semua aset + investasi</li>
-                <li><strong>Kewajiban</strong> — Total hutang dan saldo negatif kartu kredit</li>
-                <li><strong>Net Worth</strong> — Aset dikurangi kewajiban</li>
-                <li><strong>Pemasukan & Pengeluaran</strong> — Per periode (bulan ini, tahun ini, dll)</li>
-                <li><strong>Transaksi Terakhir</strong> — 5 transaksi terbaru</li>
-            </ul>
-        </div>
+    <section class="help-section" id="dashboard">
+        <h2>&#128202; Dashboard</h2>
+        <p>Dashboard menampilkan ringkasan keuangan Anda:</p>
+        <ul>
+            <li><strong>Saldo Tersedia</strong> &mdash; total uang di semua akun likuid (Cash, Bank, E-Wallet, Tabungan).</li>
+            <li><strong>Total Aset</strong> &mdash; nilai semua aset plus investasi.</li>
+            <li><strong>Kewajiban</strong> &mdash; total hutang dan saldo negatif kartu kredit.</li>
+            <li><strong>Net Worth</strong> &mdash; aset dikurangi kewajiban.</li>
+            <li><strong>Pemasukan &amp; Pengeluaran</strong> &mdash; per periode (bulan ini, tahun ini, dan seterusnya).</li>
+            <li><strong>Transaksi Terakhir</strong> &mdash; lima transaksi terbaru.</li>
+        </ul>
     </section>
 
-    <section class="section reveal">
-        <div class="section-header">
-            <h2 class="section-title">?? Akun</h2>
-        </div>
-        <div class="card">
-            <p>Kelola berbagai jenis akun:</p>
-            <ul style="margin-top:8px;padding-left:20px;line-height:1.8">
-                <li><strong>Cash</strong> — Uang tunai</li>
-                <li><strong>Bank</strong> — Rekening bank (BCA, Mandiri, BNI, dll)</li>
-                <li><strong>E-Wallet</strong> — GoPay, OVO, DANA, dll</li>
-                <li><strong>Kartu Kredit</strong> — Dengan limit kredit</li>
-                <li><strong>Tabungan</strong> — Rekening tabungan</li>
-                <li><strong>Investasi</strong> — Portofolio investasi</li>
-            </ul>
-            <p style="margin-top:12px"><strong>Tip:</strong> Saldo awal bisa diubah nanti, dan saldo akan otomatis dihitung ulang dari transaksi.</p>
-        </div>
+    <section class="help-section" id="akun">
+        <h2>&#127974; Akun</h2>
+        <p>Kelola berbagai jenis akun untuk mencerminkan keuangan Anda:</p>
+        <ul>
+            <li><strong>Cash</strong> &mdash; uang tunai.</li>
+            <li><strong>Bank</strong> &mdash; rekening bank (BCA, Mandiri, BNI, dll).</li>
+            <li><strong>E-Wallet</strong> &mdash; GoPay, OVO, DANA, dll.</li>
+            <li><strong>Kartu Kredit</strong> &mdash; dengan limit kredit.</li>
+            <li><strong>Tabungan</strong> &mdash; rekening tabungan.</li>
+            <li><strong>Investasi</strong> &mdash; portofolio investasi.</li>
+        </ul>
+        <div class="help-tip"><strong>Tip:</strong> saldo awal bisa diubah kapan saja &mdash; saldo akan otomatis dihitung ulang dari transaksi.</div>
     </section>
 
-    <section class="section reveal">
-        <div class="section-header">
-            <h2 class="section-title">?? Transaksi</h2>
-        </div>
-        <div class="card">
-            <p>Jenis transaksi:</p>
-            <ul style="margin-top:8px;padding-left:20px;line-height:1.8">
-                <li><strong>Pengeluaran (Expense)</strong> — Uang keluar, saldo akun berkurang</li>
-                <li><strong>Pemasukan (Income)</strong> — Uang masuk, saldo akun bertambah</li>
-                <li><strong>Transfer</strong> — Pindah uang antar akun (tidak dihitung sebagai income/expense)</li>
-                <li><strong>Pembayaran Hutang</strong> — Bayar hutang, saldo berkurang tapi bukan expense</li>
-                <li><strong>Refund</strong> — Pengembalian uang, saldo bertambah tapi bukan income</li>
-            </ul>
-            <p style="margin-top:12px"><strong>Catatan:</strong> Setiap transaksi wajib memilih akun. Kategori opsional untuk income/expense, wajib untuk transfer.</p>
-        </div>
+    <section class="help-section" id="transaksi">
+        <h2>&#128184; Transaksi</h2>
+        <p>Ada lima jenis transaksi:</p>
+        <ul>
+            <li><strong>Pengeluaran</strong> &mdash; uang keluar; saldo akun berkurang.</li>
+            <li><strong>Pemasukan</strong> &mdash; uang masuk; saldo akun bertambah.</li>
+            <li><strong>Transfer</strong> &mdash; pindahkan dana antar akun; tidak dihitung sebagai pemasukan atau pengeluaran.</li>
+            <li><strong>Pembayaran Hutang</strong> &mdash; saldo berkurang, tetapi tidak dihitung sebagai pengeluaran.</li>
+            <li><strong>Refund</strong> &mdash; saldo bertambah, tetapi tidak dihitung sebagai pemasukan.</li>
+        </ul>
     </section>
 
-    <section class="section reveal">
-        <div class="section-header">
-            <h2 class="section-title">?? Laporan</h2>
-        </div>
-        <div class="card">
-            <p>Laporan tersedia:</p>
-            <ul style="margin-top:8px;padding-left:20px;line-height:1.8">
-                <li><strong>Harian</strong> — Transaksi per hari</li>
-                <li><strong>Mingguan</strong> — Agregasi per minggu</li>
-                <li><strong>Bulanan</strong> — Ringkasan per bulan</li>
-                <li><strong>Per Kategori</strong> — Breakdown pengeluaran per kategori</li>
-                <li><strong>Tren 6 Bulan</strong> — Grafik income vs expense</li>
-            </ul>
-        </div>
+    <section class="help-section" id="struk">
+        <h2>&#129534; Scan Struk</h2>
+        <p>Scan struk belanja agar tidak perlu mengetik manual:</p>
+        <div class="help-step"><strong>1. Upload</strong> &mdash; di halaman Scan Struk, pilih <strong>Kamera</strong> untuk memotret langsung atau <strong>Galeri</strong> untuk memilih foto.</div>
+        <div class="help-step"><strong>2. Proses OCR</strong> &mdash; sistem membaca isi struk. Halaman menunggu secara otomatis sampai selesai.</div>
+        <div class="help-step"><strong>3. Review</strong> &mdash; periksa hasil bacaan: merchant, tanggal, total, dan rincian item.</div>
+        <div class="help-step"><strong>4. Simpan</strong> &mdash; lengkapi form transaksi (tanggal, kategori, akun), lalu tekan <strong>Simpan Transaksi</strong>.</div>
+        <p class="mt-6">Jika OCR gagal membaca struk, Anda bisa menekan <strong>Coba Lagi</strong> atau mengisi data transaksi secara manual. Sistem juga mendeteksi foto struk yang sama (duplikat) dan memberi peringatan sebelum Anda menyimpannya dua kali.</p>
+        <div class="help-tip"><strong>Tip:</strong> foto struk dari atas sejajar dengan struk dan cahaya cukup &mdash; hasil OCR jauh lebih akurat.</div>
     </section>
 
-    <section class="section reveal">
-        <div class="section-header">
-            <h2 class="section-title">?? Fitur Lainnya</h2>
-        </div>
-        <div class="card">
-            <ul style="padding-left:20px;line-height:1.8">
-                <li><strong>Hutang (Debts)</strong> — Catat hutang piutang, RECEIVABLE (orang utang ke Anda) atau PAYABLE (Anda utang)</li>
-                <li><strong>Tagihan (Bills)</strong> — Jadwal tagihan berulang (listrik, internet, langganan)</li>
-                <li><strong>Budget</strong> — Batas pengeluaran per kategori</li>
-                <li><strong>Tabungan (Savings)</strong> — Target tabungan dengan progress bar</li>
-                <li><strong>Aset</strong> — Catat aset berharga (mobil, rumah, elektronik)</li>
-                <li><strong>Investasi</strong> — Portofolio saham/crypto/dll dengan return tracker</li>
-                <li><strong>Kategori</strong> — Hirarki kategori (parent/child) untuk pengeluaran & pemasukan</li>
-                <li><strong>Struk (Receipts)</strong> — Scan struk pakai OCR (Tesseract atau AI)</li>
-                <li><strong>Kartu Kredit</strong> — Limit, statement date, minimum payment</li>
-            </ul>
-        </div>
+    <section class="help-section" id="budget">
+        <h2>&#128197; Budget</h2>
+        <p>Atur batas pengeluaran per kategori. Penggunaan budget ditampilkan sebagai progress bar di halaman Budget, jadi Anda langsung tahu kapan perlu menahan belanja.</p>
     </section>
 
-    <section class="section reveal">
-        <div class="section-header">
-            <h2 class="section-title">?? Keamanan</h2>
-        </div>
-        <div class="card">
-            <ul style="padding-left:20px;line-height:1.8">
-                <li>Password di-hash dengan PBKDF2-SHA256 (600K iterasi)</li>
-                <li>Session disimpan di database (bukan JWT)</li>
-                <li>CSRF token di semua form</li>
-                <li>Session expired setelah 30 hari tidak aktif</li>
-                <li>User hanya bisa melihat data sendiri (isolasi penuh)</li>
-            </ul>
-        </div>
+    <section class="help-section" id="tabungan">
+        <h2>&#127919; Tabungan</h2>
+        <p>Buat target tabungan (misalnya dana darurat atau dana liburan) dan pantau progresnya. Setiap kali menabung, catat sebagai <strong>Transfer</strong> ke akun tabungan &mdash; tidak dihitung sebagai pengeluaran.</p>
     </section>
 
-    <section class="section reveal">
-        <div class="section-header">
-            <h2 class="section-title">?? Tips</h2>
-        </div>
-        <div class="card">
-            <ul style="padding-left:20px;line-height:1.8">
-                <li>Gunakan <strong>Transfer</strong> untuk pindah uang antar akun — tidak mempengaruhi income/expense</li>
-                <li>Gunakan <strong>Pembayaran Hutang</strong> untuk bayar hutang — saldo berkurang tapi bukan expense</li>
-                <li>Gunakan <strong>Refund</strong> untuk pengembalian uang — saldo bertambah tapi bukan income</li>
-                <li><strong>Net Worth = Aset - Kewajikan</strong> — ini ukuran kekayaan bersih Anda</li>
-                <li>Saldo akun = Saldo awal + Income - Expense - Transfer keluar + Transfer masuk</li>
-            </ul>
-        </div>
+    <section class="help-section" id="laporan">
+        <h2>&#128200; Laporan</h2>
+        <p>Lihat laporan keuangan dalam bentuk grafik: perbandingan pemasukan dan pengeluaran selama 6 bulan terakhir, serta ringkasan per kategori untuk menemukan pos belanja terbesar.</p>
     </section>
 
-    <section class="section reveal">
-        <div class="section-header">
-            <h2 class="section-title">?? Menu Admin</h2>
-        </div>
-        <div class="card">
-            <p>Jika Anda adalah admin, akses panel admin di sidebar untuk:</p>
-            <ul style="margin-top:8px;padding-left:20px;line-height:1.8">
-                <li>Melihat statistik sistem (total user, transaksi, akun)</li>
-                <li>Mengaktifkan/menonaktifkan akun user</li>
-                <li>Memberikan/mencabut hak admin</li>
-            </ul>
-            <p style="margin-top:12px"><strong>Login Admin:</strong> Set user sebagai admin via environment variable <code>AUTH_BOOTSTRAP_USERNAME</code> atau via database.</p>
-        </div>
+    <section class="help-section" id="lainnya">
+        <h2>&#129513; Fitur Lainnya</h2>
+        <ul>
+            <li><strong>Hutang</strong> &mdash; catat piutang (orang lain utang ke Anda) dan utang (Anda utang ke orang lain).</li>
+            <li><strong>Tagihan</strong> &mdash; jadwal tagihan berulang seperti listrik, internet, dan langganan.</li>
+            <li><strong>Aset</strong> &mdash; catat aset berharga seperti mobil, rumah, atau elektronik.</li>
+            <li><strong>Investasi</strong> &mdash; portofolio saham, crypto, dan lainnya dengan pelacak return.</li>
+            <li><strong>Kategori</strong> &mdash; kategori bertingkat (induk/anak) untuk pengeluaran dan pemasukan.</li>
+            <li><strong>Kartu Kredit</strong> &mdash; limit, tanggal statement, dan minimum payment.</li>
+        </ul>
+    </section>
+
+    <section class="help-section" id="keamanan">
+        <h2>&#128272; Keamanan</h2>
+        <ul>
+            <li>Password disimpan sebagai hash PBKDF2-SHA256 (600.000 iterasi) &mdash; tidak bisa dibaca siapa pun.</li>
+            <li>Session disimpan di database dan semua form dilindungi token CSRF.</li>
+            <li>Session otomatis berakhir setelah 30 hari tidak aktif.</li>
+            <li>Setiap user hanya bisa melihat datanya sendiri.</li>
+        </ul>
+    </section>
+
+    <section class="help-section" id="tips">
+        <h2>&#128161; Tips</h2>
+        <ul>
+            <li>Gunakan <strong>Transfer</strong> untuk memindahkan uang antar akun &mdash; tidak memengaruhi pemasukan/pengeluaran.</li>
+            <li>Gunakan <strong>Pembayaran Hutang</strong> untuk membayar hutang &mdash; saldo berkurang tetapi bukan pengeluaran.</li>
+            <li>Gunakan <strong>Refund</strong> untuk uang kembali &mdash; saldo bertambah tetapi bukan pemasukan.</li>
+            <li><strong>Net Worth = Aset &minus; Kewajiban</strong> &mdash; ukuran kekayaan bersih Anda.</li>
+            <li><strong>Saldo akun</strong> = saldo awal + pemasukan &minus; pengeluaran &minus; transfer keluar + transfer masuk.</li>
+        </ul>
+    </section>
+
+    <section class="help-section" id="admin">
+        <h2>&#128736;&#65039; Menu Admin</h2>
+        <p>Jika akun Anda adalah admin, panel admin tersedia di menu untuk:</p>
+        <ul>
+            <li>Melihat statistik sistem (total user, transaksi, akun).</li>
+            <li>Mengaktifkan/menonaktifkan akun user, serta memberi/mencabut hak admin.</li>
+            <li>Memproses permintaan reset password user.</li>
+        </ul>
+        <div class="help-note"><strong>Lupa password?</strong> Aplikasi ini tidak menggunakan email. Isi username Anda di halaman <a class="link-more" href="/forgot-password">Lupa Password</a>, lalu hubungi admin untuk memproses permintaan tersebut dari panel admin.</div>
     </section>
 </div>
 {% endblock %}

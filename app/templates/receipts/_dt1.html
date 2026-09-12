@@ -1,117 +1,72 @@
-{# OCR review partial: hero (paper | merchant) + receipt-paper items + form sheet. #}
+{# OCR review: foto + hasil scan + daftar item + form (native design system). #}
 {% set conf = r.ocr.confidence or 'LOW' %}
-{% set _eng = r.ocr.engine %}
-<div class="rr-meta-chips">
+{% include "receipts/_viewer.html" %}
+
+{% if conf == 'HIGH' %}
+{% set conf_cls, conf_txt = 'badge-success', 'Akurasi tinggi' %}
+{% elif conf == 'MEDIUM' %}
+{% set conf_cls, conf_txt = 'badge-warning', 'Perlu dikoreksi' %}
+{% else %}
+{% set conf_cls, conf_txt = 'badge-red', 'Perlu diperiksa' %}
+{% endif %}
+<div class="rr-badges">
+  {% set _eng = r.ocr.engine %}
   {% if _eng %}
-  <span class="rr-engine" role="note">
-    {% if _eng in ('ollama', 'cloud-ollama') %}
-    <span class="rr-engine-dot rr-engine-dot--ai"></span>
-    <span class="rr-engine-text">AI Vision (Ollama)</span>
-    {% elif _eng in ('openai', 'cloud-openai') %}
-    <span class="rr-engine-dot rr-engine-dot--ai"></span>
-    <span class="rr-engine-text">AI Vision (OpenAI)</span>
-    {% elif _eng in ('gemini', 'cloud-gemini') %}
-    <span class="rr-engine-dot rr-engine-dot--ai"></span>
-    <span class="rr-engine-text">AI Vision (Gemini)</span>
-    {% elif _eng == 'tesseract' %}
-    <span class="rr-engine-dot rr-engine-dot--ocr"></span>
-    <span class="rr-engine-text">OCR Lokal (Tesseract)</span>
-    {% else %}
-    <span class="rr-engine-dot"></span>
-    <span class="rr-engine-text">{{ _eng }}</span>
-    {% endif %}
-  </span>
+  <span class="badge badge-blue">{% if _eng in ('ollama', 'cloud-ollama') %}AI Vision (Ollama){% elif _eng in ('openai', 'cloud-openai') %}AI Vision (OpenAI){% elif _eng in ('gemini', 'cloud-gemini') %}AI Vision (Gemini){% elif _eng == 'tesseract' %}OCR Lokal (Tesseract){% else %}{{ _eng }}{% endif %}</span>
   {% endif %}
-  <span class="rr-status" role="status">
-    {% if conf == 'HIGH' %}
-    <span class="rr-status-dot rr-status-dot--ok"></span>
-    <span class="rr-status-text rr-status-text--ok">Akurasi tinggi</span>
-    {% elif conf == 'MEDIUM' %}
-    <span class="rr-status-dot rr-status-dot--mid"></span>
-    <span class="rr-status-text rr-status-text--mid">Perlu dikoreksi</span>
-    {% else %}
-    <span class="rr-status-dot rr-status-dot--low"></span>
-    <span class="rr-status-text rr-status-text--low">Perlu diperiksa</span>
-    {% endif %}
-  </span>
+  <span class="badge {{ conf_cls }}">{{ conf_txt }}</span>
 </div>
 
-<div class="rr-hero">
-  {% include "receipts/_viewer.html" %}
-  <div class="rr-hero-info">
-    <div class="rr-merchant-card">
-      <span class="rr-kicker">Merchant</span>
-      <h2 class="rr-merchant">{{ r.ocr.merchant or 'Struk' }}</h2>
-      {% if r.ocr.merchant_address %}
-      <p class="rr-merchant-sub">{{ r.ocr.merchant_address }}</p>
-      {% endif %}
-      <div class="rr-hero-tags">
-        {% if r.ocr.date %}
-        <span class="rr-chip">📅 {{ r.ocr.date }}</span>
-        {% endif %}
-        {% if r.ocr.payment_method %}
-        <span class="rr-chip">💳 {{ r.ocr.payment_method }}</span>
-        {% endif %}
-      </div>
-      {% if r.ocr.total_amount %}
-      <div class="rr-hero-total">
-        <span class="rr-total-label">TOTAL BAYAR</span>
-        <span class="rr-amount-hero">{{ format_rupiah(r.ocr.total_amount) }}</span>
-      </div>
-      {% endif %}
-    </div>
-  </div>
+<div class="card">
+  <div class="rr-section-title">Hasil Scan</div>
+  <div class="rr-kv"><span class="rr-kv-label">Merchant</span><span class="rr-kv-value">{{ r.ocr.merchant or '-' }}</span></div>
+  {% if r.ocr.merchant_address %}
+  <div class="rr-kv"><span class="rr-kv-label">Alamat</span><span class="rr-kv-value">{{ r.ocr.merchant_address }}</span></div>
+  {% endif %}
+  {% if r.ocr.date %}
+  <div class="rr-kv"><span class="rr-kv-label">Tanggal</span><span class="rr-kv-value">{{ r.ocr.date }}</span></div>
+  {% endif %}
+  {% if r.ocr.payment_method %}
+  <div class="rr-kv"><span class="rr-kv-label">Pembayaran</span><span class="rr-kv-value">{{ r.ocr.payment_method }}</span></div>
+  {% endif %}
+  {% if r.ocr.total_amount %}
+  <div class="rr-kv rr-kv--total"><span class="rr-kv-label">Total Bayar</span><span class="rr-kv-value">{{ format_rupiah(r.ocr.total_amount) }}</span></div>
+  {% endif %}
 </div>
 
 {% if r.ocr.items %}
-<div class="rr-paper" role="table" aria-label="Daftar item hasil scan">
-  <div class="rr-paper-head">
-    <span class="rr-kicker">Rincian Struk</span>
-    <span class="rr-badge">{{ r.ocr.items|length }} item</span>
-  </div>
+<div class="card" role="table" aria-label="Daftar item hasil scan">
+  <div class="rr-section-title">Rincian Item <span class="badge">{{ r.ocr.items|length }} item</span></div>
   {% for item in r.ocr.items %}
-  <div class="rr-paper-item" role="row">
-    <span class="rr-paper-name" role="cell">{{ item.name or '-' }}
-      {%- if item.quantity %}<small>×{{ item.quantity }}{% if item.unit %} {{ item.unit }}{% endif %}</small>{%- endif %}
-    </span>
-    <span class="rr-dots" aria-hidden="true"></span>
-    <span class="rr-paper-price" role="cell">
-      {%- if item.total_price -%}{{ format_rupiah(item.total_price).replace('Rp ', '') }}
-      {%- elif item.unit_price -%}{{ format_rupiah(item.unit_price).replace('Rp ', '') }}
+  <div class="rr-item-row" role="row">
+    <span class="rr-item-name" role="cell">{{ item.name or '-' }}{% if item.quantity %}<span class="rr-item-qty">&times;{{ item.quantity }}{% if item.unit %} {{ item.unit }}{% endif %}</span>{% endif %}</span>
+    <span class="rr-item-price num" role="cell">
+      {%- if item.total_price -%}{{ format_rupiah(item.total_price) }}
+      {%- elif item.unit_price -%}{{ format_rupiah(item.unit_price) }}
       {%- else -%}-{%- endif -%}
     </span>
   </div>
   {% endfor %}
-  <div class="rr-paper-totals">
-    {% if r.ocr.subtotal %}
-    <div class="rr-paper-row"><span>Subtotal</span><span>{{ format_rupiah(r.ocr.subtotal).replace('Rp ', '') }}</span></div>
-    {% endif %}
-    {% if r.ocr.discount %}
-    <div class="rr-paper-row rr-dl-neg"><span>Diskon</span><span>-{{ format_rupiah(r.ocr.discount).replace('Rp ', '') }}</span></div>
-    {% endif %}
-    {% if r.ocr.tax %}
-    <div class="rr-paper-row"><span>Pajak</span><span>{{ format_rupiah(r.ocr.tax).replace('Rp ', '') }}</span></div>
-    {% endif %}
-    <div class="rr-paper-row rr-paper-grand">
-      <span>Total</span>
-      <span>{{ format_rupiah(r.ocr.total_amount).replace('Rp ', '') if r.ocr.total_amount else '-' }}</span>
-    </div>
-  </div>
+  {% if r.ocr.subtotal %}
+  <div class="rr-kv mt-6"><span class="rr-kv-label">Subtotal</span><span class="rr-kv-value num">{{ format_rupiah(r.ocr.subtotal) }}</span></div>
+  {% endif %}
+  {% if r.ocr.discount %}
+  <div class="rr-kv"><span class="rr-kv-label">Diskon</span><span class="rr-kv-value num text-green">-{{ format_rupiah(r.ocr.discount) }}</span></div>
+  {% endif %}
+  {% if r.ocr.tax %}
+  <div class="rr-kv"><span class="rr-kv-label">Pajak</span><span class="rr-kv-value num">{{ format_rupiah(r.ocr.tax) }}</span></div>
+  {% endif %}
+  <div class="rr-kv rr-kv--total"><span class="rr-kv-label">Total</span><span class="rr-kv-value">{{ format_rupiah(r.ocr.total_amount) if r.ocr.total_amount else '-' }}</span></div>
 </div>
 {% else %}
-<div class="rr-paper">
-  <div class="rr-paper-head">
-    <span class="rr-kicker">Rincian Striuk</span>
-  </div>
-  <p class="rr-paper-empty">Tidak ada item terdeteksi dari struk. Tambahkan manual bila perlu.</p>
+<div class="card">
+  <div class="rr-section-title">Rincian Item</div>
+  <p class="rr-sub">Tidak ada item terdeteksi dari struk.</p>
 </div>
 {% endif %}
 
-<div class="rr-form-card">
-  <div class="rr-form-head">
-    <h2 class="rr-card-title">Data Transaksi</h2>
-    <p class="rr-card-sub">Data hasil scan — sesuaikan sebelum disimpan.</p>
-  </div>
+<div class="card">
+  <div class="rr-section-title">Data Transaksi</div>
+  <p class="rr-sub mb-12">Data hasil scan — sesuaikan sebelum disimpan.</p>
   {{ rrform.confirm_form(r.id, r.ocr.merchant or r.merchant or '', r.ocr.total_amount, r.ocr.date or today, categories, accounts, r.ocr.merchant or '', format_rupiah) }}
-  {% include "receipts/_danger.html" %}
 </div>

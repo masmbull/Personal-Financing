@@ -23,8 +23,8 @@ function initReceiptDetail() {
     } else {
       viewerImg.addEventListener('load', function () { viewerImg.classList.add('loaded'); });
     }
-    var tilt = viewerImg.closest('.rr-paper-tilt');
-    var ghost = tilt && tilt.querySelector('.rr-viewer-ghost');
+    var box = viewerImg.closest('.rr-photo');
+    var ghost = box && box.querySelector('.rr-viewer-ghost');
     if (ghost) {
       if (viewerImg.classList.contains('loaded')) { ghost.classList.add('hidden'); }
       else viewerImg.addEventListener('load', function () { ghost.classList.add('hidden'); });

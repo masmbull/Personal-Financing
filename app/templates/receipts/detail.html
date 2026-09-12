@@ -2,205 +2,158 @@
 {% import "receipts/_form.html" as rrform %}
 {% block title %}Review Struk{% endblock %}
 {% block content %}
-<div class="receipt-review">
-  <div class="rr-wrap">
-    <header class="rr-header">
-      <a href="/receipts" class="rr-back" aria-label="Kembali ke daftar struk">&larr;</a>
-      <h1 class="rr-title">Review Struk</h1>
-    </header>
+<div class="page">
+  <a href="/receipts" class="link-more">&larr; Daftar Struk</a>
+  <h1 class="page-title mt-4 mb-12">Review Struk</h1>
 
-    {% if just_uploaded %}
-    <div class="rr-flash rr-flash--ok" role="status">
-      <span>Struk berhasil diupload</span>
-      <button type="button" class="rr-flash-close" aria-label="Tutup pesan">&times;</button>
-    </div>
-    {% endif %}
-    {% if just_confirmed %}
-    <div class="rr-flash rr-flash--ok" role="status" id="toast-success">
-      <span>Transaksi berhasil disimpan</span>
-      <a class="rr-flash-link" href="/transactions/edit/{{ r.transaction_id }}">Lihat transaksi &rarr;</a>
-      <button type="button" class="rr-flash-close" aria-label="Tutup pesan">&times;</button>
-    </div>
-    {% elif error == 'already' %}
-    <div class="rr-flash rr-flash--warn" role="alert">
-      <span>Struk ini sudah menjadi transaksi.</span>
-      <button type="button" class="rr-flash-close" aria-label="Tutup pesan">&times;</button>
-    </div>
-    {% elif error %}
-    <div class="rr-flash rr-flash--warn" role="alert">
-      <span>{{ error }}</span>
-      <button type="button" class="rr-flash-close" aria-label="Tutup pesan">&times;</button>
-    </div>
-    {% endif %}
+  {% if just_uploaded %}
+  <div class="rr-flash rr-flash--ok" role="status">
+    <span>Struk berhasil diupload</span>
+    <button type="button" class="rr-flash-close" aria-label="Tutup pesan">&times;</button>
+  </div>
+  {% endif %}
+  {% if just_confirmed %}
+  <div class="rr-flash rr-flash--ok" role="status" id="toast-success">
+    <span>Transaksi berhasil disimpan</span>
+    <a class="rr-flash-link" href="/transactions/edit/{{ r.transaction_id }}">Lihat transaksi &rarr;</a>
+    <button type="button" class="rr-flash-close" aria-label="Tutup pesan">&times;</button>
+  </div>
+  {% elif error == 'already' %}
+  <div class="rr-flash rr-flash--warn" role="alert">
+    <span>Struk ini sudah menjadi transaksi.</span>
+    <button type="button" class="rr-flash-close" aria-label="Tutup pesan">&times;</button>
+  </div>
+  {% elif error %}
+  <div class="rr-flash rr-flash--warn" role="alert">
+    <span>{{ error }}</span>
+    <button type="button" class="rr-flash-close" aria-label="Tutup pesan">&times;</button>
+  </div>
+  {% endif %}
 
-    {% if r.duplicate_id and not r.confirmed %}
-    <div class="rr-dup">
-      <span class="rr-dup-text">Struk ini kemungkinan duplikat</span>
-      <a class="rr-dup-link" href="/receipts/{{ r.duplicate_id }}">Lihat struk sebelumnya &rarr;</a>
-    </div>
-    {% endif %}
+  {% if r.duplicate_id and not r.confirmed %}
+  <div class="rr-dup">
+    <span>Struk ini kemungkinan duplikat</span>
+    <a class="rr-dup-link" href="/receipts/{{ r.duplicate_id }}">Lihat struk sebelumnya &rarr;</a>
+  </div>
+  {% endif %}
 
-    {% if r.confirmed %}
-    <div class="rr-card rr-card--centered rr-card--elevated">
-      <div class="rr-confirmed">
-        <div class="rr-confirmed-icon" aria-hidden="true">&#10003;</div>
-        <h2 class="rr-confirmed-title">Struk sudah tercatat</h2>
-        <p class="rr-confirmed-meta">Transaksi ini sudah dicatat dari struk ini.</p>
-        {% if r.amount %}<p class="rr-confirmed-amount">{{ format_rupiah(r.amount) }}</p>{% endif %}
-        {% if r.transaction_id %}
-        <a class="rr-btn rr-btn--primary rr-btn--block rr-btn--lg" href="/transactions/edit/{{ r.transaction_id }}">Lihat transaksi &rarr;</a>
-        {% endif %}
-      </div>
-    </div>
-
-    {% elif r.status_value == 'processing' or r.status_value == 'pending' %}
-    <div class="rr-card rr-card--centered">
-      <div class="rr-loading" role="status" id="rr-ocr-poll">
-        <div class="rr-ocr-orb" aria-hidden="true">
-          <svg class="rr-ocr-orb-svg" viewBox="0 0 50 50">
-            <circle class="rr-ocr-track" cx="25" cy="25" r="20"/>
-            <circle class="rr-ocr-prog" cx="25" cy="25" r="20" id="rr-ocr-prog"/>
-          </svg>
-          <span class="rr-ocr-pct" id="rr-ocr-pct">0%</span>
-        </div>
-        <p class="rr-loading-text" id="rr-ocr-text">Menyiapkan struk&hellip;</p>
-        <p class="rr-loading-sub">Server sedang membaca struk, mohon tunggu.</p>
-        <p class="rr-ocr-eta" id="rr-ocr-eta">Estimasi {{ ocr_eta_label }}</p>
-        <p class="rr-ocr-elapsed" id="rr-ocr-elapsed">Sudah berjalan 0 dtk</p>
-      </div>
-    </div>
-    <script>
-    (function(){
-      var rid = {{ r.id }};
-      var startMs = {{ r.created_at_ts }};
-      var targetSec = {{ ocr_eta_sec }};
-      var phases = [
-        'Menyiapkan struk\u2026',
-        'Sedang membaca struk\u2026',
-        'Menganalisis isi struk\u2026',
-        'Memeriksa hasil\u2026'
-      ];
-      var idx = 0, retries = 0, maxRetries = 180;
-      var textEl  = document.getElementById('rr-ocr-text');
-      var subEl   = document.getElementById('rr-ocr-sub');
-      var etaEl   = document.getElementById('rr-ocr-eta');
-      var timerEl = document.getElementById('rr-ocr-elapsed');
-      var pctEl   = document.getElementById('rr-ocr-pct');
-      var progEl  = document.getElementById('rr-ocr-prog');
-      // r=20 -> circumference = 2*pi*20 \u2248 125.66
-      var CIRC = 125.6637;
-      function setPct(p) {
-        var v = Math.max(0, Math.min(99, p));
-        if (progEl) progEl.style.strokeDashoffset = (CIRC * (1 - v/100)).toFixed(2);
-        if (pctEl)  pctEl.textContent = Math.round(v) + '%';
-      }
-      function clockTick() {
-        var elapsed = Math.max(0, (Date.now() - startMs) / 1000);
-        if (timerEl) timerEl.textContent = 'Sudah berjalan ' + Math.floor(elapsed) + ' dtk';
-        // Linear progress capped at 99% until OCR actually finishes.
-        setPct((elapsed / targetSec) * 100);
-        var nidx = 0;
-        if (elapsed > targetSec * 0.25) nidx = 1;
-        if (elapsed > targetSec * 0.50) nidx = 2;
-        if (elapsed > targetSec * 0.80) nidx = 3;
-        if (nidx !== idx && nidx < phases.length) {
-          idx = nidx;
-          if (textEl) textEl.textContent = phases[idx];
-        }
-      }
-      setInterval(clockTick, 500);
-      clockTick();
-      function pollTick() {
-        retries++;
-        if (retries > maxRetries) {
-          if (textEl) textEl.textContent = 'Proses memakan waktu lama.';
-          if (subEl) subEl.innerHTML =
-            'Server mungkin sedang sibuk. ' +
-            '<a href="/receipts/' + rid + '/retry-ocr" ' +
-            'style="color:var(--blue);font-weight:700">&#x1f504; Coba Lagi</a> ' +
-            '&nbsp;|&nbsp; ' +
-            '<a href="/receipts/upload" ' +
-            'style="color:var(--ink-2)">&#x1f5bc;&#xfe0f; Ganti Foto</a>';
-          return;
-        }
-        fetch('/receipts/' + rid, {credentials:'same-origin'})
-          .then(function(r){ return r.text(); })
-          .then(function(html){
-            if (html.indexOf('id="rr-ocr-poll"') === -1) {
-              location.reload();
-            }
-          })
-          .catch(function(){});
-      }
-      setTimeout(pollTick, 2000);
-      var pollTimer = setInterval(function(){
-        pollTick();
-        if (retries > maxRetries) clearInterval(pollTimer);
-      }, 3000);
-    })();
-    </script>
-
-    {% elif r.status_value == 'failed' %}
-    <div class="rr-stage">
-      <div class="rr-hero">
-        {% include "receipts/_viewer.html" %}
-        <div class="rr-hero-info">
-          <div class="rr-merchant-card">
-            <span class="rr-kicker">Status</span>
-            <h2 class="rr-merchant">Struk gagal dibaca</h2>
-            <p class="rr-merchant-sub">OCR tidak bisa memproses struk ini. Coba lagi atau isi data secara manual di bawah.</p>
-            <div class="rr-fail-actions">
-              <form method="post" action="/receipts/{{ r.id }}/retry-ocr" style="margin:0">
-                <button type="submit" class="rr-btn rr-btn--ghost">&#x1f504; Coba Lagi</button>
-              </form>
-              <a href="/receipts/upload" class="rr-btn rr-btn--ghost">&#x1f5bc;&#xfe0f; Ganti Foto</a>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="rr-form-card">
-        <div class="rr-form-head">
-          <h2 class="rr-card-title">Data Transaksi</h2>
-          <p class="rr-card-sub">Isi data transaksi secara manual.</p>
-        </div>
-        {{ rrform.confirm_form(r.id, r.merchant or '', None, today, categories, accounts, '', format_rupiah) }}
-        {% include "receipts/_danger.html" %}
-      </div>
-    </div>
-
-    {% elif r.ocr %}
-    <div class="rr-stage">
-      {% include "receipts/_dt1.html" %}
-    </div>
-
-    {% else %}
-    <div class="rr-stage">
-      <div class="rr-hero">
-        {% include "receipts/_viewer.html" %}
-        <div class="rr-hero-info">
-          <div class="rr-merchant-card">
-            <span class="rr-kicker">Merchant</span>
-            <h2 class="rr-merchant">{{ r.merchant or 'Struk' }}</h2>
-            <p class="rr-merchant-sub">Belum ada data OCR. Catat transaksi ini secara manual.</p>
-          </div>
-        </div>
-      </div>
-      <div class="rr-form-card">
-        <div class="rr-form-head">
-          <h2 class="rr-card-title">Data Transaksi</h2>
-          <p class="rr-card-sub">Catat transaksi secara manual.</p>
-        </div>
-        {{ rrform.confirm_form(r.id, r.merchant or '', None, today, categories, accounts, '', format_rupiah) }}
-        {% include "receipts/_danger.html" %}
-      </div>
-    </div>
+  {% if r.confirmed %}
+  <div class="card center">
+    <div class="rr-check" aria-hidden="true">&#10003;</div>
+    <h2>Struk sudah tercatat</h2>
+    <p class="rr-sub">Transaksi ini sudah dicatat dari struk ini.</p>
+    {% if r.amount %}<p class="amount-hero text-green">{{ format_rupiah(r.amount) }}</p>{% endif %}
+    {% if r.transaction_id %}
+    <a class="btn btn-primary btn-block mt-16" href="/transactions/edit/{{ r.transaction_id }}">Lihat transaksi &rarr;</a>
     {% endif %}
   </div>
 
-  <div class="rr-lightbox" id="rrLightbox" role="dialog" aria-modal="true" aria-label="Foto struk" aria-hidden="true">
-    <button class="rr-lightbox-close" id="rrLightboxClose" aria-label="Tutup">&times;</button>
-    <img class="rr-lightbox-img" src="/receipts/{{ r.id }}/image" alt="Foto struk {{ r.filename }}" id="rrLightboxImg">
+  {% elif r.status_value == 'processing' or r.status_value == 'pending' %}
+  <div class="card center" id="rr-ocr-poll" role="status">
+    <div class="spinner" aria-hidden="true"></div>
+    <p class="mt-16" id="rr-ocr-text">Menyiapkan struk&hellip;</p>
+    <p class="rr-sub" id="rr-ocr-pct">0%</p>
+    <p class="rr-sub" id="rr-ocr-eta">Estimasi {{ ocr_eta_label }}</p>
+    <p class="rr-sub" id="rr-ocr-elapsed">Sudah berjalan 0 dtk</p>
   </div>
+  <script>
+  (function(){
+    var rid = {{ r.id }};
+    var startMs = {{ r.created_at_ts }};
+    var targetSec = {{ ocr_eta_sec }};
+    var phases = ['Menyiapkan struk\u2026', 'Sedang membaca struk\u2026', 'Hampir selesai\u2026'];
+    var elText = document.getElementById('rr-ocr-text');
+    var elPct = document.getElementById('rr-ocr-pct');
+    var elEl = document.getElementById('rr-ocr-elapsed');
+    var card = document.getElementById('rr-ocr-poll');
+    var stopped = false;
+    function fmt(s){ return s < 60 ? s + ' dtk' : Math.floor(s/60) + ' mnt ' + (s%60) + ' dtk'; }
+    function fail(){
+      if (stopped) return;
+      stopped = true;
+      if (card) card.innerHTML =
+        '<div class="empty-state"><div class="empty-icon">&#9888;&#65039;</div>' +
+        '<div class="empty-title">Proses memakan waktu lama</div>' +
+        '<div class="empty-desc">Coba muat ulang halaman, atau ganti foto struk.</div>' +
+        '<div class="btn-row mt-16">' +
+        '<a href="/receipts/' + rid + '" class="btn btn-ghost btn-sm">Muat Ulang</a>' +
+        '<a href="/receipts/upload" class="btn btn-ghost btn-sm">Ganti Foto</a>' +
+        '</div></div>';
+    }
+    function tick(){
+      if (stopped) return;
+      var el = Math.max(0, Math.floor((Date.now() - startMs) / 1000));
+      var pct = targetSec > 0 ? Math.min(95, Math.round(el / targetSec * 95)) : 0;
+      if (elPct) elPct.textContent = pct + '%';
+      if (elText) elText.textContent = phases[Math.min(phases.length - 1, Math.floor(pct / 40))];
+      if (elEl) elEl.textContent = 'Sudah berjalan ' + fmt(el);
+      if (el > targetSec * 3 + 60) fail();
+    }
+    tick();
+    var t1 = setInterval(tick, 1000);
+    function poll(){
+      if (stopped) return;
+      fetch('/receipts/' + rid, { credentials: 'same-origin' })
+        .then(function(res){ return res.text(); })
+        .then(function(html){
+          if (html.indexOf('id="rr-ocr-poll"') === -1) {
+            stopped = true; clearInterval(t1); location.reload();
+          }
+        })
+        .catch(function(){});
+    }
+    setTimeout(poll, 2500);
+    setInterval(poll, 3000);
+  })();
+  </script>
+
+  {% elif r.status_value == 'failed' %}
+  <div class="stack">
+    {% include "receipts/_viewer.html" %}
+    <div class="card">
+      <h2>Struk gagal dibaca</h2>
+      <p class="rr-sub mb-12">OCR tidak bisa memproses struk ini. Coba lagi, atau isi data secara manual di bawah.</p>
+      <div class="btn-row">
+        <form method="post" action="/receipts/{{ r.id }}/retry-ocr">
+          <button type="submit" class="btn btn-ghost btn-block">&#x1f504; Coba Lagi</button>
+        </form>
+        <a href="/receipts/upload" class="btn btn-ghost btn-block">&#x1f5bc;&#xfe0f; Ganti Foto</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="rr-section-title">Data Transaksi</div>
+      <p class="rr-sub mb-12">Isi data transaksi secara manual.</p>
+      {{ rrform.confirm_form(r.id, r.merchant or '', None, today, categories, accounts, '', format_rupiah) }}
+    </div>
+    {% include "receipts/_danger.html" %}
+  </div>
+
+  {% elif r.ocr %}
+  <div class="stack">
+    {% include "receipts/_dt1.html" %}
+    {% include "receipts/_danger.html" %}
+  </div>
+
+  {% else %}
+  <div class="stack">
+    {% include "receipts/_viewer.html" %}
+    <div class="card">
+      <h2>{{ r.merchant or 'Struk' }}</h2>
+      <p class="rr-sub">Belum ada data OCR. Catat transaksi ini secara manual.</p>
+    </div>
+    <div class="card">
+      <div class="rr-section-title">Data Transaksi</div>
+      <p class="rr-sub mb-12">Catat transaksi secara manual.</p>
+      {{ rrform.confirm_form(r.id, r.merchant or '', None, today, categories, accounts, '', format_rupiah) }}
+    </div>
+    {% include "receipts/_danger.html" %}
+  </div>
+  {% endif %}
+</div>
+
+<div class="rr-lightbox" id="rrLightbox" role="dialog" aria-modal="true" aria-label="Foto struk" aria-hidden="true">
+  <button class="rr-lightbox-close" id="rrLightboxClose" aria-label="Tutup">&times;</button>
+  <img class="rr-lightbox-img" src="/receipts/{{ r.id }}/image" alt="Foto struk {{ r.filename }}" id="rrLightboxImg">
 </div>
 <script src="/static/js/receipt_detail.js"></script>
 {% endblock %}

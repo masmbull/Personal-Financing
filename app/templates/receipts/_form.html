@@ -1,59 +1,49 @@
-{# Form & helpers reused across all receipt-review entry states.
-   Macros are isolated: every external value is passed as an arg. #}
+{# Confirm form: native design-system form (sama dengan /transactions/add). #}
 {% macro confirm_form(rid, merchant_val, total_val, date_val, cats, accs, desc_val, fmt_rupiah) %}
-<form method="post" action="/receipts/{{ rid }}/confirm" class="rr-form">
+<form method="post" action="/receipts/{{ rid }}/confirm" class="form">
   <input type="hidden" name="type" value="EXPENSE">
-  <div class="rr-fields">
-    <div class="rr-field rr-field--full">
-      <label class="rr-label" for="merchant">Merchant / Toko</label>
-      <input class="rr-input" type="text" id="merchant" name="merchant"
-             value="{{ merchant_val or '' }}" maxlength="200"
-             placeholder="Nama toko dari struk">
-    </div>
-    <div class="rr-field">
-      <label class="rr-label" for="amount">Total</label>
-      <div class="rr-input-wrap">
-        <span class="rr-input-prefix" aria-hidden="true">Rp</span>
-        <input class="rr-input rr-input--lg" type="text" inputmode="numeric" id="amount"
-               name="amount" required value="{{ fmt_rupiah(total_val).replace('Rp ', '') if total_val else '' }}"
-               placeholder="0" autocomplete="off">
-      </div>
-      <span class="rr-hint">Contoh: 20000 atau 20.000</span>
-    </div>
-    <div class="rr-field">
-      <label class="rr-label" for="date">Tanggal</label>
-      <input class="rr-input" type="date" id="date" name="date"
-             value="{{ date_val or '' }}" required>
-    </div>
-    <div class="rr-field">
-      <label class="rr-label" for="category_id">Kategori</label>
-      <select class="rr-input" id="category_id" name="category_id" required>
-        <option value="">Pilih kategori</option>
-        {{ category_options(cats, none, 0) }}
-      </select>
-    </div>
-    <div class="rr-field">
-      <label class="rr-label" for="account_id">Akun</label>
-      <select class="rr-input" id="account_id" name="account_id" required>
-        <option value="">Pilih akun</option>
-        {% for a in accs %}<option value="{{ a.id }}">{{ a.icon or '' }} {{ a.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="rr-field rr-field--full">
-      <label class="rr-label" for="description">Deskripsi</label>
-      <input class="rr-input" type="text" id="description" name="description"
-             value="{{ desc_val or '' }}" placeholder="Opsional" maxlength="200">
+  <div class="form-group">
+    <label class="form-label" for="merchant">Merchant / Toko</label>
+    <input type="text" id="merchant" name="merchant" class="input"
+           value="{{ merchant_val or '' }}" maxlength="200"
+           placeholder="Nama toko dari struk">
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="amount">Total</label>
+    <div class="input-prefix">
+      <span class="prefix">Rp</span>
+      <input type="text" inputmode="numeric" id="amount" name="amount" class="input input-lg" required
+             value="{{ fmt_rupiah(total_val).replace('Rp ', '') if total_val else '' }}"
+             placeholder="0" autocomplete="off">
     </div>
   </div>
-  <div class="rr-savebar">
-    <p class="rr-submit-hint">✔ Periksa nominal, tanggal, dan kategori sebelum menyimpan.</p>
-    <div class="rr-savebar-actions">
-      <button type="submit" class="rr-btn rr-btn--primary rr-btn--lg" data-rr-save>
-        <span class="rr-btn-label">Simpan Transaksi</span>
-        <span class="rr-spinner" aria-hidden="true"></span>
-      </button>
-    </div>
+  <div class="form-group">
+    <label class="form-label" for="date">Tanggal</label>
+    <input type="date" id="date" name="date" class="input" value="{{ date_val or '' }}" required>
   </div>
+  <div class="form-group">
+    <label class="form-label" for="category_id">Kategori</label>
+    <select id="category_id" name="category_id" class="input" required>
+      <option value="">Pilih kategori</option>
+      {{ category_options(cats, none, 0) }}
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="account_id">Akun</label>
+    <select id="account_id" name="account_id" class="input" required>
+      <option value="">Pilih akun</option>
+      {% for a in accs %}<option value="{{ a.id }}">{{ a.icon or '' }} {{ a.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="description">Deskripsi</label>
+    <input type="text" id="description" name="description" class="input"
+           value="{{ desc_val or '' }}" placeholder="Opsional" maxlength="200">
+  </div>
+  <button type="submit" class="btn btn-green btn-block" data-rr-save>
+    <span class="rr-btn-label">Simpan Transaksi</span>
+    <span class="rr-spinner" aria-hidden="true"></span>
+  </button>
 </form>
 {% endmacro %}
 
