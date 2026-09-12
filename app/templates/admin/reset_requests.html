@@ -18,9 +18,6 @@
                     <div>
                         <strong>{{ r.username }}</strong>
                         <div class="tx-meta">Diajukan: {{ r.created_at.strftime('%d %b %Y %H:%M') if r.created_at else '-' }}</div>
-                        {% if r.message %}
-                        <div class="tx-meta" style="margin-top:4px">Pesan: {{ r.message }}</div>
-                        {% endif %}
                     </div>
                     <div class="btn-group">
                         <form method="post" action="/admin/reset-requests/{{ r.id }}/resolve" class="inline">

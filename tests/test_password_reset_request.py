@@ -16,7 +16,7 @@ def test_forgot_password_submit_records_request():
     r = client.get("/forgot-password")
     csrf = r.cookies.get("pf_csrf", "")
     r = client.post("/forgot-password", data={
-        "username": "someuser", "message": "sms ke 0812", "csrf_token": csrf,
+        "username": "someuser", "csrf_token": csrf,
     })
     assert r.status_code == 303
     assert r.headers["location"].endswith("/forgot-password?sent=1")
@@ -28,7 +28,7 @@ def test_admin_sees_and_resolves_request():
     db = SessionLocal()
     try:
         admin = create_user(db, "resetadmin", "AdminPass123", is_admin=True)
-        db.add(PasswordResetRequest(username="someuser", message="sms"))
+        db.add(PasswordResetRequest(username="someuser"))
         db.commit()
     finally:
         db.close()

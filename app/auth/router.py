@@ -73,7 +73,6 @@ def forgot_password_page(request: Request, db: Session = Depends(get_db),
 def forgot_password_submit(
     request: Request,
     username: str = Form(""),
-    message: str = Form(""),
     csrf_token: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -87,10 +86,7 @@ def forgot_password_submit(
         resp.delete_cookie(CSRF_COOKIE, path="/")
         return resp
     uname = (username or "").strip().lower()
-    req = PasswordResetRequest(
-        username=uname,
-        message=(message or "").strip()[:500] or None,
-    )
+    req = PasswordResetRequest(username=uname)
     db.add(req)
     db.commit()
     resp = RedirectResponse(url="/forgot-password?sent=1", status_code=303)
