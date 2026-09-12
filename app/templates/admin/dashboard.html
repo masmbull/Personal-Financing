@@ -9,6 +9,13 @@
         </div>
     </div>
 
+    {% if pending_resets %}
+    <div class="auth-error reveal" role="note" style="display:block;border-color:var(--red);color:var(--red)">
+        🔔 Ada <strong>{{ pending_resets }}</strong> permintaan reset password yang menunggu.
+        <a href="/admin/reset-requests" class="link-more">Lihat permintaan →</a>
+    </div>
+    {% endif %}
+
     <section class="summary-cards reveal">
         <div class="summary-card">
             <div class="summary-label">Total Pengguna</div>

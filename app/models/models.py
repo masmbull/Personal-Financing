@@ -158,6 +158,24 @@ class UserSession(Base):
     user = relationship("User", foreign_keys=[user_id])
 
 
+class PasswordResetRequest(Base):
+    """User-initiated password reset request awaiting admin action.
+
+    No email is sent; the request is surfaced in the admin panel. The admin
+    resets the password out-of-band (e.g. via reset_password.py) and marks the
+    request resolved here.
+    """
+    __tablename__ = "password_reset_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), nullable=False, index=True)
+    message = Column(String(500), nullable=True)
+    status = Column(String(16), nullable=False, default="pending",
+                   comment="'pending' or 'resolved'")
+    created_at = Column(DateTime, default=_utcnow)
+    resolved_at = Column(DateTime, nullable=True)
+
+
 class Account(Base):
     __tablename__ = "accounts"
 

@@ -16,7 +16,7 @@ from app.auth.sessions import (
     csrf_ok, resolve_request_user, set_csrf_cookie, set_session_cookie,
 )
 from app.database.db import get_db
-from app.models.models import AccountType
+from app.models.models import AccountType, PasswordResetRequest
 from app.services import accounts as accounts_service
 from app.auth.security import verify_password
 from app.services.users import (
@@ -61,10 +61,41 @@ def login_page(request: Request, db: Session = Depends(get_db),
 
 
 @router.get("/forgot-password", response_class=HTMLResponse)
-def forgot_password_page(request: Request, db: Session = Depends(get_db)):
+def forgot_password_page(request: Request, db: Session = Depends(get_db),
+                         sent: str = "", error: str = ""):
     if resolve_request_user(request, db) is not None:
         return RedirectResponse(url="/", status_code=303)
-    return _render_auth(request, "auth/forgot_password.html")
+    return _render_auth(request, "auth/forgot_password.html",
+                        sent=(sent == "1"), error=(error == "1"))
+
+
+@router.post("/forgot-password")
+def forgot_password_submit(
+    request: Request,
+    username: str = Form(""),
+    message: str = Form(""),
+    csrf_token: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Record a password reset request for the admin to action out-of-band.
+
+    No email is sent and no enumeration is exposed: the same confirmation is
+    shown regardless of whether the username exists.
+    """
+    if not csrf_ok(request.cookies.get(CSRF_COOKIE), csrf_token):
+        resp = RedirectResponse(url="/forgot-password?error=1", status_code=303)
+        resp.delete_cookie(CSRF_COOKIE, path="/")
+        return resp
+    uname = (username or "").strip().lower()
+    req = PasswordResetRequest(
+        username=uname,
+        message=(message or "").strip()[:500] or None,
+    )
+    db.add(req)
+    db.commit()
+    resp = RedirectResponse(url="/forgot-password?sent=1", status_code=303)
+    resp.delete_cookie(CSRF_COOKIE, path="/")
+    return resp
 
 
 

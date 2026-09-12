@@ -16,7 +16,7 @@ from app.auth.sessions import (
     resolve_request_user, set_csrf_cookie, set_session_cookie,
 )
 from app.database.db import get_db
-from app.models.models import Account, Transaction, User
+from app.models.models import Account, Transaction, User, PasswordResetRequest
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -59,6 +59,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "stats": stats,
         "csrf_token": token,
         "current_user": admin,
+        "pending_resets": _pending_reset_count(db),
     })
     set_csrf_cookie(resp, token)
     return resp
@@ -244,3 +245,54 @@ def stop_impersonating(
     set_session_cookie(resp, new_token)
     set_csrf_cookie(resp)
     return resp
+
+
+def _pending_reset_count(db: Session) -> int:
+    return db.query(PasswordResetRequest).filter(
+        PasswordResetRequest.status == "pending"
+    ).count()
+
+
+@router.get("/admin/reset-requests", response_class=HTMLResponse)
+def admin_reset_requests_page(request: Request, db: Session = Depends(get_db)):
+    """List pending password reset requests for the admin to action."""
+    admin, redirect = _gate(request, db)
+    if redirect is not None:
+        return redirect
+    requests = (
+        db.query(PasswordResetRequest)
+        .filter(PasswordResetRequest.status == "pending")
+        .order_by(PasswordResetRequest.created_at.desc())
+        .all()
+    )
+    token = secrets.token_urlsafe(24)
+    resp = templates.TemplateResponse(request, "admin/reset_requests.html", {
+        "requests": requests,
+        "csrf_token": token,
+    })
+    set_csrf_cookie(resp, token)
+    return resp
+
+
+@router.post("/admin/reset-requests/{request_id}/resolve")
+def admin_reset_request_resolve(
+    request_id: int,
+    request: Request,
+    csrf_token: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Mark a reset request as resolved (admin has reset the password)."""
+    admin, redirect = _gate(request, db)
+    if redirect is not None:
+        return redirect
+    if not csrf_ok(request.cookies.get(CSRF_COOKIE), csrf_token):
+        return RedirectResponse(url="/admin/reset-requests", status_code=303)
+    req = db.query(PasswordResetRequest).filter(
+        PasswordResetRequest.id == request_id
+    ).first()
+    if req is not None and req.status == "pending":
+        from app.models.models import _utcnow
+        req.status = "resolved"
+        req.resolved_at = _utcnow()
+        db.commit()
+    return RedirectResponse(url="/admin/reset-requests", status_code=303)

@@ -339,3 +339,25 @@ def run_impersonation_migration(engine: Engine) -> bool:
             "VALUES ('impersonation', datetime('now'))"
         ))
     return True
+
+
+def run_password_reset_request_migration(engine: Engine) -> bool:
+    """Create the password_reset_requests table idempotently."""
+    from app.database.db import Base
+    from app.models.models import PasswordResetRequest
+
+    insp = inspect(engine)
+    if "password_reset_requests" in insp.get_table_names():
+        return False
+    PasswordResetRequest.__table__.create(bind=engine, checkfirst=True)
+    with engine.begin() as conn:
+        conn.execute(text(
+            f"CREATE TABLE IF NOT EXISTS {_MARKER_TABLE} "
+            "(name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)"
+        ))
+        conn.execute(text(
+            f"INSERT OR IGNORE INTO {_MARKER_TABLE} (name, applied_at) "
+            "VALUES ('password_reset_requests', datetime('now'))"
+        ))
+    logger.info("Created password_reset_requests table")
+    return True
