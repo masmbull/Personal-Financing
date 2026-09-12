@@ -28,6 +28,7 @@ def test_admin_sees_and_resolves_request():
     db = SessionLocal()
     try:
         admin = create_user(db, "resetadmin", "AdminPass123", is_admin=True)
+        create_user(db, "someuser", "OldPass123")
         db.add(PasswordResetRequest(username="someuser"))
         db.commit()
     finally:
@@ -52,8 +53,10 @@ def test_admin_sees_and_resolves_request():
 
     csrf = r.cookies.get("pf_csrf", "")
     rid = db.query(PasswordResetRequest).first().id
-    r = client.post(f"/admin/reset-requests/{rid}/resolve", data={"csrf_token": csrf})
-    assert r.status_code == 303
+    r = client.post(f"/admin/reset-requests/{rid}/process",
+                    data={"csrf_token": csrf, "new_password": "NewPass123"})
+    assert r.status_code == 200
+    assert "NewPass123" in r.text
 
     db = SessionLocal()
     try:

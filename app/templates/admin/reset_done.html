@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Reset Berhasil - Admin{% endblock %}
+{% block content %}
+<div class="page">
+    <div class="top-bar reveal">
+        <div>
+            <div class="greeting">🔐 Panel Admin</div>
+            <h1 class="page-title-large">Password Telah Direset</h1>
+        </div>
+    </div>
+
+    <section class="section reveal">
+        <div class="card">
+            <p style="margin:0 0 12px">Password untuk user <strong>{{ username }}</strong> berhasil direset. Berikan password baru ini kepada user:</p>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <code id="np" style="flex:1;min-width:200px;background:var(--bg-input);padding:12px 14px;border-radius:10px;border:1px solid var(--line-strong);font-size:1.05rem;letter-spacing:.5px">{{ new_password }}</code>
+                <button type="button" class="btn btn-sm btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('np').textContent)">Salin</button>
+            </div>
+        </div>
+    </section>
+
+    <p class="auth-alt"><a href="/admin/reset-requests" class="link-more">← Kembali ke Permintaan Reset</a></p>
+</div>
+{% endblock %}

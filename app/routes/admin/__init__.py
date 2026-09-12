@@ -269,30 +269,56 @@ def admin_reset_requests_page(request: Request, db: Session = Depends(get_db)):
     resp = templates.TemplateResponse(request, "admin/reset_requests.html", {
         "requests": requests,
         "csrf_token": token,
+        "error": request.query_params.get("error", ""),
+        "msg": request.query_params.get("msg", ""),
     })
     set_csrf_cookie(resp, token)
     return resp
 
 
-@router.post("/admin/reset-requests/{request_id}/resolve")
-def admin_reset_request_resolve(
+@router.post("/admin/reset-requests/{request_id}/process")
+def admin_reset_request_process(
     request_id: int,
     request: Request,
+    new_password: str = Form(""),
     csrf_token: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    """Mark a reset request as resolved (admin has reset the password)."""
+    """Reset the user's password to ``new_password`` and mark the request done.
+
+    The chosen password is echoed back on the page so the admin can relay it to
+    the user (the app has no email). Validation mirrors the user-facing rules.
+    """
     admin, redirect = _gate(request, db)
     if redirect is not None:
         return redirect
     if not csrf_ok(request.cookies.get(CSRF_COOKIE), csrf_token):
-        return RedirectResponse(url="/admin/reset-requests", status_code=303)
+        return RedirectResponse(url="/admin/reset-requests?error=1", status_code=303)
+    from app.services.users import change_password
+    from app.validation import validate_password
+    ok, err = validate_password(new_password)
+    if not ok:
+        return RedirectResponse(
+            url=f"/admin/reset-requests?error=2&msg={err}", status_code=303)
     req = db.query(PasswordResetRequest).filter(
         PasswordResetRequest.id == request_id
     ).first()
-    if req is not None and req.status == "pending":
-        from app.models.models import _utcnow
-        req.status = "resolved"
-        req.resolved_at = _utcnow()
-        db.commit()
-    return RedirectResponse(url="/admin/reset-requests", status_code=303)
+    if req is None or req.status != "pending":
+        return RedirectResponse(url="/admin/reset-requests", status_code=303)
+    target = db.query(User).filter(User.username == req.username).first()
+    if target is None:
+        return RedirectResponse(
+            url="/admin/reset-requests?error=3", status_code=303)
+    change_password(db, target, new_password)
+    from app.models.models import _utcnow
+    req.status = "resolved"
+    req.resolved_at = _utcnow()
+    db.commit()
+    token = secrets.token_urlsafe(24)
+    resp = templates.TemplateResponse(request, "admin/reset_done.html", {
+        "username": req.username,
+        "new_password": new_password,
+        "csrf_token": token,
+    })
+    set_csrf_cookie(resp, token)
+    return resp

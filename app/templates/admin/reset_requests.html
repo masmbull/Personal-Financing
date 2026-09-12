@@ -9,30 +9,38 @@
         </div>
     </div>
 
+    {% if error == "1" %}
+    <div class="auth-error" role="alert">Sesi kadaluarsa, silakan coba lagi.</div>
+    {% elif error == "2" %}
+    <div class="auth-error" role="alert">Password gagal: {{ msg }}</div>
+    {% elif error == "3" %}
+    <div class="auth-error" role="alert">User tidak ditemukan.</div>
+    {% endif %}
+
     {% if requests %}
     <section class="section reveal">
         <div class="stack">
             {% for r in requests %}
             <div class="card">
-                <div class="row-between">
+                <div class="row-between" style="align-items:flex-start">
                     <div>
                         <strong>{{ r.username }}</strong>
                         <div class="tx-meta">Diajukan: {{ r.created_at.strftime('%d %b %Y %H:%M') if r.created_at else '-' }}</div>
                     </div>
-                    <div class="btn-group">
-                        <form method="post" action="/admin/reset-requests/{{ r.id }}/resolve" class="inline">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="btn-sm btn-success">Tandai Selesai</button>
-                        </form>
-                    </div>
                 </div>
+                <form method="post" action="/admin/reset-requests/{{ r.id }}/process" class="form" style="margin-top:12px">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <div class="form-group">
+                        <label class="form-label" for="pw-{{ r.id }}">Password baru untuk {{ r.username }}</label>
+                        <input id="pw-{{ r.id }}" name="new_password" type="text" class="input" required
+                               maxlength="128" minlength="8" autocomplete="new-password"
+                               placeholder="Minimal 8 karakter">
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-success">Reset & Tampilkan Password</button>
+                </form>
             </div>
             {% endfor %}
         </div>
-        <p class="auth-alt" style="margin-top:16px">
-            Reset password via terminal server:
-            <code style="display:block;margin-top:6px;background:var(--bg-input);padding:8px 10px;border-radius:8px;border:1px solid var(--line-strong)">python reset_password.py {{ requests[0].username }} &lt;password_baru&gt;</code>
-        </p>
     </section>
     {% else %}
     <section class="section reveal">
