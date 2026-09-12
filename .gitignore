@@ -20,3 +20,5 @@ pytest_out.txt
 fin_out.txt
 api_out.txt
 test_out.txt
+
+_diag/
