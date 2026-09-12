@@ -253,6 +253,20 @@ def _pending_reset_count(db: Session) -> int:
     ).count()
 
 
+def _gen_temp_password(length: int = 12) -> str:
+    """Generate a memorable-but-strong temporary password for resets."""
+    import string
+    pools = (
+        string.ascii_uppercase, string.ascii_lowercase,
+        string.digits, "!@#$%",
+    )
+    chars = list(pools[0] + pools[1] + pools[2] + pools[3])
+    pwd = [secrets.choice(p) for p in pools]
+    pwd += [secrets.choice(chars) for _ in range(length - len(pools))]
+    secrets.SystemRandom().shuffle(pwd)
+    return "".join(pwd)
+
+
 @router.get("/admin/reset-requests", response_class=HTMLResponse)
 def admin_reset_requests_page(request: Request, db: Session = Depends(get_db)):
     """List pending password reset requests for the admin to action."""
@@ -271,6 +285,7 @@ def admin_reset_requests_page(request: Request, db: Session = Depends(get_db)):
         "csrf_token": token,
         "error": request.query_params.get("error", ""),
         "msg": request.query_params.get("msg", ""),
+        "suggested_pw": _gen_temp_password(),
     })
     set_csrf_cookie(resp, token)
     return resp

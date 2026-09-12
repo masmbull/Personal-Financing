@@ -32,9 +32,13 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <div class="form-group">
                         <label class="form-label" for="pw-{{ r.id }}">Password baru untuk {{ r.username }}</label>
-                        <input id="pw-{{ r.id }}" name="new_password" type="text" class="input" required
-                               maxlength="128" minlength="8" autocomplete="new-password"
-                               placeholder="Minimal 8 karakter">
+                        <div class="pw-wrap">
+                            <input id="pw-{{ r.id }}" name="new_password" type="text" class="input" required
+                                   maxlength="128" minlength="8" autocomplete="new-password"
+                                   value="{{ suggested_pw }}">
+                            <button type="button" class="pw-toggle" title="Generate password acak"
+                                    onclick="genPw('pw-{{ r.id }}')">🎲</button>
+                        </div>
                     </div>
                     <button type="submit" class="btn btn-sm btn-success">Reset & Tampilkan Password</button>
                 </form>
@@ -50,4 +54,27 @@
 
     <p class="auth-alt"><a href="/admin" class="link-more">← Kembali ke Dashboard Admin</a></p>
 </div>
+
+<script>
+function genPw(id) {
+    var upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    var lower = "abcdefghijkmnpqrstuvwxyz";
+    var digit = "23456789";
+    var sym = "!@#$%";
+    var all = upper + lower + digit + sym;
+    var len = 12, out = "";
+    // Guarantee at least one of each class.
+    out += upper[Math.floor(Math.random() * upper.length)];
+    out += lower[Math.floor(Math.random() * lower.length)];
+    out += digit[Math.floor(Math.random() * digit.length)];
+    out += sym[Math.floor(Math.random() * sym.length)];
+    for (var i = 4; i < len; i++) {
+        out += all[Math.floor(Math.random() * all.length)];
+    }
+    out = out.split("").sort(function () { return Math.random() - 0.5; }).join("");
+    var el = document.getElementById(id);
+    el.value = out;
+    el.focus();
+}
+</script>
 {% endblock %}
