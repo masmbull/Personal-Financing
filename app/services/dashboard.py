@@ -65,12 +65,9 @@ def build_dashboard(db: Session, *, user_id: int,
     )
 
     # --- chart data ---
-    from app.services.reports import monthly_series, category_breakdown
-    from app.models.models import TransactionType
+    from app.services.reports import monthly_series
 
     trend = monthly_series(db, months=6, user_id=user_id)
-    cat_data = category_breakdown(db, TransactionType.EXPENSE, user_id=user_id)
-    top_cats = cat_data["by_category"][:5]
 
     return {
         "net_worth": nw["net_worth"],
@@ -96,5 +93,4 @@ def build_dashboard(db: Session, *, user_id: int,
         "recent_transactions": items[:recent_limit],
         # chart data
         "monthly_trend": trend,
-        "expense_by_category": top_cats,
     }
