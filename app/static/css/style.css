@@ -1454,7 +1454,16 @@ body.modal-open,body.pal-open{overflow:hidden}
 .pal-item .pal-ic{width:30px;height:30px;border-radius:9px;background:var(--bg-soft);display:grid;place-items:center;flex:none}
 .pal-item .pal-go{margin-left:auto;color:var(--ink-3)}
 .pal-item.pal-active,.pal-item:hover{background:var(--blue-bg);color:var(--blue)}
-.pal-hint{display:flex;gap:14px;padding:10px 16px;border-top:1px solid var(--line);font-size:.75rem;color:var(--ink-3)}
+.pal-hint{display:flex;gap:14px;padding:10px 16px;border-top:1px solid var(--line);font-size:.75rem;color:var(--ink-3);flex-wrap:wrap}
+.pal-keys-hint{margin-left:auto}
+kbd{background:var(--bg-soft);border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:6px;padding:1px 6px;font-size:.75rem;font-family:inherit;font-weight:700;color:var(--ink-2)}
+/* UX pass: skip-link + focus-visible */
+.skip-link{position:fixed;top:-48px;left:12px;z-index:1000;background:var(--ink);color:var(--bg-card);padding:10px 16px;border-radius:var(--r-md);font-weight:700;font-size:.88rem;text-decoration:none;transition:top .18s ease}
+.skip-link:focus{top:12px}
+.fab-main:focus-visible,.fab-item:focus-visible,.pal-item:focus-visible,.to-top:focus-visible,.skip-link:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.to-top:focus{border-color:var(--blue);color:var(--blue)}
+.fab-menu{visibility:hidden}
+.fab-wrap.open .fab-menu{visibility:visible}
 .to-top{position:fixed;left:16px;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);z-index:150;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--line);box-shadow:var(--sh-2);opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .25s ease,transform .25s ease;font-size:1.1rem;color:var(--ink)}
 .to-top.show{opacity:1;pointer-events:auto;transform:none}
 .to-top:hover{border-color:var(--blue);color:var(--blue)}

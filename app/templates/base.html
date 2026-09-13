@@ -8,12 +8,13 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>{% block title %}Finance{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20">
+    <link rel="stylesheet" href="/static/css/style.css?v=21">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 </head>
 <body>
+    <a class="skip-link" href="#main">Lewati ke konten</a>
     <div class="loadbar" id="loadbar" aria-hidden="true"></div>
     <div class="toast-container" id="toast-container"></div>
 
@@ -112,7 +113,7 @@
         </aside>
         {% endif %}
 
-        <main class="main-content page-enter page-enter-active">
+        <main class="main-content page-enter page-enter-active" id="main" tabindex="-1">
             {% if request.state.user %}
             <div class="auth-bar">
                 <span class="auth-user">👤 {{ request.state.user.username }}</span>
@@ -165,7 +166,7 @@
         <div class="pal-box" role="dialog" aria-modal="true" aria-label="Pencarian menu">
             <input class="pal-input" id="palInput" type="text" placeholder="Ketik untuk cari menu… (Esc untuk tutup)" autocomplete="off" aria-label="Cari menu">
             <div class="pal-list" id="palList" role="listbox"></div>
-            <div class="pal-hint"><span><kbd>↑</kbd><kbd>↓</kbd> navigasi</span><span><kbd>↵</kbd> buka</span><span><kbd>esc</kbd> tutup</span></div>
+            <div class="pal-hint"><span><kbd>↑</kbd><kbd>↓</kbd> navigasi</span><span><kbd>↵</kbd> buka</span><span><kbd>esc</kbd> tutup</span><span class="pal-keys-hint">atau tekan <kbd>Ctrl</kbd>+<kbd>K</kbd> di mana saja</span></div>
         </div>
     </div>
 
@@ -184,6 +185,6 @@
     <script src="/static/js/app.js?v=3"></script>
     <script src="/static/js/ui-pro.js?v=1"></script>
     <script src="/static/js/ui-pro2.js?v=1"></script>
-    <script src="/static/js/ui-pro3.js?v=1"></script>
+    <script src="/static/js/ui-pro3.js?v=2"></script>
 </body>
 </html>
