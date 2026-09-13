@@ -67,6 +67,12 @@ def set_admin(
     user = users_service.set_admin(db, user_id, is_admin)
     if user is None:
         return Response(status_code=http_status.HTTP_404_NOT_FOUND)
+    from app.services.audit import record
+    record(
+        db, action="admin_set_admin", actor_user_id=admin.id,
+        target_user_id=user.id,
+        detail={"username": user.username, "is_admin": bool(user.is_admin)},
+    )
     return {
         "id": user.id,
         "username": user.username,
@@ -89,6 +95,11 @@ def make_admin(
     user = users_service.set_admin(db, user_id, True)
     if user is None:
         return Response(status_code=http_status.HTTP_404_NOT_FOUND)
+    from app.services.audit import record
+    record(
+        db, action="admin_make_admin", actor_user_id=admin.id,
+        target_user_id=user.id, detail={"username": user.username},
+    )
     return {
         "id": user.id,
         "username": user.username,
@@ -112,4 +123,35 @@ def stats(
         "total_bills": db.query(Bill).count(),
         "total_savings_goals": db.query(SavingsGoal).count(),
         "total_budgets": db.query(Budget).count(),
+    }
+
+
+@router.get("/audit-log", summary="Recent audit events (admin only)")
+def audit_log(
+    limit: int = 100,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+):
+    """Return recent audit events (newest first) for the admin Audit Log view."""
+    from app.services.audit import list_events
+
+    limit = max(1, min(limit, 500))
+    rows = list_events(db, limit=limit, offset=offset)
+    return {
+        "items": [
+            {
+                "id": r.id,
+                "action": r.action,
+                "actor_user_id": r.actor_user_id,
+                "target_user_id": r.target_user_id,
+                "entity_type": r.entity_type,
+                "entity_id": r.entity_id,
+                "ip_address": r.ip_address,
+                "detail": r.detail,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ],
+        "count": len(rows),
     }

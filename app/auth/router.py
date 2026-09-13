@@ -117,6 +117,12 @@ def login_submit(
         return resp
     token, _ = create_session(db, user.id)
     # Never reuse an existing session; login always issues a fresh token.
+    from app.services.audit import record
+    record(
+        db, action="login_success", actor_user_id=user.id,
+        ip_address=request.client.host if request.client else None,
+        detail={"username": user.username},
+    )
     resp = RedirectResponse(url=_safe_next(next) or "/", status_code=303)
     set_session_cookie(resp, token)
     resp.delete_cookie(CSRF_COOKIE, path="/")
@@ -158,6 +164,11 @@ def register_submit(
         user = create_user(db, username, password)
     except UsernameTaken:
         return RedirectResponse(url="/register?error=1", status_code=303)
+    from app.services.audit import record
+    record(
+        db, action="register", actor_user_id=user.id,
+        ip_address=request.client.host if request.client else None,
+    )
     token, _ = create_session(db, user.id)
     resp = RedirectResponse(url="/setup", status_code=303)
     set_session_cookie(resp, token)
@@ -170,9 +181,15 @@ def logout(request: Request, db: Session = Depends(get_db)):
     """POST-only logout. SameSite=Lax blocks cross-site POSTs so an attacker
     cannot drive a victim\'s browser into this without both cookies."""
     token = request.cookies.get(SESSION_COOKIE)
-    if resolve_request_user(request, db) is None:
+    user = resolve_request_user(request, db)
+    if user is None:
         return RedirectResponse(url="/login", status_code=303)
     from app.auth.sessions import invalidate_session
+    from app.services.audit import record
+    record(
+        db, action="logout", actor_user_id=user.id,
+        ip_address=request.client.host if request.client else None,
+    )
     invalidate_session(db, token)
     resp = RedirectResponse(url="/login", status_code=303)
     clear_session_cookie(resp)
@@ -303,5 +320,10 @@ def change_password_submit(
     change_password(db, user, new_password)
     # Keep only the current session; revoke every other device.
     invalidate_other_sessions(db, user.id, request.cookies.get(SESSION_COOKIE))
+    from app.services.audit import record
+    record(
+        db, action="password_change", actor_user_id=user.id,
+        ip_address=request.client.host if request.client else None,
+    )
     return RedirectResponse(url="/settings?done=1", status_code=303)
 

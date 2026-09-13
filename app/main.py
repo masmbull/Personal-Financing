@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.database.db import engine, Base, SessionLocal
 from app.models.models import Account, Category, AccountType, TransactionType
+from app.models import audit as _audit  # noqa: F401  (ensures AuditLog table is created)
 from app.routes import dashboard, transactions, categories, reports, transfer, debts, bills, budgets, savings, assets_list, investments, receipts_ui, misc, export, admin, help
 from app.api.router import api_v1_router
 from app.api.errors import register_exception_handlers

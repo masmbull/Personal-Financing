@@ -577,6 +577,26 @@
       })(moneyFields[i]);
     }
   }
+  /* ---------- Keyboard shortcuts (no input focus) ---------- */
+  function initKeyboardShortcuts() {
+    var map = {
+      g: '/accounts',     // g -> Akun
+      t: '/transactions', // t -> Transaksi
+      r: '/reports',      // r -> Laporan
+      b: '/budgets',      // b -> Budget
+      n: '/transactions/add' // n -> catat baru
+    };
+    document.addEventListener('keydown', function (e) {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      var t = e.target;
+      var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' ||
+          (t && t.isContentEditable)) return;
+      var dest = map[e.key.toLowerCase()];
+      if (dest) { e.preventDefault(); window.location.href = dest; }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     runLoadbar();
     initStagger();
@@ -586,6 +606,7 @@
     initReceiptUpload();
     initQuickCats();
     initMoneyInputs();
+    initKeyboardShortcuts();
   });
 })();
 /* ---------- balance privacy toggle (eye) ---------- */
