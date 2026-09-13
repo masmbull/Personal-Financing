@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.schemas.ewallet import (
     ProviderCreate, ProviderListResponse, ProviderResponse, ProviderUpdate,
@@ -33,6 +34,7 @@ def list_providers(db: Session = Depends(get_db),
 @router.post("", response_model=ProviderResponse,
              status_code=http_status.HTTP_201_CREATED,
              summary="Create own e-wallet provider")
+@audit_action(action="ewallet_provider_create", entity="ewallet_provider")
 def create_provider(payload: ProviderCreate, db: Session = Depends(get_db),
                    user: CurrentUser = Depends(get_current_user)):
     p = ew_service.create_provider(
@@ -55,6 +57,7 @@ def get_provider(provider_id: int, db: Session = Depends(get_db),
 
 @router.put("/{provider_id}", response_model=ProviderResponse,
             summary="Update OWN provider only")
+@audit_action(action="ewallet_provider_update", entity="ewallet_provider")
 def update_provider(provider_id: int, payload: ProviderUpdate,
                     db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
@@ -65,6 +68,7 @@ def update_provider(provider_id: int, payload: ProviderUpdate,
 
 @router.delete("/{provider_id}", status_code=http_status.HTTP_204_NO_CONTENT,
                summary="Delete OWN provider only (global rows forbidden)")
+@audit_action(action="ewallet_provider_delete", entity="ewallet_provider")
 def delete_provider(provider_id: int, db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
     ew_service.delete_provider(db, provider_id, user.id)

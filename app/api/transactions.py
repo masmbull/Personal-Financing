@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.models.models import TransactionType
 from app.schemas.transaction import (
@@ -59,6 +60,7 @@ def list_transactions(
     ),
     responses={201: {"description": "Created"}, 400: {"description": "Invalid input"}},
 )
+@audit_action(action="transaction_create", entity="transaction")
 def create_transaction_endpoint(payload: TransactionCreate,
                                 db: Session = Depends(get_db),
                                 user: CurrentUser = Depends(get_current_user)):
@@ -99,6 +101,7 @@ def get_transaction(transaction_id: int, db: Session = Depends(get_db),
     description="Only provided fields change; balances are recalculated.",
     responses={404: {"description": "Not found"}, 400: {"description": "Invalid input"}},
 )
+@audit_action(action="transaction_update", entity="transaction")
 def update_transaction(transaction_id: int, payload: TransactionUpdate,
                        db: Session = Depends(get_db),
                        user: CurrentUser = Depends(get_current_user)):
@@ -113,6 +116,7 @@ def update_transaction(transaction_id: int, payload: TransactionUpdate,
     summary="Delete a transaction",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="transaction_delete", entity="transaction")
 def delete_transaction_endpoint(transaction_id: int, db: Session = Depends(get_db),
                                 user: CurrentUser = Depends(get_current_user)):
     tx_service.get_transaction(db, transaction_id, user.id)  # 404 when missing or not owned

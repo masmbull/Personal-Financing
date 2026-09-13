@@ -253,6 +253,38 @@ def _pending_reset_count(db: Session) -> int:
     ).count()
 
 
+@router.get("/admin/audit-log", response_class=HTMLResponse)
+def admin_audit_log_page(
+    request: Request,
+    page: int = 1,
+    db: Session = Depends(get_db),
+):
+    """View the audit trail (newest first) with simple pagination."""
+    from app.models.audit import AuditLog
+    from app.services.audit import list_events
+
+    admin, redirect = _gate(request, db)
+    if redirect is not None:
+        return redirect
+    page = max(1, page)
+    page_size = 50
+    rows = list_events(db, limit=page_size, offset=(page - 1) * page_size)
+    total = db.query(AuditLog).count()
+    token = secrets.token_urlsafe(24)
+    resp = templates.TemplateResponse(request, "admin/audit_log.html", {
+        "events": rows,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "has_prev": page > 1,
+        "has_next": (page * page_size) < total,
+        "csrf_token": token,
+    })
+    set_csrf_cookie(resp, token)
+    return resp
+
+
+
 def _gen_temp_password(length: int = 12) -> str:
     """Generate a memorable-but-strong temporary password for resets."""
     import string

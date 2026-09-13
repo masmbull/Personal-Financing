@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.schemas.investment import (
     InvestmentCreate, InvestmentListResponse, InvestmentResponse, InvestmentUpdate,
@@ -37,6 +38,7 @@ def list_investments(db: Session = Depends(get_db),
     status_code=http_status.HTTP_201_CREATED,
     summary="Record an investment holding",
 )
+@audit_action(action="investment_create", entity="investment")
 def create_investment(payload: InvestmentCreate, db: Session = Depends(get_db),
                       user: CurrentUser = Depends(get_current_user)):
     inv = investments_service.create_investment(
@@ -65,6 +67,7 @@ def get_investment(investment_id: int, db: Session = Depends(get_db),
     description="Typically used to refresh current_value with the latest market price.",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="investment_update", entity="investment")
 def update_investment(investment_id: int, payload: InvestmentUpdate,
                       db: Session = Depends(get_db),
                       user: CurrentUser = Depends(get_current_user)):
@@ -79,6 +82,7 @@ def update_investment(investment_id: int, payload: InvestmentUpdate,
     summary="Delete an investment record",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="investment_delete", entity="investment")
 def delete_investment(investment_id: int, db: Session = Depends(get_db),
                       user: CurrentUser = Depends(get_current_user)):
     investments_service.delete_investment(db, investment_id, user.id)

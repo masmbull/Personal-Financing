@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.schemas.category import (
     CategoryCreate, CategoryListResponse, CategoryResponse, CategoryUpdate,
@@ -41,6 +42,7 @@ def category_tree(type: Optional[str] = Query(None, description="EXPENSE | INCOM
     "", response_model=CategoryResponse, status_code=http_status.HTTP_201_CREATED,
     summary="Create a category",
 )
+@audit_action(action="category_create", entity="category")
 def create_category(payload: CategoryCreate, db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
     return _out(categories_service.create_category(
@@ -68,6 +70,7 @@ def get_category(category_id: int, db: Session = Depends(get_db),
     summary="Update a category (partial)",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="category_update", entity="category")
 def update_category(category_id: int, payload: CategoryUpdate,
                     db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
@@ -81,6 +84,7 @@ def update_category(category_id: int, payload: CategoryUpdate,
     summary="Delete a category",
     responses={409: {"description": "Category is used by transactions"}},
 )
+@audit_action(action="category_delete", entity="category")
 def delete_category(category_id: int, db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
     categories_service.delete_category(db, category_id)

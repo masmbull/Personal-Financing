@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.schemas.institution import (
     InstitutionCreate, InstitutionListResponse, InstitutionResponse,
@@ -35,6 +36,7 @@ def list_institutions(db: Session = Depends(get_db),
 @router.post("", response_model=InstitutionResponse,
              status_code=http_status.HTTP_201_CREATED,
              summary="Create own financial institution")
+@audit_action(action="institution_create", entity="institution")
 def create_institution(payload: InstitutionCreate,
                        db: Session = Depends(get_db),
                        user: CurrentUser = Depends(get_current_user)):
@@ -58,6 +60,7 @@ def get_institution(institution_id: int, db: Session = Depends(get_db),
 
 @router.put("/{institution_id}", response_model=InstitutionResponse,
             summary="Update OWN institution only")
+@audit_action(action="institution_update", entity="institution")
 def update_institution(institution_id: int, payload: InstitutionUpdate,
                        db: Session = Depends(get_db),
                        user: CurrentUser = Depends(get_current_user)):
@@ -68,6 +71,7 @@ def update_institution(institution_id: int, payload: InstitutionUpdate,
 
 @router.delete("/{institution_id}", status_code=http_status.HTTP_204_NO_CONTENT,
                summary="Delete OWN institution only (global rows forbidden)")
+@audit_action(action="institution_delete", entity="institution")
 def delete_institution(institution_id: int, db: Session = Depends(get_db),
                        user: CurrentUser = Depends(get_current_user)):
     inst_service.delete_institution(db, institution_id, user.id)

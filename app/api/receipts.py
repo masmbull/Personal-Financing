@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response, UploadFile, status as h
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.schemas.receipt import ReceiptConfirmRequest, ReceiptResponse
 from app.services import receipts as receipts_service
@@ -33,6 +34,7 @@ def _out(receipt) -> ReceiptResponse:
         400: {"description": "Unsupported type / empty / too large / not an image"},
     },
 )
+@audit_action(action="receipt_upload", entity="receipt")
 def upload_receipt(file: UploadFile,
                    db: Session = Depends(get_db),
                    user: CurrentUser = Depends(get_current_user)):
@@ -93,6 +95,7 @@ def get_receipt(receipt_id: int, db: Session = Depends(get_db),
         409: {"description": "Already confirmed"},
     },
 )
+@audit_action(action="receipt_confirm", entity="receipt")
 def confirm_receipt(receipt_id: int, payload: ReceiptConfirmRequest,
                     db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
@@ -138,6 +141,7 @@ def retry_receipt_ocr(receipt_id: int,
     description="Removes metadata. Set remove_file=true to also delete the stored image.",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="receipt_delete", entity="receipt")
 def delete_receipt(receipt_id: int, remove_file: bool = Query(False),
                    db: Session = Depends(get_db),
                    user: CurrentUser = Depends(get_current_user)):

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.models.models import DebtType
 from app.schemas.debt import (
@@ -54,6 +55,7 @@ def list_debts(type: Optional[DebtType] = Query(None),
     summary="Record a new debt",
     responses={400: {"description": "Invalid input"}},
 )
+@audit_action(action="debt_create", entity="debt")
 def create_debt(payload: DebtCreate, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     debt = debts_service.create_debt(
@@ -87,6 +89,7 @@ def get_debt(debt_id: int, db: Session = Depends(get_db),
     description="Editable metadata only; amounts are mutated via payments.",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="debt_update", entity="debt")
 def update_debt(debt_id: int, payload: DebtUpdate, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     debt = debts_service.update_debt(
@@ -100,6 +103,7 @@ def update_debt(debt_id: int, payload: DebtUpdate, db: Session = Depends(get_db)
     summary="Delete a debt",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="debt_delete", entity="debt")
 def delete_debt(debt_id: int, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     debts_service.delete_debt(db, debt_id, user.id)
@@ -122,6 +126,7 @@ def delete_debt(debt_id: int, db: Session = Depends(get_db),
         404: {"description": "Debt not found"},
     },
 )
+@audit_action(action="debt_pay", entity="debt")
 def pay_debt(debt_id: int, payload: DebtPaymentCreate,
              db: Session = Depends(get_db),
              user: CurrentUser = Depends(get_current_user)):

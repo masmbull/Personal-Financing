@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.schemas.asset import (
     AssetCreate, AssetListResponse, AssetResponse, AssetUpdate,
@@ -34,6 +35,7 @@ def list_assets(db: Session = Depends(get_db),
     "", response_model=AssetResponse, status_code=http_status.HTTP_201_CREATED,
     summary="Register an asset",
 )
+@audit_action(action="asset_create", entity="asset")
 def create_asset(payload: AssetCreate, db: Session = Depends(get_db),
                  user: CurrentUser = Depends(get_current_user)):
     asset = assets_service.create_asset(
@@ -60,6 +62,7 @@ def get_asset(asset_id: int, db: Session = Depends(get_db),
     summary="Update an asset (partial)",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="asset_update", entity="asset")
 def update_asset(asset_id: int, payload: AssetUpdate,
                  db: Session = Depends(get_db),
                  user: CurrentUser = Depends(get_current_user)):
@@ -74,6 +77,7 @@ def update_asset(asset_id: int, payload: AssetUpdate,
     summary="Delete an asset",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="asset_delete", entity="asset")
 def delete_asset(asset_id: int, db: Session = Depends(get_db),
                  user: CurrentUser = Depends(get_current_user)):
     assets_service.delete_asset(db, asset_id, user.id)

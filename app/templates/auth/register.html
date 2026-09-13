@@ -10,7 +10,10 @@
         </div>
 
         {% if error %}
-        <div class="auth-error" role="alert">Pendaftaran tidak berhasil. Cek username dan password (min. 8 karakter).</div>
+        <div class="auth-error" role="alert">
+            {% if error == "2" %}Password terlalu lemah atau umum. Gunakan minimal 8 karakter, campuran huruf/angka/simbol, hindari nama pengguna atau pola keyboard.
+            {% else %}Pendaftaran tidak berhasil. Cek username dan password (min. 8 karakter).{% endif %}
+        </div>
         {% endif %}
 
         <form method="post" action="/register" class="form auth-form" id="register-form">

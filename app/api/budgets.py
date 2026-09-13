@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.schemas.budget import (
     BudgetCreate, BudgetListResponse, BudgetResponse, BudgetUpdate,
@@ -45,6 +46,7 @@ def list_budgets(
     description="Upserts per category+month+year: re-POST with the same keys updates the amount.",
     responses={400: {"description": "Invalid input"}},
 )
+@audit_action(action="budget_create", entity="budget")
 def create_budget(payload: BudgetCreate, db: Session = Depends(get_db),
                   user: CurrentUser = Depends(get_current_user)):
     budget = budgets_service.set_budget(
@@ -68,6 +70,7 @@ def get_budget(budget_id: int, db: Session = Depends(get_db),
     summary="Change budget amount",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="budget_update", entity="budget")
 def update_budget(budget_id: int, payload: BudgetUpdate,
                   db: Session = Depends(get_db),
                   user: CurrentUser = Depends(get_current_user)):
@@ -80,6 +83,7 @@ def update_budget(budget_id: int, payload: BudgetUpdate,
     summary="Delete a budget",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="budget_delete", entity="budget")
 def delete_budget(budget_id: int, db: Session = Depends(get_db),
                   user: CurrentUser = Depends(get_current_user)):
     budgets_service.delete_budget(db, budget_id, user.id)

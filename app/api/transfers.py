@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.models.models import TransactionType
 from app.schemas.transfer import TransferCreate, TransferResponse
@@ -26,6 +27,7 @@ router = APIRouter(prefix="/transfers", tags=["transfers"])
         400: {"description": "Invalid transfer (same account, unknown account, bad amount)"},
     },
 )
+@audit_action(action="transfer_create", entity="transaction")
 def create_transfer(payload: TransferCreate, db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
     tx = create_transaction(

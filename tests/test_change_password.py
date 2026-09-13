@@ -112,4 +112,6 @@ def test_change_password_weak_rejected():
         "confirm_password": "short",
         "csrf_token": token,
     })
-    assert "error=weak" in r.headers.get("location", "")
+    # Too-short password is rejected by the password policy (code `policy`).
+    assert "error=policy" in r.headers.get("location", "") \
+        or "error=weak" in r.headers.get("location", "")

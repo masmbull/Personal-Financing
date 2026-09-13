@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.schemas.savings import (
     SavingsGoalCreate, SavingsGoalListResponse, SavingsGoalResponse,
@@ -32,6 +33,7 @@ def list_goals(active_only: bool = True, db: Session = Depends(get_db),
     status_code=http_status.HTTP_201_CREATED,
     summary="Create a savings goal",
 )
+@audit_action(action="savings_goal_create", entity="savings_goal")
 def create_goal(payload: SavingsGoalCreate, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     goal = savings_service.create_goal(
@@ -56,6 +58,7 @@ def get_goal(goal_id: int, db: Session = Depends(get_db),
     summary="Update a goal (partial)",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="savings_goal_update", entity="savings_goal")
 def update_goal(goal_id: int, payload: SavingsGoalUpdate,
                 db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
@@ -70,6 +73,7 @@ def update_goal(goal_id: int, payload: SavingsGoalUpdate,
     summary="Delete a goal",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="savings_goal_delete", entity="savings_goal")
 def delete_goal(goal_id: int, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     savings_service.delete_goal(db, goal_id, user.id)
@@ -85,6 +89,7 @@ def delete_goal(goal_id: int, db: Session = Depends(get_db),
     ),
     responses={400: {"description": "Invalid amount"}, 404: {"description": "Not found"}},
 )
+@audit_action(action="savings_deposit", entity="savings_goal")
 def deposit(goal_id: int, payload: SavingsOperationRequest,
             db: Session = Depends(get_db),
             user: CurrentUser = Depends(get_current_user)):
@@ -101,6 +106,7 @@ def deposit(goal_id: int, payload: SavingsOperationRequest,
     description="Decreases the saved amount; cannot exceed what is saved.",
     responses={400: {"description": "Exceeds saved amount"}, 404: {"description": "Not found"}},
 )
+@audit_action(action="savings_withdraw", entity="savings_goal")
 def withdraw(goal_id: int, payload: SavingsOperationRequest,
              db: Session = Depends(get_db),
              user: CurrentUser = Depends(get_current_user)):

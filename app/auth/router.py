@@ -23,7 +23,10 @@ from app.services.users import (
     UsernameTaken, authenticate, change_password, create_user,
     invalidate_other_sessions,
 )
-from app.validation import validate_username, validate_password, validate_amount, validate_account_name
+from app.validation import (
+    validate_username, validate_password, password_policy_error,
+    validate_amount, validate_account_name,
+)
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
@@ -151,10 +154,10 @@ def register_submit(
     if not valid:
         return RedirectResponse(url="/register?error=1", status_code=303)
     
-    # Validate password
-    valid, err = validate_password(password)
-    if not valid:
-        return RedirectResponse(url="/register?error=1", status_code=303)
+    # Validate password against the full policy (length + strength + common patterns).
+    pw_err = password_policy_error(password, username)
+    if pw_err:
+        return RedirectResponse(url="/register?error=2", status_code=303)
     
     # Check password match
     if password != password2:
@@ -309,6 +312,11 @@ def change_password_submit(
         return resp
     if new_password != confirm_password:
         resp = RedirectResponse(url="/settings?error=mismatch", status_code=303)
+        resp.delete_cookie(CSRF_COOKIE, path="/")
+        return resp
+    pw_err = password_policy_error(new_password, user.username)
+    if pw_err:
+        resp = RedirectResponse(url="/settings?error=policy", status_code=303)
         resp.delete_cookie(CSRF_COOKIE, path="/")
         return resp
     valid, err = validate_password(new_password)

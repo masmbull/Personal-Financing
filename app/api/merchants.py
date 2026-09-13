@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.models.models import MerchantType
 from app.schemas.merchant import (
@@ -30,6 +31,7 @@ def resolve_merchant(payload: MerchantResolveRequest,
 
 
 @router.post("", response_model=MerchantResponse, status_code=http_status.HTTP_201_CREATED)
+@audit_action(action="merchant_create", entity="merchant")
 def create_merchant(payload: MerchantCreate,
                     db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
@@ -58,6 +60,7 @@ def get_merchant(merchant_id: int, db: Session = Depends(get_db),
 
 
 @router.put("/{merchant_id}", response_model=MerchantResponse)
+@audit_action(action="merchant_update", entity="merchant")
 def update_merchant(merchant_id: int, payload: MerchantUpdate,
                     db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
@@ -73,6 +76,7 @@ def update_merchant(merchant_id: int, payload: MerchantUpdate,
 
 
 @router.post("/{merchant_id}/aliases", response_model=MerchantResponse)
+@audit_action(action="merchant_add_alias", entity="merchant")
 def add_alias(merchant_id: int, payload: AliasCreate,
               db: Session = Depends(get_db),
               user: CurrentUser = Depends(get_current_user)):
@@ -88,6 +92,7 @@ def add_alias(merchant_id: int, payload: AliasCreate,
 
 
 @router.delete("/{merchant_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+@audit_action(action="merchant_delete", entity="merchant")
 def delete_merchant(merchant_id: int, db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
     from app.api.errors import ApiError

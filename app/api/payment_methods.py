@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.models.models import PaymentMethodType
 from app.schemas.payment_method import (
@@ -27,6 +28,7 @@ def list_payment_methods(method_type: PaymentMethodType | None = None,
 
 
 @router.post("", response_model=PaymentMethodResponse, status_code=http_status.HTTP_201_CREATED)
+@audit_action(action="payment_method_create", entity="payment_method")
 def create_payment_method(payload: PaymentMethodCreate,
                           db: Session = Depends(get_db),
                           user: CurrentUser = Depends(get_current_user)):
@@ -53,6 +55,7 @@ def get_payment_method(pm_id: int, db: Session = Depends(get_db),
 
 
 @router.put("/{pm_id}", response_model=PaymentMethodResponse)
+@audit_action(action="payment_method_update", entity="payment_method")
 def update_payment_method(pm_id: int, payload: PaymentMethodUpdate,
                           db: Session = Depends(get_db),
                           user: CurrentUser = Depends(get_current_user)):
@@ -66,6 +69,7 @@ def update_payment_method(pm_id: int, payload: PaymentMethodUpdate,
 
 
 @router.delete("/{pm_id}", status_code=http_status.HTTP_204_NO_CONTENT)
+@audit_action(action="payment_method_delete", entity="payment_method")
 def delete_payment_method(pm_id: int, db: Session = Depends(get_db),
                           user: CurrentUser = Depends(get_current_user)):
     from app.api.errors import ApiError

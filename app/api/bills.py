@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.schemas.bill import (
     BillCreate, BillListResponse, BillOccurrenceResponse, BillPayRequest,
@@ -43,6 +44,7 @@ def list_bills(active_only: bool = Query(True),
     "", response_model=BillResponse, status_code=http_status.HTTP_201_CREATED,
     summary="Create a recurring bill",
 )
+@audit_action(action="bill_create", entity="bill")
 def create_bill(payload: BillCreate, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     bill = bills_service.create_bill(
@@ -68,6 +70,7 @@ def get_bill(bill_id: int, db: Session = Depends(get_db),
     summary="Update a bill (partial)",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="bill_update", entity="bill")
 def update_bill(bill_id: int, payload: BillUpdate, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     bill = bills_service.update_bill(
@@ -87,6 +90,7 @@ def update_bill(bill_id: int, payload: BillUpdate, db: Session = Depends(get_db)
     ),
     responses={201: {"description": "Paid"}, 404: {"description": "Not found"}},
 )
+@audit_action(action="bill_pay", entity="bill")
 def pay_bill(bill_id: int, payload: BillPayRequest, db: Session = Depends(get_db),
              user: CurrentUser = Depends(get_current_user)):
     _bill, payment = bills_service.pay_bill(
@@ -104,6 +108,7 @@ def pay_bill(bill_id: int, payload: BillPayRequest, db: Session = Depends(get_db
     summary="Delete a bill",
     responses={404: {"description": "Not found"}},
 )
+@audit_action(action="bill_delete", entity="bill")
 def delete_bill(bill_id: int, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     bills_service.delete_bill(db, bill_id, user.id)
@@ -172,6 +177,7 @@ def list_due_occurrences(
     ),
     responses={201: {"description": "Paid"}, 400: {"description": "Not DUE"}},
 )
+@audit_action(action="bill_pay_occurrence", entity="bill")
 def pay_occurrence(
     occurrence_id: int, payload: BillPayRequest,
     db: Session = Depends(get_db),

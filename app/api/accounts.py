@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Response, status as http_status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.database.db import get_db
 from app.schemas.account import (
     AccountCreate, AccountListResponse, AccountResponse, AccountUpdate,
@@ -45,6 +46,7 @@ def list_accounts(db: Session = Depends(get_db),
     description="Creates an account; current_balance starts at initial_balance.",
     responses={201: {"description": "Created"}, 400: {"description": "Invalid input"}},
 )
+@audit_action(action="account_create", entity="account")
 def create_account(payload: AccountCreate,
                    db: Session = Depends(get_db),
                    user: CurrentUser = Depends(get_current_user)):
@@ -78,6 +80,7 @@ def get_account(account_id: int, db: Session = Depends(get_db),
                 "recalculates current_balance.",
     responses={404: {"description": "Account not found"}},
 )
+@audit_action(action="account_update", entity="account")
 def update_account(account_id: int, payload: AccountUpdate,
                    db: Session = Depends(get_db),
                    user: CurrentUser = Depends(get_current_user)):
@@ -96,6 +99,7 @@ def update_account(account_id: int, payload: AccountUpdate,
         409: {"description": "Account still referenced by transactions"},
     },
 )
+@audit_action(action="account_delete", entity="account")
 def delete_account(account_id: int, db: Session = Depends(get_db),
                    user: CurrentUser = Depends(get_current_user)):
     accounts_service.delete_account(db, account_id, user.id)

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Audit Log - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <div class="top-bar reveal">
+        <div>
+            <div class="greeting">🔐 Panel Admin</div>
+            <h1 class="page-title-large">Audit Log</h1>
+        </div>
+        <a href="/admin" class="btn btn-sm">← Manajemen Pengguna</a>
+    </div>
+
+    <section class="section reveal">
+        <div class="section-header">
+            <h2 class="section-title">Jejak Aktivitas ({{ total }} event)</h2>
+            <span class="tx-meta">Halaman {{ page }}</span>
+        </div>
+
+        {% if events %}
+        <div class="transaction-list">
+            {% for e in events %}
+            <div class="transaction-item">
+                <div class="tx-left">
+                    <span class="tx-icon">📝</span>
+                    <div class="tx-info">
+                        <span class="tx-desc strong">
+                            {{ e.action }}
+                            {% if e.entity_type %}<span class="badge">{{ e.entity_type }}{% if e.entity_id %} #{{ e.entity_id }}{% endif %}</span>{% endif %}
+                        </span>
+                        <span class="tx-meta">
+                            {{ e.created_at.strftime('%d %b %Y %H:%M') if e.created_at else '-' }}
+                            · aktor {% if e.actor_user_id %}user #{{ e.actor_user_id }}{% else %}anonim{% endif %}
+                            {% if e.target_user_id %} · target user #{{ e.target_user_id }}{% endif %}
+                            {% if e.ip_address %} · {{ e.ip_address }}{% endif %}
+                        </span>
+                        {% if e.detail %}
+                        <span class="tx-meta">{{ e.detail[:160] }}{% if e.detail|length > 160 %}…{% endif %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="btn-group" style="margin-top:14px">
+            {% if has_prev %}
+            <a href="/admin/audit-log?page={{ page - 1 }}" class="btn btn-sm">← Sebelumnya</a>
+            {% endif %}
+            {% if has_next %}
+            <a href="/admin/audit-log?page={{ page + 1 }}" class="btn btn-sm btn-primary">Berikutnya →</a>
+            {% endif %}
+        </div>
+        {% else %}
+        <p class="empty-text">Belum ada aktivitas tercatat.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
