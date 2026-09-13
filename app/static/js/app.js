@@ -583,7 +583,7 @@
       })(moneyFields[i]);
     }
   }
-  /* ---------- Keyboard shortcuts (no input focus) ---------- */
+  /* ---------- Keyboard shortcuts (no input focus, no modal/palette open) ---------- */
   function initKeyboardShortcuts() {
     var map = {
       g: '/accounts',     // g -> Akun
@@ -598,9 +598,51 @@
       var tag = t && t.tagName ? t.tagName.toLowerCase() : '';
       if (tag === 'input' || tag === 'textarea' || tag === 'select' ||
           (t && t.isContentEditable)) return;
+      // Jangan bajak keyboard saat dialog / palette / FAB terbuka.
+      try {
+        var mo = document.getElementById('modalOverlay');
+        var po = document.getElementById('palOverlay');
+        var fw = document.getElementById('fabWrap');
+        if ((mo && mo.classList.contains('show')) ||
+            (po && po.classList.contains('show')) ||
+            (fw && fw.classList.contains('open'))) return;
+      } catch (err) {}
       var dest = map[e.key.toLowerCase()];
       if (dest) { e.preventDefault(); window.location.href = dest; }
     });
+  }
+
+  /* ---------- Anti double-submit: kunci tombol kirim saat form diproses ---------- */
+  function initFormGuard() {
+    document.addEventListener('submit', function (e) {
+      var f = e.target;
+      if (!f || !f.tagName || f.tagName.toLowerCase() !== 'form') return;
+      if (f.hasAttribute('data-no-guard') || f.hasAttribute('data-guarded')) return;
+      // Alur konfirmasi PFConfirm (ui-pro2) harus jalan dulu: jangan kunci tombol
+      // sebelum user menekan "Ya, lanjutkan". Guard ikut di submit ulang yg sudah confirmed.
+      if (f.hasAttribute('data-confirm') && !f.hasAttribute('data-confirmed')) return;
+      // Form struk punya lifecycle async sendiri (kompresi gambar + submit programmatic);
+      // ia mengatur tombolnya sendiri, jangan diganggu guard global.
+      if (f.id === 'receipt-form') return;
+      // Validasi bawaan browser gagal -> browser batalkan submit sendiri.
+      try { if (typeof f.checkValidity === 'function' && !f.checkValidity()) return; } catch (err) {}
+      f.setAttribute('data-guarded', '1');
+      var btns = f.querySelectorAll('button[type="submit"],input[type="submit"]');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].disabled = true;
+        if (btns[i].classList) btns[i].classList.add('btn-loading');
+      }
+      // Pengaman: kalau navigasi gagal / dibatalkan, buka kunci lagi.
+      setTimeout(function () {
+        try {
+          f.removeAttribute('data-guarded');
+          for (var j = 0; j < btns.length; j++) {
+            btns[j].disabled = false;
+            if (btns[j].classList) btns[j].classList.remove('btn-loading');
+          }
+        } catch (err2) {}
+      }, 8000);
+    }, true);
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -613,6 +655,7 @@
     initQuickCats();
     initMoneyInputs();
     initKeyboardShortcuts();
+    initFormGuard();
   });
 })();
 /* ---------- balance privacy toggle (eye) ---------- */
