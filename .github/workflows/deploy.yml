@@ -16,12 +16,14 @@ jobs:
           python-version: '3.12'
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Run test suite
+      - name: Run test suite (with coverage)
         env:
           APP_ENV: test
           RECEIPT_AI_BASE_URL: http://127.0.0.1:11435/v1
           RECEIPT_AI_TIMEOUT_SEC: '1'
-        run: python -m pytest tests/ -q --tb=short
+        run: |
+          python -m pytest tests/ -q --tb=short \
+            --cov=app --cov-branch --cov-report=term:skip-covered
 
   deploy:
     needs: test
