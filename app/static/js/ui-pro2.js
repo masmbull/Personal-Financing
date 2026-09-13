@@ -1,10 +1,15 @@
 /* Finance UI PRO part 2 - confirm modal + auto delete hook */
 (function () {
   'use strict';
+  function escHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
   function askConfirm(msg, onYes) {
     if (!window.PFModal) { if (confirm(msg)) onYes(); return; }
     window.PFModal.open('Konfirmasi',
-      '<p>' + msg + '</p><div class="confirm-actions">' +
+      '<p>' + escHtml(msg) + '</p><div class="confirm-actions">' +
       '<button type="button" class="btn" data-no>Batal</button>' +
       '<button type="button" class="btn btn-danger" data-yes>Ya, lanjutkan</button></div>', 'sm');
     var body = document.getElementById('modalBody');

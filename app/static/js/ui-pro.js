@@ -36,8 +36,12 @@
     overlay.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
     body.scrollTop = 0;
+    if (overlay.scrollTop !== 0) overlay.scrollTop = 0;
     var f = focusables();
-    if (f.length) { try { f[0].focus({ preventScroll: true }); } catch (e) {} }
+    var dlgTitle = title || 'Detail';
+    if (dialog) dialog.setAttribute('aria-label', dlgTitle);
+    if (f.length) { try { f[0].focus({ preventScroll: true }); } catch (e) { try { f[0].focus(); } catch (e2) {} } }
+    else if (dialog) { if (!dialog.hasAttribute('tabindex')) dialog.setAttribute('tabindex', '-1'); try { dialog.focus({ preventScroll: true }); } catch (e) {} }
   }
   function closeModal() {
     if (!overlay) return;

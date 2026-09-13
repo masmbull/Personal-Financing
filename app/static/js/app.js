@@ -22,18 +22,24 @@
       applyTheme('dark');
   } catch (e) {}
 
-  /* ---------- Toast ---------- */
-  var toastTimer = null;
+  /* ---------- Toast (stacked, self-dismissing, click to dismiss) ---------- */
   window.showToast = function (message, ok) {
     var c = document.getElementById('toast-container');
     if (!c) return;
+    while (c.children.length >= 3) c.removeChild(c.firstChild);
     var t = document.createElement('div');
     t.className = 'toast toast-' + (ok === false ? 'error' : 'success');
     t.setAttribute('role', 'status');
     t.textContent = message;
+    t.title = 'Klik untuk tutup';
+    t.addEventListener('click', function () { t.remove(); });
     c.appendChild(t);
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.remove(); }, 3200);
+    setTimeout(function () {
+      if (t.parentNode) {
+        t.classList.add('toast-out');
+        setTimeout(function () { t.remove(); }, 250);
+      }
+    }, 3200);
   };
 
   /* ---------- Net worth chart (SVG, no libraries) ---------- */
