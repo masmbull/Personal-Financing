@@ -98,14 +98,13 @@
         <h2 class="section-title">Tren net worth</h2>
         {% if nw_history %}
         <div class="trend-chart">
-            {% set nw_max = [nw_history|map(attribute='net_worth')|max, 1]|max %}
-            {% set nw_min = [nw_history|map(attribute='net_worth')|min, 0]|min %}
-            {% set nw_range = nw_max - nw_min if nw_max != nw_min else 1 %}
+            {% set abs_vals = nw_history|map(attribute='net_worth')|map('abs')|list %}
+            {% set nw_max = [abs_vals|max, 1]|max %}
             {% for h in nw_history %}
             <div class="trend-col">
                 <div class="trend-bars">
                     <div class="trend-bar {% if h.net_worth >= 0 %}bar-green{% else %}bar-red{% endif %}"
-                         style="height: {{ (([h.net_worth, 0]|max * 100) / nw_max|int if nw_max > 0 else 0)|int }}px"
+                         style="height: {{ ([h.net_worth|abs, 1]|max * 100 / nw_max if nw_max > 0 else 0)|int }}px"
                          title="{{ format_rupiah(h.net_worth) }}"></div>
                 </div>
                 <span class="trend-label">{{ h.date.strftime('%b') }}</span>

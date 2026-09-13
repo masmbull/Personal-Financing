@@ -1,9 +1,8 @@
 """Dashboard service - one consolidated payload for web/PWA/mobile."""
 from datetime import date, timedelta
 
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
-from app.models.models import Transaction
 from app.services import budgets as budgets_service
 from app.services import bills as bills_service
 from app.services.accounts import compute_net_worth

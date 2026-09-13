@@ -161,21 +161,6 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .ai-purple{background:var(--purple-bg);color:var(--purple)}
 
 /* ---- chart ---- */
-.chart-card{background:var(--bg-card);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;box-shadow:var(--sh-1);max-width:none;width:100%}
-.chart-card svg{width:100%;height:180px;display:block}
-@media(min-width:768px){
-  .chart-card{max-width:100%;padding:24px}
-  .chart-card svg{height:200px}
-}
-@media(min-width:1200px){
-  .chart-card{max-width:none;padding:32px}
-  .chart-card svg{height:240px}
-}
-/* net worth chart */
-.nw-chart{position:relative;margin:6px 0 2px}
-.nw-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:5px}
-.nw-empty{color:var(--ink-3);text-align:center;font-size:.88rem;padding:24px 10px}
-.nw-delta{color:var(--ink-2);font-size:.85rem}
 
 
 /* ---- transaction list: card hover ---- */
