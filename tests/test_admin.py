@@ -76,7 +76,7 @@ class TestAdminWebRoutes:
         _login(client, "admin_user")
         resp = client.get("/admin")
         assert resp.status_code == 200
-        assert "Admin Panel" in resp.text
+        assert "Panel Admin" in resp.text
 
     def test_admin_dashboard_shows_users(self, client: TestClient, db: Session):
         """Admin dashboard shows all users."""

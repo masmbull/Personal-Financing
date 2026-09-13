@@ -112,6 +112,7 @@ def dashboard(request: Request, db: Session = Depends(get_db),
         "expense_breakdown": breakdown["by_category"][:5],
         "expense_total": breakdown["total"],
         "savings_goals": goals[:3],
+        "monthly_trend": payload.get("monthly_trend", []),
         "period_options": [
             ("week", "7 Hari"),
             ("month", "Bulan Ini"),

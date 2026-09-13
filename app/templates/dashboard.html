@@ -68,6 +68,32 @@
         </div>
     </section>
 
+    {% if monthly_trend %}
+    <section class="section reveal">
+        <h2 class="section-title">Tren 6 bulan</h2>
+        <div class="trend-chart">
+            {% set max_val = [monthly_trend|map(attribute='income')|max, monthly_trend|map(attribute='expense')|max, 1]|max %}
+            {% for m in monthly_trend %}
+            <div class="trend-col">
+                <div class="trend-bars">
+                    {% if m.income > 0 %}
+                    <div class="trend-bar bar-green" style="height: {{ ((m.income * 100) / max_val)|int }}px" title="Masuk: {{ format_rupiah(m.income) }}"></div>
+                    {% endif %}
+                    {% if m.expense > 0 %}
+                    <div class="trend-bar bar-red" style="height: {{ ((m.expense * 100) / max_val)|int }}px" title="Keluar: {{ format_rupiah(m.expense) }}"></div>
+                    {% endif %}
+                </div>
+                <span class="trend-label">{{ m.label.split(' ')[0] }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="trend-legend">
+            <span class="legend-item"><span class="legend-dot dot-green"></span> Masuk</span>
+            <span class="legend-item"><span class="legend-dot dot-red"></span> Keluar</span>
+        </div>
+    </section>
+    {% endif %}
+
     <section class="section reveal">
         <div class="section-header">
             <h2 class="section-title">Tren net worth</h2>

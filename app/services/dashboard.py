@@ -64,6 +64,14 @@ def build_dashboard(db: Session, *, user_id: int,
         db, user_id=user_id, page=1, page_size=recent_limit
     )
 
+    # --- chart data ---
+    from app.services.reports import monthly_series, category_breakdown
+    from app.models.models import TransactionType
+
+    trend = monthly_series(db, months=6, user_id=user_id)
+    cat_data = category_breakdown(db, TransactionType.EXPENSE, user_id=user_id)
+    top_cats = cat_data["by_category"][:5]
+
     return {
         "net_worth": nw["net_worth"],
         "total_assets": nw["total_assets"],
@@ -86,4 +94,7 @@ def build_dashboard(db: Session, *, user_id: int,
         "budget_summary": [r["payload"] for r in budget_rows],
         "upcoming_bills": upcoming,
         "recent_transactions": items[:recent_limit],
+        # chart data
+        "monthly_trend": trend,
+        "expense_by_category": top_cats,
     }
