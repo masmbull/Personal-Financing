@@ -113,6 +113,7 @@ def dashboard(request: Request, db: Session = Depends(get_db),
         "expense_total": breakdown["total"],
         "savings_goals": goals[:3],
         "monthly_trend": payload.get("monthly_trend", []),
+        "nw_history": payload.get("net_worth_history", []),
         "period_options": [
             ("week", "7 Hari"),
             ("month", "Bulan Ini"),

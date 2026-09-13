@@ -65,9 +65,12 @@ def build_dashboard(db: Session, *, user_id: int,
     )
 
     # --- chart data ---
-    from app.services.reports import monthly_series
+    from app.services.reports import monthly_series, net_worth_history
 
     trend = monthly_series(db, months=6, user_id=user_id)
+    nw_history = net_worth_history(
+        db, user_id, date_from=today - timedelta(days=180)
+    )[:6]
 
     return {
         "net_worth": nw["net_worth"],
@@ -93,4 +96,5 @@ def build_dashboard(db: Session, *, user_id: int,
         "recent_transactions": items[:recent_limit],
         # chart data
         "monthly_trend": trend,
+        "net_worth_history": nw_history,
     }

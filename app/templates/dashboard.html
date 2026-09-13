@@ -95,22 +95,26 @@
     {% endif %}
 
     <section class="section reveal">
-        <div class="section-header">
-            <h2 class="section-title">Tren net worth</h2>
-            <span id="nw-delta" class="badge" hidden></span>
-        </div>
-        <div id="nw-chart-wrap" class="chart-card"
-             data-history-url="/api/v1/reports/net-worth/history">
-            <div id="nw-skeleton" class="chart-skeleton" aria-hidden="true">
-                <span class="skeleton" style="width:42%"></span>
-                <span class="skeleton" style="width:68%"></span>
-                <span class="skeleton" style="width:55%"></span>
-                <span class="skeleton" style="width:78%"></span>
+        <h2 class="section-title">Tren net worth</h2>
+        {% if nw_history %}
+        <div class="trend-chart">
+            {% set nw_max = [nw_history|map(attribute='net_worth')|max, 1]|max %}
+            {% set nw_min = [nw_history|map(attribute='net_worth')|min, 0]|min %}
+            {% set nw_range = nw_max - nw_min if nw_max != nw_min else 1 %}
+            {% for h in nw_history %}
+            <div class="trend-col">
+                <div class="trend-bars">
+                    <div class="trend-bar {% if h.net_worth >= 0 %}bar-green{% else %}bar-red{% endif %}"
+                         style="height: {{ (([h.net_worth, 0]|max * 100) / nw_max|int if nw_max > 0 else 0)|int }}px"
+                         title="{{ format_rupiah(h.net_worth) }}"></div>
+                </div>
+                <span class="trend-label">{{ h.date.strftime('%b') }}</span>
             </div>
-            <p id="nw-empty" class="empty-text hidden">Belum cukup data untuk melihat tren net worth.</p>
-            <svg id="nw-chart" viewBox="0 0 320 140" preserveAspectRatio="none"
-                 role="img" aria-label="Grafik tren net worth" class="hidden"></svg>
+            {% endfor %}
         </div>
+        {% else %}
+        <p class="empty-text">Belum cukup data untuk melihat tren net worth.</p>
+        {% endif %}
     </section>
 
     <section class="section reveal">
