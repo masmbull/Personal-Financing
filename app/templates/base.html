@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <title>{% block title %}Finance{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=18">
+    <link rel="stylesheet" href="/static/css/style.css?v=19">
     <link rel="manifest" href="/static/manifest.json">
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
@@ -150,23 +150,40 @@
     </nav>
     {% endif %}
 
+    <div class="fab-wrap" id="fabWrap">
+        <div class="fab-menu" id="fabMenu" role="menu" aria-label="Aksi cepat">
+            <a class="fab-item" role="menuitem" href="/transactions/add?tx_type=EXPENSE"><span class="fab-ic">−</span><span>Uang keluar</span></a>
+            <a class="fab-item" role="menuitem" href="/transactions/add?tx_type=INCOME"><span class="fab-ic">+</span><span>Uang masuk</span></a>
+            <a class="fab-item" role="menuitem" href="/transfer"><span class="fab-ic">↔</span><span>Transfer</span></a>
+            <a class="fab-item" role="menuitem" href="/receipts/upload"><span class="fab-ic">🧾</span><span>Scan struk</span></a>
+            <button class="fab-item" type="button" id="fabSearch"><span class="fab-ic">⌕</span><span>Cari (Ctrl+K)</span></button>
+        </div>
+        <button class="fab-main" id="fabMain" aria-label="Aksi cepat" aria-expanded="false" aria-controls="fabMenu">＋</button>
+    </div>
+
+    <div class="pal-overlay" id="palOverlay" aria-hidden="true">
+        <div class="pal-box" role="dialog" aria-modal="true" aria-label="Pencarian menu">
+            <input class="pal-input" id="palInput" type="text" placeholder="Ketik untuk cari menu… (Esc untuk tutup)" autocomplete="off" aria-label="Cari menu">
+            <div class="pal-list" id="palList" role="listbox"></div>
+            <div class="pal-hint"><span><kbd>↑</kbd><kbd>↓</kbd> navigasi</span><span><kbd>↵</kbd> buka</span><span><kbd>esc</kbd> tutup</span></div>
+        </div>
+    </div>
+
+    <button class="to-top" id="toTop" aria-label="Kembali ke atas">↑</button>
+
     <div class="modal-overlay" id="modalOverlay" aria-hidden="true">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-            <button class="modal-close" id="modalClose" aria-label="Tutup">&times;</button>
+            <div class="modal-head">
+                <h3 class="modal-title" id="modalTitle">Dialog</h3>
+                <button class="modal-close" id="modalClose" aria-label="Tutup">&times;</button>
+            </div>
             <div class="modal-body" id="modalBody"></div>
         </div>
     </div>
 
     <script src="/static/js/app.js?v=3"></script>
-    <script>
-    (function(){
-      var mo = document.getElementById('modalOverlay');
-      var mc = document.getElementById('modalClose');
-      var hide = function(){ if(mo){mo.classList.remove('show')} };
-      if(mo) mo.addEventListener('click', function(e){ if(e.target===mo) hide(); });
-      if(mc) mc.addEventListener('click', hide);
-      document.addEventListener('keydown', function(e){ if(e.key==='Escape') hide(); });
-    })();
-    </script>
+    <script src="/static/js/ui-pro.js?v=1"></script>
+    <script src="/static/js/ui-pro2.js?v=1"></script>
+    <script src="/static/js/ui-pro3.js?v=1"></script>
 </body>
 </html>

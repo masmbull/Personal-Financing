@@ -1454,3 +1454,49 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .trend-col{flex:1;display:flex;align-items:flex-end;justify-content:center;border-radius:4px 4px 0 0;min-height:4px;background:var(--bg-soft)}
 .trend-col.positive{background:var(--green)}
 .trend-col.negative{background:var(--red)}
+/* Finance UI PRO — keyframes + overlay scroll + FAB + palette + modal head */
+@keyframes pro-fade-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes pro-pop{0%{opacity:0;transform:scale(.92) translateY(12px)}100%{opacity:1;transform:none}}
+@keyframes pro-pulse-ring{0%{box-shadow:0 0 0 0 rgba(37,99,235,.45)}70%{box-shadow:0 0 0 14px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
+html{scrollbar-color:var(--blue) transparent}
+body.modal-open,body.pal-open{overflow:hidden}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,var(--blue),var(--purple));border-radius:99px;border:2px solid var(--bg)}
+::selection{background:var(--blue);color:#fff}
+/* Finance UI PRO part 2 — modal/FAB/palette/to-top/confirm */
+.modal-overlay{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:24px 16px;background:rgba(10,17,32,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.modal{margin:auto;animation:pro-pop .28s cubic-bezier(.2,.9,.3,1.15)}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.modal-title{font-size:1.05rem;font-weight:800;letter-spacing:-.01em}
+.modal-close{position:static;width:34px;height:34px;flex:none;border-radius:50%;background:var(--bg-soft);font-size:1.25rem;line-height:1;display:grid;place-items:center;transition:transform .25s ease,background var(--tr)}
+.modal-close:hover{transform:rotate(90deg);background:var(--red-bg);color:var(--red)}
+.modal-lg{max-width:640px}
+.modal-sm{max-width:360px}
+.confirm-actions{display:flex;gap:10px;margin-top:16px}
+.confirm-actions .btn{flex:1}
+.fab-wrap{position:fixed;right:16px;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);z-index:60;display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+.fab-main{width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;font-size:1.7rem;font-weight:800;box-shadow:var(--sh-3);display:grid;place-items:center;transition:transform .25s cubic-bezier(.2,.9,.3,1.4);animation:pro-pulse-ring 2.6s infinite}
+.fab-wrap.open .fab-main{transform:rotate(45deg);animation:none}
+.fab-menu{display:flex;flex-direction:column;gap:8px;align-items:flex-end;opacity:0;transform:translateY(12px) scale(.95);pointer-events:none;transition:opacity .22s ease,transform .22s ease}
+.fab-wrap.open .fab-menu{opacity:1;transform:none;pointer-events:auto}
+.fab-item{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--line);border-radius:var(--r-pill);padding:7px 14px 7px 7px;font-size:.86rem;font-weight:700;box-shadow:var(--sh-2)}
+.fab-item:hover{border-color:var(--blue);transform:translateX(-4px)}
+.fab-ic{width:30px;height:30px;border-radius:50%;background:var(--blue-bg);color:var(--blue);display:grid;place-items:center;font-weight:800}
+/* PRO2 */
+/* PRO1 */
+
+.pal-overlay{position:fixed;inset:0;z-index:100;background:rgba(10,17,32,.55);display:none;padding:12vh 16px 16px;overflow-y:auto;overscroll-behavior:contain}
+.pal-overlay.show{display:block;animation:pro-fade-up .18s ease}
+.pal-box{max-width:520px;margin:0 auto;background:var(--bg-card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-3);overflow:hidden;animation:pro-pop .25s ease}
+.pal-input{width:100%;border:none;background:transparent;padding:16px 18px;font-size:1rem;color:var(--ink);border-bottom:1px solid var(--line)}
+.pal-input:focus{outline:none}
+.pal-list{max-height:50vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px}
+.pal-item{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:10px 12px;border-radius:var(--r-sm);font-size:.9rem;font-weight:600}
+.pal-item .pal-ic{width:30px;height:30px;border-radius:9px;background:var(--bg-soft);display:grid;place-items:center;flex:none}
+.pal-item .pal-go{margin-left:auto;color:var(--ink-3)}
+.pal-item.pal-active,.pal-item:hover{background:var(--blue-bg);color:var(--blue)}
+.pal-hint{display:flex;gap:14px;padding:10px 16px;border-top:1px solid var(--line);font-size:.75rem;color:var(--ink-3)}
+.to-top{position:fixed;left:16px;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);z-index:60;width:44px;height:44px;border-radius:50%;background:var(--bg-card);border:1px solid var(--line);box-shadow:var(--sh-2);opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .25s ease,transform .25s ease;font-size:1.1rem}
+.to-top.show{opacity:1;pointer-events:auto;transform:none}
+.to-top:hover{border-color:var(--blue);color:var(--blue)}
