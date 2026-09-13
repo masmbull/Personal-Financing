@@ -4,69 +4,52 @@
 <div class="page">
     <div class="top-bar reveal">
         <div>
-            <div class="greeting">Admin Panel</div>
+            <div class="greeting">🔐 Panel Admin</div>
             <h1 class="page-title-large">Manajemen Sistem</h1>
+        </div>
+        <div class="btn-group">
+            <a href="/admin/users" class="btn btn-sm btn-primary">👤 Pengguna</a>
+            <a href="/admin/reset-requests" class="btn btn-sm">🔑 Reset ({{ pending_resets }})</a>
+            <a href="/admin/audit-log" class="btn btn-sm">📝 Audit</a>
         </div>
     </div>
 
     {% if pending_resets %}
-    <div class="auth-error reveal" role="note" style="display:block;border-color:var(--red);color:var(--red)">
+    <div class="auth-error reveal" role="note">
         🔔 Ada <strong>{{ pending_resets }}</strong> permintaan reset password yang menunggu.
         <a href="/admin/reset-requests" class="link-more">Lihat permintaan →</a>
     </div>
     {% endif %}
 
-    <section class="summary-cards reveal">
-        <div class="summary-card">
-            <div class="summary-label">Total Pengguna</div>
-            <div class="summary-value">{{ stats.total_users }}</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-label">Pengguna Aktif</div>
-            <div class="summary-value text-green">{{ stats.active_users }}</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-label">Pengguna Nonaktif</div>
-            <div class="summary-value text-red">{{ stats.inactive_users }}</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-label">Total Transaksi</div>
-            <div class="summary-value">{{ stats.total_transactions }}</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-label">Total Akun</div>
-            <div class="summary-value">{{ stats.total_accounts }}</div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-label">Admin</div>
-            <div class="summary-value text-purple">{{ stats.admin_count }}</div>
-        </div>
+    <section class="summary-cards reveal stagger" style="--d:40ms">
+        <div class="summary-card" style="--i:0"><div class="summary-label">Total Pengguna</div><div class="summary-value">{{ stats.total_users }}</div></div>
+        <div class="summary-card" style="--i:1"><div class="summary-label">Aktif</div><div class="summary-value text-green">{{ stats.active_users }}</div></div>
+        <div class="summary-card" style="--i:2"><div class="summary-label">Nonaktif</div><div class="summary-value text-red">{{ stats.inactive_users }}</div></div>
+        <div class="summary-card" style="--i:3"><div class="summary-label">Transaksi</div><div class="summary-value">{{ stats.total_transactions }}</div></div>
+        <div class="summary-card" style="--i:4"><div class="summary-label">Akun</div><div class="summary-value">{{ stats.total_accounts }}</div></div>
+        <div class="summary-card" style="--i:5"><div class="summary-label">Admin</div><div class="summary-value text-purple">{{ stats.admin_count }}</div></div>
     </section>
 
-    <section class="section reveal">
+    <section class="section reveal stagger" style="--d:80ms">
         <div class="section-header">
-            <h2 class="section-title">Daftar Pengguna</h2>
-            <a href="/admin/users" class="btn btn-sm btn-primary">Kelola &amp; Login sebagai</a>
+            <h2 class="section-title">👤 Daftar Pengguna</h2>
+            <span class="section-sub">{{ users|length }} pengguna terdaftar</span>
         </div>
         <div class="stack">
             {% for user in users %}
-            <div class="card">
+            <div class="card" style="--i:{{ loop.index0 }}">
                 <div class="row-between">
                     <div>
                         <strong>{{ user.username }}</strong>
-                        {% if user.is_admin == 1 %}
-                        <span class="badge badge-admin">Admin</span>
-                        {% endif %}
-                        {% if user.is_active == 0 %}
-                        <span class="badge badge-inactive">Nonaktif</span>
-                        {% endif %}
+                        {% if user.is_admin == 1 %}<span class="badge badge-admin">Admin</span>{% endif %}
+                        {% if user.is_active == 0 %}<span class="badge badge-inactive">Nonaktif</span>{% endif %}
                         <div class="tx-meta">Bergabung: {{ user.created_at.strftime("%d %b %Y") if user.created_at else "-" }}</div>
                     </div>
                     <div class="btn-group">
                         {% if user.is_admin == 0 %}
                         <form method="post" action="/admin/users/{{ user.id }}/make-admin" class="inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="btn-sm btn-success">Jadikan Admin</button>
+                            <button type="submit" class="btn-sm btn-success">Admin</button>
                         </form>
                         {% else %}
                         {% if user.id != current_user.id %}
@@ -78,9 +61,9 @@
                         {% endif %}
                         {% if user.is_active == 1 %}
                         {% if user.id != current_user.id %}
-                        <form method="post" action="/admin/users/{{ user.id }}/deactivate" class="inline">
+                        <form method="post" action="/admin/users/{{ user.id }}/deactivate" class="inline" data-confirm="Nonaktifkan akun {{ user.username }}?">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="btn-sm btn-danger">Nonaktifkan</button>
+                            <button type="submit" class="btn-sm btn-secondary">Nonaktif</button>
                         </form>
                         {% endif %}
                         {% else %}
@@ -89,10 +72,22 @@
                             <button type="submit" class="btn-sm btn-success">Aktifkan</button>
                         </form>
                         {% endif %}
+                        {% if not user.is_admin and user.is_active %}
+                        <a href="/admin/users/{{ user.id }}/impersonate" class="btn-sm btn-primary">👤 Login sebagai</a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
             {% endfor %}
+        </div>
+    </section>
+
+    <section class="section reveal stagger" style="--d:120ms">
+        <h2 class="section-title">🛠 Aksi Admin</h2>
+        <div class="action-grid">
+            <a href="/admin/users" class="card"><span class="cat-icon">👤</span><div><strong>Pengguna</strong><div class="tx-meta">Kelola akun & hak admin</div></div></a>
+            <a href="/admin/reset-requests" class="card"><span class="cat-icon">🔑</span><div><strong>Reset PW</strong><div class="tx-meta">Proses permintaan reset</div></div></a>
+            <a href="/admin/audit-log" class="card"><span class="cat-icon">📝</span><div><strong>Audit Log</strong><div class="tx-meta">Semua aktivitas sistem</div></div></a>
         </div>
     </section>
 </div>

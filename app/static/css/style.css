@@ -693,7 +693,6 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 @media(min-width:768px){
   .bottom-nav{display:none}
 }
-
 /* ---- authentication ---- */
 .auth-wrap{min-height:calc(100dvh - var(--pad) * 2);display:grid;place-items:center;padding:24px 0}
 .auth-card{width:100%;max-width:400px;padding:28px 24px}
@@ -706,6 +705,8 @@ h1{font-size:1.6rem}h2{font-size:1.25rem}h3{font-size:1.05rem}
 .auth-error{background:var(--red-bg);color:var(--red);border-radius:var(--r-sm);padding:10px 12px;font-size:.85rem;margin-bottom:14px;text-align:center}
 .auth-success{background:var(--green-bg);color:var(--green);border-radius:var(--r-sm);padding:10px 12px;font-size:.85rem;margin-bottom:14px;text-align:center}
 .auth-alt{text-align:center;margin-top:16px;font-size:.88rem;color:var(--ink-2)}
+.auth-hint{text-align:center;margin-top:8px;font-size:.8rem;color:var(--ink-3)}
+.auth-hint strong{color:var(--ink)}
 .setup-skip{margin-top:12px}
 .setup-skip a{font-size:.82rem;color:var(--ink-3)}
 .btn-spinner{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:auth-spin .7s linear infinite}
