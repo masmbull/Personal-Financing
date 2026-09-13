@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.services import investments as investments_service
+from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah, today_str
 from app.validation import parse_idr_input
 from fastapi.templating import Jinja2Templates
@@ -45,7 +46,9 @@ def create_investment_form(request: Request,
 
 
 @router.post("/investments/create")
+@audit_action(action="investment_create", entity="investment")
 def create_investment(
+    request: Request,
     name: str = Form(...), investment_type: str = Form(...),
     amount_invested: str = Form(...), current_value: str = Form(...),
     purchase_date: str = Form(""), notes: str = Form(""),
@@ -79,7 +82,9 @@ def edit_investment_form(inv_id: int, request: Request,
 
 
 @router.post("/investments/edit/{inv_id}")
+@audit_action(action="investment_update", entity="investment")
 def edit_investment(
+    request: Request,
     inv_id: int, name: str = Form(...), investment_type: str = Form(...),
     amount_invested: str = Form(...), current_value: str = Form(...),
     purchase_date: str = Form(""), notes: str = Form(""),
@@ -103,7 +108,8 @@ def edit_investment(
 
 
 @router.get("/investments/delete/{inv_id}")
-def delete_investment(inv_id: int, db: Session = Depends(get_db),
+@audit_action(action="investment_delete", entity="investment")
+def delete_investment(inv_id: int, request: Request, db: Session = Depends(get_db),
                       user: CurrentUser = Depends(get_current_user)):
     try:
         investments_service.delete_investment(db, inv_id, user.id)

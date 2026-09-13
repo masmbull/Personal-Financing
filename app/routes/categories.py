@@ -5,6 +5,7 @@ from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.models.models import Category, TransactionType
 from app.services.finance import has_transactions_for_category
+from app.api.audit_decorator import audit_action
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
@@ -28,7 +29,8 @@ def create_category_form(request: Request,
 
 
 @router.post("/categories/create")
-def create_category(name: str = Form(...), type: str = Form(...), icon: str = Form(""),
+@audit_action(action="category_create", entity="category")
+def create_category(request: Request, name: str = Form(...), type: str = Form(...), icon: str = Form(""),
                     db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
     if not name.strip():
@@ -51,7 +53,8 @@ def edit_category_form(cat_id: int, request: Request,
 
 
 @router.post("/categories/edit/{cat_id}")
-def edit_category(cat_id: int, name: str = Form(...), type: str = Form(...),
+@audit_action(action="category_update", entity="category")
+def edit_category(request: Request, cat_id: int, name: str = Form(...), type: str = Form(...),
                   icon: str = Form(""), db: Session = Depends(get_db),
                   user: CurrentUser = Depends(get_current_user)):
     cat = db.query(Category).filter(Category.id == cat_id).first()
@@ -65,7 +68,8 @@ def edit_category(cat_id: int, name: str = Form(...), type: str = Form(...),
 
 
 @router.get("/categories/delete/{cat_id}")
-def delete_category(cat_id: int, db: Session = Depends(get_db),
+@audit_action(action="category_delete", entity="category")
+def delete_category(cat_id: int, request: Request, db: Session = Depends(get_db),
                     user: CurrentUser = Depends(get_current_user)):
     cat = db.query(Category).filter(Category.id == cat_id).first()
     if not cat:

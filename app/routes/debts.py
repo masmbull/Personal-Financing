@@ -7,6 +7,7 @@ from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.models.models import DebtType, Account
 from app.services import debts as debts_service
+from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah, today_str
 from app.validation import parse_idr_input, parse_optional_idr
 from fastapi.templating import Jinja2Templates
@@ -55,7 +56,9 @@ def create_debt_form(request: Request, debt_type: str = "PAYABLE",
 
 
 @router.post("/debts/create")
+@audit_action(action="debt_create", entity="debt")
 def create_debt(
+    request: Request,
     type: str = Form(...), person_name: str = Form(...),
     description: str = Form(""), principal_amount: str = Form(...),
     due_date: str = Form(""), installment_amount: str = Form(""),
@@ -96,7 +99,9 @@ def pay_debt_form(debt_id: int, request: Request, db: Session = Depends(get_db),
 
 
 @router.post("/debts/pay/{debt_id}")
+@audit_action(action="debt_pay", entity="debt")
 def pay_debt(
+    request: Request,
     debt_id: int, amount: str = Form(...), account_id: str = Form(""),
     notes: str = Form(""), date_val: str = Form(""),
     db: Session = Depends(get_db),
@@ -119,7 +124,8 @@ def pay_debt(
 
 
 @router.get("/debts/delete/{debt_id}")
-def delete_debt(debt_id: int, db: Session = Depends(get_db),
+@audit_action(action="debt_delete", entity="debt")
+def delete_debt(debt_id: int, request: Request, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     try:
         debts_service.delete_debt(db, debt_id, user.id)

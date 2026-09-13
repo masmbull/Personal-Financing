@@ -79,6 +79,70 @@ def test_list_endpoint_does_not_audit(client):
     assert _row_count("account_list") == before
 
 
+def _last_row(action):
+    db = TestingSessionLocal()
+    try:
+        return (
+            db.query(AuditLog)
+            .filter(AuditLog.action == action)
+            .order_by(AuditLog.id.desc())
+            .first()
+        )
+    finally:
+        db.close()
+
+
+def test_form_transaction_add_records_audit(client):
+    before = _row_count("transaction_create")
+    r = client.post(
+        "/transactions/add",
+        data={"type": "EXPENSE", "amount": "15000", "account_id": "1",
+              "category_id": "1", "date_val": "2026-01-15",
+              "description": "form audit"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, r.text
+    assert _row_count("transaction_create") == before + 1
+    row = _last_row("transaction_create")
+    assert row is not None
+    assert row.entity_type == "transaction"
+    # IP comes from the injected Request param.
+    assert row.ip_address
+
+
+def test_form_transaction_delete_get_records_audit(client):
+    r = client.post(
+        "/api/v1/transactions",
+        json={"type": "EXPENSE", "amount": "9000", "account_id": 1,
+              "category_id": 1, "description": "to delete"},
+    )
+    assert r.status_code == 201, r.text
+    tx_id = r.json()["id"]
+    before = _row_count("transaction_delete")
+    r = client.get(f"/transactions/delete/{tx_id}")
+    assert r.status_code == 200, r.text
+    assert _row_count("transaction_delete") == before + 1
+    row = _last_row("transaction_delete")
+    assert row is not None
+    assert row.entity_type == "transaction"
+    assert row.entity_id == tx_id
+
+
+def test_async_receipt_upload_records_audit(client):
+    from tests.conftest import PNG_BYTES
+    before = _row_count("receipt_upload")
+    r = client.post(
+        "/receipts/upload", files={"file": ("s.png", PNG_BYTES, "image/png")},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, r.text
+    assert _row_count("receipt_upload") == before + 1
+    row = _last_row("receipt_upload")
+    assert row is not None
+    assert row.entity_type == "receipt"
+    assert row.actor_user_id is not None
+
+
 def test_audit_row_captures_actor_and_entity(client):
     r = client.post(
         "/api/v1/categories",

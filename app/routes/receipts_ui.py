@@ -15,6 +15,7 @@ from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.models.models import Account, AccountType, Category, ReceiptStatus
 from app.services import receipts as receipts_service
+from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah, today_str
 from app.validation import parse_idr_input
 from fastapi.templating import Jinja2Templates
@@ -99,6 +100,7 @@ def upload_form(request: Request, user: CurrentUser = Depends(get_current_user))
 
 
 @router.post("/receipts/upload")
+@audit_action(action="receipt_upload", entity="receipt")
 async def upload_submit(request: Request, db: Session = Depends(get_db),
                         user: CurrentUser = Depends(get_current_user)):
     form = await request.form()
@@ -212,6 +214,7 @@ def _confirm(db: Session, receipt_id: int, form, user_id: int) -> RedirectRespon
 
 
 @router.post("/receipts/{receipt_id}/confirm")
+@audit_action(action="receipt_confirm", entity="receipt")
 async def confirm_receipt_page(receipt_id: int, request: Request,
                                db: Session = Depends(get_db),
                                user: CurrentUser = Depends(get_current_user)):
@@ -220,7 +223,8 @@ async def confirm_receipt_page(receipt_id: int, request: Request,
 
 
 @router.post("/receipts/{receipt_id}/retry-ocr")
-async def retry_ocr_page(receipt_id: int,
+@audit_action(action="receipt_retry_ocr", entity="receipt")
+async def retry_ocr_page(receipt_id: int, request: Request,
                          db: Session = Depends(get_db),
                          user: CurrentUser = Depends(get_current_user)):
     """Re-run OCR on a failed/stuck receipt.  Redirects back to detail page.
@@ -236,6 +240,7 @@ async def retry_ocr_page(receipt_id: int,
 
 
 @router.post("/receipts/{receipt_id}/delete")
+@audit_action(action="receipt_delete", entity="receipt")
 async def delete_receipt_page(receipt_id: int, request: Request,
                               db: Session = Depends(get_db),
                               user: CurrentUser = Depends(get_current_user)):

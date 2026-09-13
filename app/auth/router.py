@@ -92,6 +92,12 @@ def forgot_password_submit(
     req = PasswordResetRequest(username=uname)
     db.add(req)
     db.commit()
+    from app.services.audit import record
+    record(
+        db, action="password_reset_request",
+        ip_address=request.client.host if request.client else None,
+        detail={"username": uname},
+    )
     resp = RedirectResponse(url="/forgot-password?sent=1", status_code=303)
     resp.delete_cookie(CSRF_COOKIE, path="/")
     return resp
@@ -115,6 +121,12 @@ def login_submit(
     
     user = authenticate(db, username, password)
     if user is None:
+        from app.services.audit import record as _record_failure
+        _record_failure(
+            db, action="login_failure",
+            ip_address=request.client.host if request.client else None,
+            detail={"username": (username or "").strip().lower()},
+        )
         resp = RedirectResponse(url="/login?error=1", status_code=303)
         resp.delete_cookie(CSRF_COOKIE, path="/")
         return resp

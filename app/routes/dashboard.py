@@ -6,6 +6,7 @@ from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.models.models import Account, AccountType, TransactionType
 from app.services import accounts as accounts_service
+from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah
 from app.validation import parse_idr_input
 from app.account_icons import ACCOUNT_ICON_POOLS, bank_brand
@@ -146,7 +147,9 @@ def create_account_form(request: Request,
 
 
 @router.post("/accounts/create")
+@audit_action(action="account_create", entity="account")
 def create_account(
+    request: Request,
     name: str = Form(...),
     type: str = Form(...),
     icon: str = Form(""),
@@ -180,7 +183,8 @@ def edit_account_form(account_id: int, request: Request,
 
 
 @router.post("/accounts/edit/{account_id}")
-def edit_account(account_id: int, name: str = Form(...), type: str = Form(...),
+@audit_action(action="account_update", entity="account")
+def edit_account(request: Request, account_id: int, name: str = Form(...), type: str = Form(...),
                  initial_balance: str = Form("0"), icon: str = Form(""),
                  db: Session = Depends(get_db),
                  user: CurrentUser = Depends(get_current_user)):
@@ -199,7 +203,8 @@ def edit_account(account_id: int, name: str = Form(...), type: str = Form(...),
 
 
 @router.get("/accounts/delete/{account_id}")
-def delete_account(account_id: int, db: Session = Depends(get_db),
+@audit_action(action="account_delete", entity="account")
+def delete_account(account_id: int, request: Request, db: Session = Depends(get_db),
                    user: CurrentUser = Depends(get_current_user)):
     try:
         accounts_service.delete_account(db, account_id, user.id)

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.services import budgets as budgets_service
+from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah
 from app.validation import parse_idr_input, parse_int_input
 from datetime import date
@@ -26,7 +27,9 @@ def list_budgets(request: Request, db: Session = Depends(get_db),
 
 
 @router.post("/budgets/create")
+@audit_action(action="budget_create", entity="budget")
 def create_budget(
+    request: Request,
     category_id: str = Form(...), amount: str = Form(...),
     month: str = Form(...), year: str = Form(...),
     db: Session = Depends(get_db),
@@ -45,7 +48,8 @@ def create_budget(
 
 
 @router.get("/budgets/delete/{budget_id}")
-def delete_budget(budget_id: int, db: Session = Depends(get_db),
+@audit_action(action="budget_delete", entity="budget")
+def delete_budget(budget_id: int, request: Request, db: Session = Depends(get_db),
                   user: CurrentUser = Depends(get_current_user)):
     try:
         budgets_service.delete_budget(db, budget_id, user.id)

@@ -17,6 +17,11 @@ from app.auth.sessions import (
 )
 from app.database.db import get_db
 from app.models.models import Account, Transaction, User, PasswordResetRequest
+from app.services.audit import record as _audit_record
+
+
+def _audit_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -82,6 +87,9 @@ def make_admin(
     if user is not None and user.id != admin.id:
         user.is_admin = 1
         db.commit()
+        _audit_record(db, action="admin_make_admin", actor_user_id=admin.id,
+                      target_user_id=user.id, ip_address=_audit_ip(request),
+                      detail={"username": user.username})
     return RedirectResponse(url="/admin", status_code=303)
 
 
@@ -102,6 +110,9 @@ def revoke_admin(
     if user is not None and user.id != admin.id:
         user.is_admin = 0
         db.commit()
+        _audit_record(db, action="admin_revoke_admin", actor_user_id=admin.id,
+                      target_user_id=user.id, ip_address=_audit_ip(request),
+                      detail={"username": user.username})
     return RedirectResponse(url="/admin", status_code=303)
 
 
@@ -122,6 +133,9 @@ def activate_user(
     if user is not None and user.id != admin.id:
         user.is_active = 1
         db.commit()
+        _audit_record(db, action="admin_activate_user", actor_user_id=admin.id,
+                      target_user_id=user.id, ip_address=_audit_ip(request),
+                      detail={"username": user.username})
     return RedirectResponse(url="/admin", status_code=303)
 
 
@@ -142,6 +156,9 @@ def deactivate_user(
     if user is not None and user.id != admin.id:
         user.is_active = 0
         db.commit()
+        _audit_record(db, action="admin_deactivate_user", actor_user_id=admin.id,
+                      target_user_id=user.id, ip_address=_audit_ip(request),
+                      detail={"username": user.username})
     return RedirectResponse(url="/admin", status_code=303)
 
 
@@ -221,6 +238,8 @@ def impersonate_start(
     if error is not None:
         return RedirectResponse(url=f"/admin/users?error={error}", status_code=303)
     token, _ = create_session(db, user_id, impersonator_user_id=admin.id)
+    _audit_record(db, action="admin_impersonate_start", actor_user_id=admin.id,
+                  target_user_id=user_id, ip_address=_audit_ip(request))
     resp = RedirectResponse(url="/", status_code=303)
     set_session_cookie(resp, token)
     # Keep a CSRF cookie live so the global "return to admin" banner can POST.
@@ -237,10 +256,13 @@ def stop_impersonating(
     """End an impersonation session and return the admin to their own session."""
     if not csrf_ok(request.cookies.get(CSRF_COOKIE), csrf_token):
         return RedirectResponse(url="/", status_code=303)
-    new_token, _ = resolve_impersonation(db, request.cookies.get(SESSION_COOKIE))
+    new_token, restored_admin_id = resolve_impersonation(db, request.cookies.get(SESSION_COOKIE))
     if new_token is None:
         # Not impersonating: don't log anyone out, just send home.
         return RedirectResponse(url="/", status_code=303)
+    _audit_record(db, action="admin_impersonate_stop",
+                  actor_user_id=restored_admin_id,
+                  ip_address=_audit_ip(request))
     resp = RedirectResponse(url="/admin/users", status_code=303)
     set_session_cookie(resp, new_token)
     set_csrf_cookie(resp)
@@ -361,6 +383,9 @@ def admin_reset_request_process(
     req.status = "resolved"
     req.resolved_at = _utcnow()
     db.commit()
+    _audit_record(db, action="admin_password_reset", actor_user_id=admin.id,
+                  target_user_id=target.id, ip_address=_audit_ip(request),
+                  detail={"username": req.username})
     token = secrets.token_urlsafe(24)
     resp = templates.TemplateResponse(request, "admin/reset_done.html", {
         "username": req.username,

@@ -132,3 +132,102 @@ def test_audit_log_html_pagination_links(db):
     assert second.status_code == 200
     assert "Sebelumnya" in second.text
 
+
+def _admin_csrf(client):
+    r = client.get("/admin", follow_redirects=False)
+    m = re.search(r'name="csrf_token" value="([^"]+)"', r.text)
+    return m.group(1) if m else ""
+
+
+def test_html_make_admin_records_audit(db):
+    admin = User(username="htmlboss", password_hash=hash_password("password123"),
+                 is_active=1, is_admin=1)
+    target = User(username="htmlstaff",
+                  password_hash=hash_password("password123"),
+                  is_active=1, is_admin=0)
+    db.add_all([admin, target])
+    db.commit()
+    db.refresh(admin)
+    db.refresh(target)
+
+    client = _fresh_client()
+    _login(client, "htmlboss")
+    tok = _admin_csrf(client)
+    resp = client.post(f"/admin/users/{target.id}/make-admin",
+                       data={"csrf_token": tok}, follow_redirects=False)
+    assert resp.status_code == 303
+    rows = list_events(db, action="admin_make_admin", actor_user_id=admin.id)
+    assert any(r.target_user_id == target.id for r in rows)
+
+
+def test_html_deactivate_user_records_audit(db):
+    admin = User(username="htmlboss2",
+                 password_hash=hash_password("password123"),
+                 is_active=1, is_admin=1)
+    target = User(username="htmlstaff2",
+                  password_hash=hash_password("password123"),
+                  is_active=1, is_admin=0)
+    db.add_all([admin, target])
+    db.commit()
+    db.refresh(admin)
+    db.refresh(target)
+
+    client = _fresh_client()
+    _login(client, "htmlboss2")
+    tok = _admin_csrf(client)
+    resp = client.post(f"/admin/users/{target.id}/deactivate",
+                       data={"csrf_token": tok}, follow_redirects=False)
+    assert resp.status_code == 303
+    rows = list_events(db, action="admin_deactivate_user",
+                       actor_user_id=admin.id)
+    assert any(r.target_user_id == target.id for r in rows)
+
+
+def test_login_failure_records_audit(db):
+    from app.models.audit import AuditLog
+    u = User(username="lftarget",
+             password_hash=hash_password("password123"),
+             is_active=1, is_admin=0)
+    db.add(u)
+    db.commit()
+
+    client = _fresh_client()
+    tok = _csrf(client)
+    r = client.post(
+        "/login", data={"username": "lftarget", "password": "wrong-password",
+                        "csrf_token": tok},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    row = (
+        db.query(AuditLog)
+        .filter(AuditLog.action == "login_failure")
+        .order_by(AuditLog.id.desc())
+        .first()
+    )
+    assert row is not None
+    assert "lftarget" in (row.detail or "")
+
+
+def test_password_reset_request_records_audit(db):
+    from app.models.audit import AuditLog
+    client = _fresh_client()
+    # Get CSRF from the forgot-password page itself (route-specific cookie).
+    r = client.get("/forgot-password")
+    m = re.search(r'name="csrf_token" value="([^"]+)"', r.text)
+    assert m
+    r = client.post(
+        "/forgot-password",
+        data={"username": "ghostuser", "csrf_token": m.group(1)},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303
+    row = (
+        db.query(AuditLog)
+        .filter(AuditLog.action == "password_reset_request")
+        .order_by(AuditLog.id.desc())
+        .first()
+    )
+    assert row is not None
+    assert "ghostuser" in (row.detail or "")
+

@@ -6,6 +6,7 @@ from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.models.models import Transaction, Account, Category, TransactionType
 from app.services.finance import create_transaction, delete_transaction
+from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah, today_str
 from app.validation import parse_idr_input
 from datetime import date
@@ -99,7 +100,9 @@ def add_transaction_form(request: Request, tx_type: str = "EXPENSE",
 
 
 @router.post("/transactions/add")
+@audit_action(action="transaction_create", entity="transaction")
 def add_transaction(
+    request: Request,
     type: str = Form(...), amount: str = Form(...), account_id: str = Form(...),
     category_id: str = Form(""), transfer_to_account_id: str = Form(""),
     date_val: str = Form(...), description: str = Form(""),
@@ -143,7 +146,9 @@ def edit_transaction_form(tx_id: int, request: Request,
 
 
 @router.post("/transactions/edit/{tx_id}")
+@audit_action(action="transaction_update", entity="transaction")
 def edit_transaction(
+    request: Request,
     tx_id: int, type: str = Form(...), amount: str = Form(...),
     account_id: str = Form(...), category_id: str = Form(""),
     transfer_to_account_id: str = Form(""), date_val: str = Form(...),
@@ -174,7 +179,8 @@ def edit_transaction(
 
 
 @router.get("/transactions/delete/{tx_id}")
-def delete_tx(tx_id: int, db: Session = Depends(get_db),
+@audit_action(action="transaction_delete", entity="transaction")
+def delete_tx(tx_id: int, request: Request, db: Session = Depends(get_db),
               user: CurrentUser = Depends(get_current_user)):
     if not delete_transaction(db, tx_id, user.id):
         raise HTTPException(status_code=404, detail="Transaction not found")

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.services import savings as savings_service
+from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah
 from app.validation import parse_idr_input
 from fastapi.templating import Jinja2Templates
@@ -31,7 +32,9 @@ def create_savings_form(request: Request,
 
 
 @router.post("/savings/create")
+@audit_action(action="savings_goal_create", entity="savings_goal")
 def create_savings(
+    request: Request,
     name: str = Form(...), target_amount: str = Form(...),
     icon: str = Form(""), notes: str = Form(""),
     db: Session = Depends(get_db),
@@ -48,7 +51,9 @@ def create_savings(
 
 
 @router.post("/savings/deposit/{goal_id}")
+@audit_action(action="savings_deposit", entity="savings_goal")
 def deposit_savings(
+    request: Request,
     goal_id: int, amount: str = Form(...), notes: str = Form(""),
     related_account_id: str = Form(""), db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -67,7 +72,9 @@ def deposit_savings(
 
 
 @router.post("/savings/withdraw/{goal_id}")
+@audit_action(action="savings_withdraw", entity="savings_goal")
 def withdraw_savings(
+    request: Request,
     goal_id: int, amount: str = Form(...), notes: str = Form(""),
     related_account_id: str = Form(""), db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -86,7 +93,8 @@ def withdraw_savings(
 
 
 @router.get("/savings/delete/{goal_id}")
-def delete_savings(goal_id: int, db: Session = Depends(get_db),
+@audit_action(action="savings_goal_delete", entity="savings_goal")
+def delete_savings(goal_id: int, request: Request, db: Session = Depends(get_db),
                    user: CurrentUser = Depends(get_current_user)):
     try:
         savings_service.delete_goal(db, goal_id, user.id)

@@ -7,6 +7,7 @@ from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.models.models import BillFrequency, Category, Account, TransactionType
 from app.services import bills as bills_service
+from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah, today_str
 from app.validation import parse_idr_input, parse_int_input
 from fastapi.templating import Jinja2Templates
@@ -43,7 +44,9 @@ def create_bill_form(request: Request, db: Session = Depends(get_db),
 
 
 @router.post("/bills/create")
+@audit_action(action="bill_create", entity="bill")
 def create_bill(
+    request: Request,
     name: str = Form(...), amount: str = Form(...),
     frequency: str = Form("MONTHLY"), due_day: str = Form(""),
     category_id: str = Form(""), account_id: str = Form(""),
@@ -66,7 +69,9 @@ def create_bill(
 
 
 @router.post("/bills/pay/{bill_id}")
+@audit_action(action="bill_pay", entity="bill")
 def mark_bill_paid(
+    request: Request,
     bill_id: int, amount: str = Form(""), account_id: str = Form(""),
     date_val: str = Form(""), db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -86,7 +91,8 @@ def mark_bill_paid(
 
 
 @router.get("/bills/delete/{bill_id}")
-def delete_bill(bill_id: int, db: Session = Depends(get_db),
+@audit_action(action="bill_delete", entity="bill")
+def delete_bill(bill_id: int, request: Request, db: Session = Depends(get_db),
                 user: CurrentUser = Depends(get_current_user)):
     try:
         bills_service.delete_bill(db, bill_id, user.id)

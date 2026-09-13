@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
 from app.services import assets as assets_service
+from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah, today_str
 from app.validation import parse_idr_input, parse_optional_idr
 from fastapi.templating import Jinja2Templates
@@ -46,7 +47,9 @@ def _parse_asset_fields(form: dict) -> dict:
 
 
 @router.post("/assets/create")
+@audit_action(action="asset_create", entity="asset")
 def create_asset(
+    request: Request,
     name: str = Form(...), asset_type: str = Form(...),
     current_value: str = Form(...), purchase_value: str = Form(""),
     purchase_date: str = Form(""), notes: str = Form(""),
@@ -76,7 +79,9 @@ def edit_asset_form(asset_id: int, request: Request, db: Session = Depends(get_d
 
 
 @router.post("/assets/edit/{asset_id}")
+@audit_action(action="asset_update", entity="asset")
 def edit_asset(
+    request: Request,
     asset_id: int, name: str = Form(...), asset_type: str = Form(...),
     current_value: str = Form(...), purchase_value: str = Form(""),
     purchase_date: str = Form(""), notes: str = Form(""),
@@ -96,7 +101,8 @@ def edit_asset(
 
 
 @router.get("/assets/delete/{asset_id}")
-def delete_asset(asset_id: int, db: Session = Depends(get_db),
+@audit_action(action="asset_delete", entity="asset")
+def delete_asset(asset_id: int, request: Request, db: Session = Depends(get_db),
                  user: CurrentUser = Depends(get_current_user)):
     try:
         assets_service.delete_asset(db, asset_id, user.id)

@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
+from app.api.audit_decorator import audit_action
 from app.models.models import Account
 from app.services.finance import create_transaction
 from app.models.models import TransactionType
@@ -27,7 +28,9 @@ def transfer_form(request: Request, db: Session = Depends(get_db),
 
 
 @router.post("/transfer")
+@audit_action(action="transfer_create", entity="transaction")
 def do_transfer(
+    request: Request,
     from_account_id: str = Form(...),
     to_account_id: str = Form(...),
     amount: str = Form(...),
