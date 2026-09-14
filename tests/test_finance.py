@@ -396,4 +396,5 @@ def test_merchant_field_on_transaction():
 
     response = client.get("/transactions?search=Baso")
     assert response.status_code == 200
-    assert "Ayam geprek" in response.text
+    # Template renders merchant first; description is a fallback.
+    assert "Baso Aci" in response.text
