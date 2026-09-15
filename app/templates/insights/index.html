@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Insight Keuangan{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">💡 Insight Keuangan</h1>
+    </header>
+
+    <section class="section reveal">
+        <h2 class="section-title">Skor Kesehatan Keuangan</h2>
+        <div class="card health-card">
+            <div class="health-score-wrap">
+                <div class="health-score {% if health.score >= 80 %}score-a{% elif health.score >= 60 %}score-b{% elif health.score >= 40 %}score-c{% else %}score-d{% endif %}">
+                    <span class="health-number">{{ health.score }}</span>
+                    <span class="health-grade">/ 100</span>
+                </div>
+                <span class="health-grade-label grade-{{ health.grade|lower }}">{{ health.grade }}</span>
+            </div>
+            <div class="health-bars">
+                <div class="health-bar-row">
+                    <span class="health-bar-label">💰 Menabung (30)</span>
+                    <div class="progress-track"><div class="progress-fill fill-blue" style="width:{{ (health.sub_scores.savings / 30 * 100)|int }}%"></div></div>
+                    <span class="health-bar-val">{{ health.savings_rate }}%</span>
+                </div>
+                <div class="health-bar-row">
+                    <span class="health-bar-label">📉 Rasio Utang (25)</span>
+                    <div class="progress-track"><div class="progress-fill fill-orange" style="width:{{ (health.sub_scores.debt / 25 * 100)|int }}%"></div></div>
+                    <span class="health-bar-val">{{ health.debt_ratio }}%</span>
+                </div>
+                <div class="health-bar-row">
+                    <span class="health-bar-label">🛡️ Dana Darurat (25)</span>
+                    <div class="progress-track"><div class="progress-fill fill-green" style="width:{{ [(health.sub_scores.emergency / 25 * 100)|int, 100]|min }}%"></div></div>
+                    <span class="health-bar-val">{{ health.emergency_months }} bln</span>
+                </div>
+                <div class="health-bar-row">
+                    <span class="health-bar-label">📊 Budget (20)</span>
+                    <div class="progress-track"><div class="progress-fill fill-purple" style="width:{{ (health.sub_scores.budget / 20 * 100)|int }}%"></div></div>
+                    <span class="health-bar-val">{{ health.budget_adherence }}%</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section reveal">
+        <h2 class="section-title">Rekomendasi</h2>
+        {% if health.insights %}
+        <div class="stack">
+            {% for tip in health.insights %}
+            <div class="card insight-row">
+                <span class="insight-icon">💡</span>
+                <span class="insight-text">{{ tip }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-text">Semua indikator dalam kondisi baik! 👍</p>
+        {% endif %}
+    </section>
+
+    <section class="section reveal">
+        <h2 class="section-title">Analisis Pengeluaran — {{ data.month }}</h2>
+        {% if data.insights %}
+        <div class="stack">
+            {% for item in data.insights %}
+            <div class="card insight-row insight-{{ item.type }}">
+                <span class="insight-icon">{{ item.icon }}</span>
+                <div class="insight-content">
+                    <strong>{{ item.title }}</strong>
+                    <span class="tx-meta">{{ item.detail }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-text">Belum ada data transaksi bulan ini.</p>
+        {% endif %}
+    </section>
+
+    <section class="section reveal">
+        <h2 class="section-title">Ringkasan Bulan Ini</h2>
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="summary-label">Pemasukan</div>
+                <div class="summary-value text-green">{{ format_rupiah(data.curr_income) }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Pengeluaran</div>
+                <div class="summary-value text-red">{{ format_rupiah(data.curr_expense) }}</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Tingkat Menabung</div>
+                <div class="summary-value {% if data.savings_rate >= 20 %}text-green{% elif data.savings_rate >= 10 %}text-amber{% else %}text-red{% endif %}">{{ data.savings_rate }}%</div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

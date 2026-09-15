@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.database.db import engine, Base, SessionLocal
 from app.models.models import Account, Category, AccountType, TransactionType
 from app.models import audit as _audit  # noqa: F401  (ensures AuditLog table is created)
-from app.routes import dashboard, transactions, categories, reports, transfer, debts, bills, budgets, savings, assets_list, investments, receipts_ui, misc, export, admin, help
+from app.routes import dashboard, transactions, categories, reports, transfer, debts, bills, budgets, savings, assets_list, investments, receipts_ui, misc, export, admin, help, import_csv, insights_ui, recurring
 from app.api.router import api_v1_router
 from app.api.errors import register_exception_handlers
 from app.auth.router import router as auth_router
@@ -77,6 +77,8 @@ async def lifespan(app: FastAPI):
     run_password_reset_request_migration(engine)
     from app.migrations import run_receipts_columns_migration
     run_receipts_columns_migration(engine)
+    from app.migrations import run_recurring_migration
+    run_recurring_migration(engine)
     seed_default_data()
     try:
         from app.services.seed_master import seed_master_data
@@ -96,10 +98,11 @@ async def lifespan(app: FastAPI):
         admin = bootstrap_admin(_db)
         if legacy_altered and admin is not None:
             claim_legacy_rows(_db, admin.id)
-        # Daily jobs: bill occurrences + net-worth snapshots for ALL users.
-        from app.services.jobs import run_bill_auto_post, run_daily_net_worth_snapshots
+        # Daily jobs: bill occurrences + net-worth snapshots + recurring transactions for ALL users.
+        from app.services.jobs import run_bill_auto_post, run_daily_net_worth_snapshots, run_recurring_transactions
         run_bill_auto_post(_db)
         run_daily_net_worth_snapshots(_db)
+        run_recurring_transactions(_db)
     finally:
         _db.close()
     yield
@@ -155,6 +158,9 @@ app.include_router(savings.router)
 app.include_router(assets_list.router)
 app.include_router(investments.router)
 app.include_router(export.router)
+app.include_router(import_csv.router)
+app.include_router(insights_ui.router)
+app.include_router(recurring.router)
 
 # Admin panel
 app.include_router(admin)

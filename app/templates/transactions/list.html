@@ -4,14 +4,14 @@
 <div class="page">
     <header class="page-header">
         <h1 class="page-title">Transaksi</h1>
-        <a href="/transactions/export?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&category_id={{ filters.category }}" class="btn btn-sm">📥 Unduh CSV</a>
+        <a href="/transactions/export?date_from={{ filters.date_from }}&date_to={{ filters.date_to }}&category_id={{ filters.category }}&tag_id={{ filters.tag }}" class="btn btn-sm">📥 Unduh CSV</a>
     </header>
 
     <form class="filter-form" method="get" action="/transactions">
         <input type="text" name="search" placeholder="Cari catatan..." value="{{ filters.search }}" class="input" aria-label="Cari transaksi">
         <div class="filter-row">
-            <input type="date" name="filter_date_from" value="{{ filters.date_from }}" class="input input-sm" placeholder="Dari" aria-label="Tanggal mulai">
-            <input type="date" name="filter_date_to" value="{{ filters.date_to }}" class="input input-sm" placeholder="Sampai" aria-label="Tanggal akhir">
+            <input type="date" name="filter_date_from" value="{{ filters.date_from }}" class="input input-sm" aria-label="Tanggal mulai">
+            <input type="date" name="filter_date_to" value="{{ filters.date_to }}" class="input input-sm" aria-label="Tanggal akhir">
         </div>
         <div class="filter-row">
             <select name="filter_account" class="input input-sm" aria-label="Filter akun">
@@ -27,25 +27,60 @@
                 {% endfor %}
             </select>
         </div>
+        {% if tags %}
+        <div class="filter-row">
+            <select name="filter_tag" class="input input-sm" aria-label="Filter tag">
+                <option value="">Semua Tag</option>
+                {% for tag in tags %}
+                <option value="{{ tag.id }}" {% if filters.tag == tag.id|string %}selected{% endif %}>
+                    {{ tag.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
         <button type="submit" class="btn btn-primary btn-sm">Filter</button>
     </form>
 
     {% if transactions %}
-    <div class="transaction-list">
+    <div class="summary-cards" style="margin-bottom:12px">
+        <div class="summary-card">
+            <div class="summary-label">Pemasukan</div>
+            <div class="summary-value text-green">+{{ format_rupiah(total_income) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Pengeluaran</div>
+            <div class="summary-value text-red">-{{ format_rupiah(total_expense) }}</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Selisih</div>
+            <div class="summary-value {% if total_income >= total_expense %}text-green{% else %}text-red{% endif %}">
+                {{ format_rupiah(total_income - total_expense) }}
+            </div>
+        </div>
+    </div>
+    <div class="transaction-list reveal">
         {% for tx in transactions %}
         <a href="/transactions/edit/{{ tx.id }}" class="transaction-item">
             <div class="tx-left">
                 <span class="tx-icon">{{ tx.category_icon or ('↔' if tx.type.value == 'TRANSFER' else '📋') }}</span>
                 <div class="tx-info">
-                    <span class="tx-desc">{{ tx.description or tx.category_display }}</span>
-                    <span class="tx-meta">{{ tx.account.name }} · {{ tx.date.strftime('%d %b %Y') }}</span>
+                    <span class="tx-desc fw-600">{{ tx.merchant or tx.description or tx.category_display or 'Transaksi' }}</span>
+                    <span class="tx-meta">{{ tx.category_display }}{% if tx.account %} · {{ tx.account.name }}{% endif %} · {{ tx.date.strftime('%d %b %Y') }}</span>
+                    {% if tx.tags %}
+                    <div class="tag-list" style="margin-top:3px;gap:4px">
+                        {% for t in tx.tags %}
+                        <span class="tag-chip" style="border-color:{{ t.color or 'var(--line)' }};font-size:.7rem;padding:1px 6px">{{ t.name }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             <div class="tx-right">
                 {% if tx.type.value == 'INCOME' %}
                 <span class="tx-amount tx-income">+{{ format_rupiah(tx.amount) }}</span>
                 {% elif tx.type.value == 'TRANSFER' %}
-                <span class="tx-amount tx-transfer">↔{{ format_rupiah(tx.amount) }}</span>
+                <span class="tx-amount tx-transfer">↔ {{ format_rupiah(tx.amount) }}</span>
                 {% else %}
                 <span class="tx-amount tx-expense">−{{ format_rupiah(tx.amount) }}</span>
                 {% endif %}
@@ -63,3 +98,4 @@
     {% endif %}
 </div>
 {% endblock %}
+

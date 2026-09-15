@@ -44,9 +44,23 @@ def run_daily_net_worth_snapshots(db: Session, as_of=None) -> dict:
     return {"snapshots": written}
 
 
+def run_recurring_transactions(db: Session, as_of=None, user_id=None) -> dict:
+    """Generate due recurring transactions for all active users (or one user).
+
+    Returns {"created": N}.
+    """
+    from app.services.recurring import generate_recurring_transactions
+    from app.time_utils import today_in_tz
+    snap_date = as_of or today_in_tz()
+    created = generate_recurring_transactions(db, as_of=snap_date, user_id=user_id)
+    logger.info("recurring_transactions as_of=%s created=%d", snap_date, created)
+    return {"created": created}
+
+
 def run_all_once(db: Session, as_of=None) -> dict:
     """Run every production job once in a single invocation (used by cron)."""
     return {
         "bill_auto_post": run_bill_auto_post(db, as_of=as_of),
         "net_worth_daily": run_daily_net_worth_snapshots(db, as_of=as_of),
+        "recurring_transactions": run_recurring_transactions(db, as_of=as_of),
     }

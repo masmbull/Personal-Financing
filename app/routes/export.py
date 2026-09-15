@@ -41,10 +41,12 @@ def export_transactions(
     date_to: str = "",
     type_filter: str = "",
     category_id: str = "",
+    tag_id: str = "",
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
     """Export current user's transactions as CSV."""
+    from app.models.models import TransactionTag
     query = (
         db.query(Transaction)
         .options(
@@ -62,6 +64,11 @@ def export_transactions(
         query = query.filter(Transaction.type == TransactionType(type_filter.upper()))
     if category_id:
         query = query.filter(Transaction.category_id == int(category_id))
+    if tag_id:
+        tag_tx = db.query(TransactionTag.transaction_id).filter(
+            TransactionTag.tag_id == int(tag_id)
+        ).subquery()
+        query = query.filter(Transaction.id.in_(tag_tx))
 
     transactions = query.order_by(desc(Transaction.date), desc(Transaction.id)).all()
 
@@ -89,16 +96,14 @@ def export_transactions(
             amount_str = "+" + amount_str
 
         rows.append([
-            tx.date.isoformat(),
-            type_label,
-            tx.description or "",
-            cat_label,
-            tx.account.name if tx.account else "",
-            amount_str,
+            tx.date.isoformat(), type_label,
+            tx.description or "", cat_label,
+            tx.account.name if tx.account else "", amount_str,
         ])
 
     filename = f"transaksi_{date.today().isoformat()}.csv"
     return _bom_csv(rows, filename)
+
 
 
 @router.get("/reports/export")

@@ -19,6 +19,29 @@ def _row_out(row_or_payload: dict) -> BudgetResponse:
 
 
 @router.get(
+    "/alerts",
+    summary="Budgets at WARNING or EXCEEDED status",
+    description="Returns only budgets with percentage >= 80%.",
+)
+def budget_alerts(
+    year: int = Query(None, ge=2000, le=2100),
+    month: int = Query(None, ge=1, le=12),
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    today = date.today()
+    year = year or today.year
+    month = month or today.month
+    rows = budgets_service.list_with_spending(db, year, month, user.id)
+    alerts = [
+        {**r["payload"], "alert_level": r["payload"]["status"]}
+        for r in rows
+        if r["status"] in ("WARNING", "EXCEEDED")
+    ]
+    return {"year": year, "month": month, "count": len(alerts), "alerts": alerts}
+
+
+@router.get(
     "", response_model=BudgetListResponse,
     summary="List monthly budgets with spending",
     description=(

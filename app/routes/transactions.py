@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
-from app.models.models import Transaction, Account, Category, TransactionType
+from app.models.models import Transaction, Account, Category, TransactionType, TransactionTag, Tag
 from app.services.finance import create_transaction, delete_transaction
 from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah, today_str
@@ -42,6 +42,7 @@ def list_transactions(
     filter_date_to: str = "",
     filter_account: str = "",
     filter_category: str = "",
+    filter_tag: str = "",
     search: str = "",
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -50,6 +51,7 @@ def list_transactions(
         joinedload(Transaction.account),
         joinedload(Transaction.category),
         joinedload(Transaction.transfer_to_account),
+        joinedload(Transaction.tags),
     ).filter(Transaction.user_id == user.id)
     if filter_date_from:
         query = query.filter(Transaction.date >= date.fromisoformat(filter_date_from))
@@ -59,6 +61,11 @@ def list_transactions(
         query = query.filter(Transaction.account_id == int(filter_account))
     if filter_category:
         query = query.filter(Transaction.category_id == int(filter_category))
+    if filter_tag:
+        tag_ids = db.query(TransactionTag.transaction_id).filter(
+            TransactionTag.tag_id == int(filter_tag)
+        ).subquery()
+        query = query.filter(Transaction.id.in_(tag_ids))
     if search:
         query = query.filter(
             Transaction.description.ilike(f"%{search}%") |
@@ -68,17 +75,26 @@ def list_transactions(
     transactions = query.order_by(desc(Transaction.date), desc(Transaction.id)).limit(200).all()
     accounts = _visible_accounts(db, user.id)
     categories = db.query(Category).order_by(Category.name).all()
+    tags = db.query(Tag).filter(Tag.user_id == user.id).order_by(Tag.name).all()
     for tx in transactions:
         _set_tx_display(tx)
-    return templates.TemplateResponse(request, "transactions/list.html", { "transactions": transactions,
-        "accounts": accounts, "categories": categories,
+
+    # Summary totals for filtered result
+    total_income = sum(tx.amount for tx in transactions if tx.type == TransactionType.INCOME)
+    total_expense = sum(tx.amount for tx in transactions if tx.type == TransactionType.EXPENSE)
+
+    return templates.TemplateResponse(request, "transactions/list.html", {
+        "transactions": transactions,
+        "accounts": accounts, "categories": categories, "tags": tags,
         "format_rupiah": format_rupiah, "today": today_str(),
+        "total_income": total_income, "total_expense": total_expense,
         "filters": {
             "date_from": filter_date_from, "date_to": filter_date_to,
             "account": filter_account, "category": filter_category,
-            "search": search,
+            "tag": filter_tag, "search": search,
         },
     })
+
 
 
 @router.get("/transactions/add", response_class=HTMLResponse)
@@ -107,6 +123,7 @@ def add_transaction(
     category_id: str = Form(""), transfer_to_account_id: str = Form(""),
     date_val: str = Form(...), description: str = Form(""),
     merchant: str = Form(""),
+    tag_ids: str = Form(""),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
@@ -116,7 +133,7 @@ def add_transaction(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     try:
-        create_transaction(
+        tx = create_transaction(
             db=db, user_id=user.id, type=TransactionType(type), amount=amount_int,
             account_id=int(account_id),
             category_id=int(category_id) if category_id else None,
@@ -126,6 +143,11 @@ def add_transaction(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    if tag_ids and tx:
+        from app.services.tags import attach_tags
+        ids = [int(x) for x in tag_ids.split(",") if x.strip().isdigit()]
+        if ids:
+            attach_tags(db, tx.id, ids, user.id)
     return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -153,6 +175,7 @@ def edit_transaction(
     account_id: str = Form(...), category_id: str = Form(""),
     transfer_to_account_id: str = Form(""), date_val: str = Form(...),
     description: str = Form(""), merchant: str = Form(""),
+    tag_ids: str = Form(""),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
@@ -167,7 +190,7 @@ def edit_transaction(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     delete_transaction(db, tx_id, user.id)
-    create_transaction(
+    new_tx = create_transaction(
         db=db, user_id=user.id, type=TransactionType(type), amount=amount_int,
         account_id=int(account_id),
         category_id=int(category_id) if category_id else None,
@@ -175,6 +198,11 @@ def edit_transaction(
         transfer_to_account_id=int(transfer_to_account_id) if transfer_to_account_id else None,
         merchant=merchant.strip() if merchant else None,
     )
+    if tag_ids and new_tx:
+        from app.services.tags import attach_tags
+        ids = [int(x) for x in tag_ids.split(",") if x.strip().isdigit()]
+        if ids:
+            attach_tags(db, new_tx.id, ids, user.id)
     return RedirectResponse(url="/transactions", status_code=status.HTTP_303_SEE_OTHER)
 
 

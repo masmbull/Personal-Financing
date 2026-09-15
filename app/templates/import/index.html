@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Import CSV{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">📥 Import CSV</h1>
+    </header>
+
+    <section class="section" id="upload-section">
+        <h2 class="section-title">1. Pilih File CSV</h2>
+        <form id="csv-form" class="card stack">
+            <div class="form-group">
+                <label class="form-label" for="csv-file">File CSV</label>
+                <input type="file" id="csv-file" accept=".csv,.txt" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="delimiter">Pemisah Kolom</label>
+                <select id="delimiter" class="form-input">
+                    <option value=",">Koma (,)</option>
+                    <option value=";">Titik koma (;)</option>
+                    <option value="\t">Tab</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">🔍 Preview</button>
+        </form>
+    </section>
+
+    <section class="section" id="preview-section" style="display:none">
+        <h2 class="section-title">2. Preview Data</h2>
+        <div class="card" id="preview-errors" style="display:none">
+            <div class="text-red" id="error-list"></div>
+        </div>
+        <div class="table-wrap" id="preview-table-wrap" style="display:none">
+            <table class="table" id="preview-table">
+                <thead><tr id="preview-header"></tr></thead>
+                <tbody id="preview-body"></tbody>
+            </table>
+            <p class="tx-meta mt-xs" id="preview-count"></p>
+        </div>
+    </section>
+
+    <section class="section" id="confirm-section" style="display:none">
+        <h2 class="section-title">3. Konfirmasi Import</h2>
+        <form id="confirm-form" class="card stack">
+            <div class="form-group">
+                <label class="form-label" for="account-id">Akun Tujuan</label>
+                <select id="account-id" class="form-input" required>
+                    {% for a in accounts %}
+                    <option value="{{ a.id }}">{{ a.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <input type="hidden" id="rows-json" name="rows_json">
+            <button type="submit" class="btn btn-primary btn-block">✅ Import Sekarang</button>
+        </form>
+    </section>
+
+    <section class="section" id="result-section" style="display:none">
+        <div class="card" id="result-card">
+            <div id="result-content"></div>
+        </div>
+    </section>
+</div>
+
+<script>
+document.getElementById("csv-form").addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const file = document.getElementById("csv-file").files[0];
+    if (!file) return;
+    const delim = document.getElementById("delimiter").value;
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("delimiter", delim);
+    const resp = await fetch("/api/v1/import/preview", { method: "POST", body: fd });
+    const data = await resp.json();
+    // Show preview section
+    document.getElementById("preview-section").style.display = "block";
+    const errDiv = document.getElementById("preview-errors");
+    const errList = document.getElementById("error-list");
+    if (data.errors && data.errors.length) {
+        errDiv.style.display = "block";
+        errList.innerHTML = data.errors.map(e => "<div>" + e + "</div>").join("");
+    } else { errDiv.style.display = "none"; }
+    // Show table
+    const wrap = document.getElementById("preview-table-wrap");
+    const hdr = document.getElementById("preview-header");
+    const body = document.getElementById("preview-body");
+    if (data.rows && data.rows.length) {
+        wrap.style.display = "block";
+        hdr.innerHTML = "<th>Tanggal</th><th>Deskripsi</th><th>Jumlah</th><th>Tipe</th>";
+        body.innerHTML = data.rows.map(r =>
+            "<tr><td>" + r.date + "</td><td>" + (r.description||"") +
+            "</td><td>" + r.amount.toLocaleString("id-ID") +
+            "</td><td>" + r.type + "</td></tr>"
+        ).join("");
+        document.getElementById("preview-count").textContent = data.rows.length + " baris siap diimport";
+        document.getElementById("rows-json").value = JSON.stringify(data.rows);
+        document.getElementById("confirm-section").style.display = "block";
+    } else {
+        wrap.style.display = "none";
+        document.getElementById("confirm-section").style.display = "none";
+    }
+});
+
+document.getElementById("confirm-form").addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append("account_id", document.getElementById("account-id").value);
+    fd.append("rows_json", document.getElementById("rows-json").value);
+    const resp = await fetch("/api/v1/import/confirm", { method: "POST", body: fd });
+    const data = await resp.json();
+    const res = document.getElementById("result-section");
+    const card = document.getElementById("result-content");
+    res.style.display = "block";
+    if (data.created > 0) {
+        card.innerHTML = "<div class='text-green'><strong>✅ Berhasil import " + data.created + " transaksi</strong></div>" +
+            (data.errors && data.errors.length ? "<div class='text-red mt-xs'>" + data.errors.join("<br>") + "</div>" : "");
+        setTimeout(() => { window.location.href = "/"; }, 1500);
+    } else {
+        card.innerHTML = "<div class='text-red'><strong>Gagal import.</strong></div>" +
+            (data.errors && data.errors.length ? "<div class='text-red mt-xs'>" + data.errors.join("<br>") + "</div>" : "");
+    }
+});
+</script>
+{% endblock %}

@@ -30,7 +30,7 @@
     var t = document.createElement('div');
     t.className = 'toast toast-' + (ok === false ? 'error' : 'success');
     t.setAttribute('role', 'status');
-    t.textContent = message;
+    t.textContent = (ok === false ? '✗ ' : '✓ ') + message;
     t.title = 'Klik untuk tutup';
     t.addEventListener('click', function () { t.remove(); });
     c.appendChild(t);

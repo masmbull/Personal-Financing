@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Akun{% endblock %}
+{% block title %}Akun - Finance{% endblock %}
 {% block content %}
 <div class="page">
     <header class="page-header">
@@ -8,15 +8,15 @@
     </header>
 
     {% set total_all = groups|map(attribute='total')|sum %}
-    <section class="acc-hero">
+    <section class="acc-hero reveal">
         <button type="button" class="priv-toggle" aria-pressed="false" aria-label="Tampilkan atau sembunyikan saldo"><span class="eye-on">👁️</span><span class="eye-off">🙈</span></button>
         <div class="acc-hero-label">Total Saldo</div>
         <div class="acc-hero-amount priv-amount" data-amount="{{ total_all }}">{{ format_rupiah(total_all) }}</div>
-        <div class="acc-hero-meta">{{ groups|length }} grup • {{ groups|map(attribute='accounts')|map('length')|sum }} akun</div>
+        <div class="acc-hero-meta">{{ groups|length }} grup · {{ groups|map(attribute='accounts')|map('length')|sum }} akun</div>
     </section>
 
     {% for group in groups %}
-    <section class="acc-section">
+    <section class="acc-section reveal">
         <div class="acc-group-head">
             <span class="acc-group-title">{{ group.name }}</span>
         </div>
@@ -52,11 +52,11 @@
     {% endfor %}
 
     {% if not groups %}
-    <div class="empty-state">
+    <div class="empty-state reveal">
         <div class="empty-icon">🏦</div>
         <div class="empty-title">Belum ada akun</div>
         <div class="empty-desc">Tambah akun untuk mulai mencatat keuangan</div>
-        <a href="/accounts/create" class="btn btn-primary btn-block mt-xs w-200 d-block mx-auto">+ Akun</a>
+        <a href="/accounts/create" class="btn btn-primary mt-xs">+ Akun Pertama</a>
     </div>
     {% endif %}
 </div>

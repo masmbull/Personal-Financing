@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Transaksi Berulang - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">🔁 Transaksi Berulang</h1>
+        <a href="/recurring/add" class="btn btn-primary btn-sm">+ Tambah</a>
+    </header>
+
+    {% if recurrings %}
+    <div class="stack reveal">
+        {% for r in recurrings %}
+        <div class="card" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div style="display:flex;gap:12px;align-items:center;flex:1;min-width:200px">
+                <span class="tx-icon">{{ r.category.icon if r.category else ('📥' if r.type.value == 'INCOME' else '📤') }}</span>
+                <div class="tx-info">
+                    <div class="fw-600" style="font-size:.95rem">{{ r.description or (r.category.name if r.category else r.type.value) }}</div>
+                    <div class="tx-meta">
+                        {{ r.account.name }} ·
+                        {% if r.frequency.value == 'DAILY' %}Harian
+                        {% elif r.frequency.value == 'WEEKLY' %}Mingguan
+                        {% elif r.frequency.value == 'MONTHLY' %}Bulanan
+                        {% else %}Tahunan{% endif %}
+                        · Tempo: {{ r.next_due_date.strftime('%d %b %Y') }}
+                        {% if not r.active %}<span class="badge badge-gray" style="margin-left:4px">Nonaktif</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-shrink:0">
+                <span class="tx-amount {% if r.type.value == 'INCOME' %}tx-income{% else %}tx-expense{% endif %}">
+                    {% if r.type.value == 'INCOME' %}+{% else %}−{% endif %}{{ format_rupiah(r.amount) }}
+                </span>
+                <a href="/recurring/edit/{{ r.id }}" class="btn btn-sm btn-ghost" title="Edit">✏️</a>
+                <form method="post" action="/recurring/delete/{{ r.id }}" style="display:inline" onsubmit="return confirm('Hapus transaksi berulang ini?')">
+                    <input type="hidden" name="csrf_token" value="{{ request.session.get('csrf_token','') }}">
+                    <button type="submit" class="btn btn-sm btn-danger" title="Hapus">✕</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state reveal">
+        <div class="empty-icon">🔁</div>
+        <div class="empty-title">Belum ada transaksi berulang</div>
+        <div class="empty-desc">Tambah transaksi rutin otomatis seperti gaji, sewa, tagihan, atau langganan bulanan.</div>
+        <a href="/recurring/add" class="btn btn-primary mt-xs">+ Tambah Transaksi Berulang</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

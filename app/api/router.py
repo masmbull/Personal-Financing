@@ -3,8 +3,8 @@ from fastapi import APIRouter
 
 from app.api import (
     accounts, admin, assets, bills, budgets, categories, credit_cards, dashboard, debts,
-    ewallet, fuel, health, institutions, investments, merchants, payment_methods,
-    receipts, reports, savings, transactions, transfers,
+    ewallet, fuel, health, health_insights, import_api, institutions, investments,
+    merchants, payment_methods, receipts, recurring, reports, savings, tags, transactions, transfers,
 )
 
 api_v1_router = APIRouter(prefix="/api/v1")
@@ -30,5 +30,11 @@ api_v1_router.include_router(credit_cards.router)
 api_v1_router.include_router(institutions.router)
 api_v1_router.include_router(ewallet.router)
 api_v1_router.include_router(admin.router)
+# Feature routers
+api_v1_router.include_router(tags.router)
+api_v1_router.include_router(import_api.router)
+api_v1_router.include_router(health_insights.router)
+api_v1_router.include_router(recurring.router)
 
 __all__ = ["api_v1_router"]
+

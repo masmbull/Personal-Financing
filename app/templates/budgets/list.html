@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Budget Bulanan{% endblock %}
+{% block title %}Budget Bulanan - Finance{% endblock %}
 {% block content %}
 <div class="page">
     <header class="page-header">
@@ -7,57 +7,64 @@
     </header>
 
     {% if budget_data %}
-    <div class="section">
+    <div class="stack reveal">
         {% for item in budget_data %}
         {% set b = item.budget %}
-        <div class="card">
+        <div class="card budget-row">
             <div class="row-top">
                 <div>
-                    <strong>{{ b.category.name }}</strong>
-                    <span class="tx-meta ml-sm">{{ format_rupiah(b.amount) }}</span>
+                    <strong style="font-size:.95rem">{{ b.category.icon or '🏷️' }} {{ b.category.name }}</strong>
+                    <span class="tx-meta" style="margin-left:8px">Target: {{ format_rupiah(b.amount) }}</span>
                 </div>
-                <a href="/budgets/delete/{{ b.id }}" class="btn-link text-red" onclick="return confirm('Hapus budget ini?')">Hapus</a>
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span class="{% if item.percentage > 100 %}budget-status-exceeded{% elif item.percentage > 80 %}budget-status-warning{% else %}budget-status-safe{% endif %}">
+                        {{ item.percentage }}%
+                    </span>
+                    <a href="/budgets/delete/{{ b.id }}" class="btn-link text-red" onclick="return confirm('Hapus budget ini?')" title="Hapus budget">✕</a>
+                </div>
             </div>
-            <div class="progress-track">
+            <div class="progress-track" role="progressbar" aria-valuenow="{{ [item.percentage, 100]|min }}" aria-valuemin="0" aria-valuemax="100">
                 <div class="progress-fill {{ 'fill-danger' if item.percentage > 100 else 'fill-warning' if item.percentage > 80 else 'fill-success' }}" style="width:{{ [item.percentage, 100]|min }}%"></div>
             </div>
             <div class="row-between tx-meta">
-                <span>{{ format_rupiah(item.spent) }} terpakai ({{ item.percentage }}%)</span>
+                <span>{{ format_rupiah(item.spent) }} terpakai</span>
                 <span>Sisa {{ format_rupiah(item.remaining) }}</span>
             </div>
         </div>
         {% endfor %}
     </div>
     {% else %}
-    <div class="empty-state">
+    <div class="empty-state reveal">
         <div class="empty-icon">📊</div>
         <div class="empty-title">Belum ada budget</div>
-        <div class="empty-desc">Buat budget untuk mengontrol pengeluaran</div>
+        <div class="empty-desc">Buat budget bulanan untuk mengontrol dan memantau pengeluaran kamu.</div>
     </div>
     {% endif %}
 
-    <section class="section">
+    <section class="section reveal" style="margin-top:24px">
         <div class="section-header">
             <h2 class="section-title">Tambah Budget</h2>
         </div>
-        <form method="post" action="/budgets/create" class="form">
-            <input type="hidden" name="month" value="{{ month }}">
-            <input type="hidden" name="year" value="{{ year }}">
-            <div class="form-group">
-                <label class="form-label">Kategori</label>
-                <select name="category_id" class="form-input" required>
-                    <option value="">Pilih kategori</option>
-                    {% for cat in expense_cats %}
-                    <option value="{{ cat.id }}">{{ cat.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Anggaran (Rp)</label>
-                <input type="text" name="amount" class="form-input" required inputmode="numeric" pattern="[0-9]*" placeholder="0">
-            </div>
-            <button type="submit" class="btn btn-primary btn-block">Simpan Budget</button>
-        </form>
+        <div class="card">
+            <form method="post" action="/budgets/create" class="form">
+                <input type="hidden" name="month" value="{{ month }}">
+                <input type="hidden" name="year" value="{{ year }}">
+                <div class="form-group">
+                    <label class="form-label" for="category_id">Kategori</label>
+                    <select name="category_id" id="category_id" class="input" required>
+                        <option value="">Pilih kategori</option>
+                        {% for cat in expense_cats %}
+                        <option value="{{ cat.id }}">{{ cat.icon or '🏷️' }} {{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="amount">Anggaran (Rp)</label>
+                    <input type="text" name="amount" id="amount" class="input" required inputmode="numeric" pattern="[0-9]*" placeholder="contoh: 1500000">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Simpan Budget</button>
+            </form>
+        </div>
     </section>
 </div>
 {% endblock %}

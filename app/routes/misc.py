@@ -12,12 +12,15 @@ router = APIRouter()
 MORE_LINKS = [
     ("/debts", "💸", "Hutang & Piutang", "Catat uang pinjam dan piutang"),
     ("/bills", "📄", "Tagihan", "Tagihan rutin bulanan"),
+    ("/recurring", "🔁", "Transaksi Berulang", "Gaji, sewa, langganan otomatis"),
     ("/budgets", "📊", "Budget", "Batas belanja per kategori"),
     ("/savings", "🎯", "Tabungan", "Target nabung"),
     ("/assets", "🏠", "Aset", "Barang & properti berharga"),
     ("/investments", "📈", "Investasi", "Saham, emas, crypto"),
     ("/accounts", "🏦", "Akun", "Rekening, e-wallet, kas"),
     ("/categories", "🏷️", "Kategori", "Atur kategori transaksi"),
+    ("/import", "📥", "Import CSV", "Import transaksi dari file bank"),
+    ("/insights", "💡", "Insight", "Analisis pola pengeluaran & kesehatan keuangan"),
 ]
 
 

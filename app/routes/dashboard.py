@@ -77,6 +77,17 @@ def dashboard(request: Request, db: Session = Depends(get_db),
 
     upcoming = [NS(**u) for u in payload["upcoming_bills"]]
 
+    health_score_val = None
+    health_grade_val = None
+    try:
+        from app.services.health_score import compute_health_score
+        h_res = compute_health_score(db, user.id)
+        health_score_val = h_res.get("score", 70)
+        health_grade_val = h_res.get("grade", "B")
+    except Exception:
+        health_score_val = 70
+        health_grade_val = "B"
+
     data = NS(
         available_cash=payload["available_cash"],
         total_assets=payload["total_assets"],
@@ -93,6 +104,8 @@ def dashboard(request: Request, db: Session = Depends(get_db),
         budget_summary=budgets,
         upcoming_bills=upcoming,
         recent_transactions=recent,
+        health_score=health_score_val,
+        health_grade=health_grade_val,
     )
 
     # Expense breakdown follows the selected period.

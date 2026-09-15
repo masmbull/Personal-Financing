@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if rec else 'Tambah' }} Transaksi Berulang - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">{{ '✏️ Edit' if rec else '➕ Tambah' }} Transaksi Berulang</h1>
+    </header>
+    {% if error %}
+    <div class="auth-error" role="alert" style="margin-bottom:16px">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="{{ '/recurring/edit/' + rec.id|string if rec else '/recurring/add' }}" class="card form-card reveal">
+        <div class="form-group">
+            <label class="form-label" for="tx_type">Tipe Transaksi</label>
+            <select name="tx_type" id="tx_type" class="input" required>
+                <option value="EXPENSE" {% if (rec and rec.type.value == 'EXPENSE') or not rec %}selected{% endif %}>Pengeluaran</option>
+                <option value="INCOME" {% if rec and rec.type.value == 'INCOME' %}selected{% endif %}>Pemasukan</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="amount">Jumlah (Rp)</label>
+            <input type="text" name="amount" id="amount" class="input"
+                   value="{{ rec.amount if rec else '' }}" required placeholder="Contoh: 500000" inputmode="numeric">
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="description">Deskripsi</label>
+            <input type="text" name="description" id="description" class="input"
+                   value="{{ rec.description or '' if rec else '' }}" placeholder="Misal: Gaji, Sewa, Spotify">
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="account_id">Akun</label>
+            <select name="account_id" id="account_id" class="input" required>
+                {% for acc in accounts %}
+                <option value="{{ acc.id }}" {% if rec and rec.account_id == acc.id %}selected{% endif %}>{{ acc.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="category_id">Kategori (opsional)</label>
+            <select name="category_id" id="category_id" class="input">
+                <option value="">-- Tanpa Kategori --</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}" {% if rec and rec.category_id == cat.id %}selected{% endif %}>{{ cat.icon or '🏷️' }} {{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="frequency">Frekuensi</label>
+            <select name="frequency" id="frequency" class="input" required>
+                <option value="DAILY" {% if rec and rec.frequency.value == 'DAILY' %}selected{% endif %}>Harian</option>
+                <option value="WEEKLY" {% if rec and rec.frequency.value == 'WEEKLY' %}selected{% endif %}>Mingguan</option>
+                <option value="MONTHLY" {% if (rec and rec.frequency.value == 'MONTHLY') or not rec %}selected{% endif %}>Bulanan</option>
+                <option value="YEARLY" {% if rec and rec.frequency.value == 'YEARLY' %}selected{% endif %}>Tahunan</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label" for="start_date">Tanggal Mulai / Jatuh Tempo</label>
+            <input type="date" name="start_date" id="start_date" class="input"
+                   value="{{ rec.next_due_date.isoformat() if rec else today }}" required>
+        </div>
+        {% if rec %}
+        <div class="form-group">
+            <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" name="active" value="1" {% if rec.active %}checked{% endif %}>
+                <span>Aktif</span>
+            </label>
+        </div>
+        {% endif %}
+        <div class="form-group">
+            <label class="form-label" for="notes">Catatan (opsional)</label>
+            <textarea name="notes" id="notes" class="input" rows="2">{{ rec.notes or '' if rec else '' }}</textarea>
+        </div>
+        <div class="btn-row" style="margin-top:16px">
+            <a href="/recurring" class="btn btn-ghost" style="flex:1">Batal</a>
+            <button type="submit" class="btn btn-primary" style="flex:2">{{ 'Simpan Perubahan' if rec else 'Tambah Transaksi' }}</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

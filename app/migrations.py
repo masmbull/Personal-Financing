@@ -363,6 +363,44 @@ def run_password_reset_request_migration(engine: Engine) -> bool:
     return True
 
 
+def run_recurring_migration(engine: Engine) -> bool:
+    """Add recurring_transactions table if missing (idempotent)."""
+    insp = inspect(engine)
+    if "recurring_transactions" in insp.get_table_names():
+        return False
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS recurring_transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id),
+                account_id INTEGER NOT NULL REFERENCES accounts(id),
+                category_id INTEGER REFERENCES categories(id),
+                type VARCHAR(20) NOT NULL DEFAULT 'EXPENSE',
+                amount INTEGER NOT NULL,
+                description VARCHAR(200),
+                frequency VARCHAR(10) NOT NULL DEFAULT 'MONTHLY',
+                next_due_date DATE NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1,
+                notes TEXT,
+                created_at DATETIME,
+                updated_at DATETIME
+            )
+        """))
+        conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_recurring_user_id ON recurring_transactions(user_id)"
+        ))
+        conn.execute(text(
+            f"CREATE TABLE IF NOT EXISTS {_MARKER_TABLE}"
+            " (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)"
+        ))
+        conn.execute(text(
+            f"INSERT OR IGNORE INTO {_MARKER_TABLE} (name, applied_at)"
+            " VALUES ('recurring_transactions', datetime('now'))"
+        ))
+    logger.info("Created recurring_transactions table")
+    return True
+
+
 def run_receipts_columns_migration(engine: Engine) -> bool:
     """Add late-arrival Receipt columns to an existing receipts table.
 

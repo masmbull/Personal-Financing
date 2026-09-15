@@ -42,7 +42,7 @@
                 {% endfor %}
             </select>
             {% else %}
-            <div class="empty-state" style="padding:1rem;border:1px dashed var(--border);border-radius:8px;text-align:center;">
+            <div class="empty-state" style="padding:1rem;border:1px dashed var(--line);border-radius:8px;text-align:center;">
                 <div class="empty-desc">Belum punya akun. Buat akun dulu untuk mencatat transaksi.</div>
                 <a href="/accounts/create" class="btn btn-primary btn-sm mt-xs">+ Buat Akun</a>
             </div>
@@ -64,7 +64,74 @@
             <input type="text" name="description" id="description" class="input" placeholder="Opsional" maxlength="200">
         </div>
 
+        <div class="form-group">
+            <label class="form-label">🏷️ Tag</label>
+            <div id="tag-manager" data-api="/api/v1/tags">
+                <div class="tag-list" id="selected-tags"></div>
+                <input type="text" id="tag-input" class="tag-input" placeholder="Ketik nama tag..." autocomplete="off">
+                <div class="tag-suggestions" id="tag-suggestions"></div>
+            </div>
+            <input type="hidden" name="tag_ids" id="tag_ids">
+        </div>
+
         <button type="submit" class="btn btn-green btn-block">Simpan {{ 'Pengeluaran' if tx_type == 'EXPENSE' else 'Pemasukan' }}</button>
     </form>
 </div>
+<script>
+(function(){
+    const api = '/api/v1/tags';
+    let allTags = [], selected = [];
+    const list = document.getElementById('selected-tags');
+    const input = document.getElementById('tag-input');
+    const sugBox = document.getElementById('tag-suggestions');
+    const hidden = document.getElementById('tag_ids');
+    async function loadTags(){
+        try { const r = await fetch(api); allTags = await r.json(); } catch(e){ allTags = []; }
+        renderSuggestions();
+    }
+    function renderSelected(){
+        list.innerHTML = selected.map(t =>
+            '<span class="tag-chip" style="border-color:'+(t.color||'var(--line)')+'">'+t.name+
+            '<span class="tag-chip-remove" data-id="'+t.id+'">&times;</span></span>'
+        ).join('');
+        hidden.value = selected.map(t=>t.id).join(',');
+        list.querySelectorAll('.tag-chip-remove').forEach(el => {
+            el.onclick = () => { selected = selected.filter(s => s.id != el.dataset.id); renderSelected(); renderSuggestions(); };
+        });
+    }
+    function renderSuggestions(){
+        const q = input.value.toLowerCase();
+        const selIds = new Set(selected.map(t=>t.id));
+        const matches = allTags.filter(t => !selIds.has(t.id) && (!q || t.name.toLowerCase().includes(q))).slice(0,8);
+        sugBox.innerHTML = matches.map(t =>
+            '<span class="tag-suggestion" data-id="'+t.id+'" data-name="'+t.name+'" data-color="'+(t.color||'')+'">'+t.name+'</span>'
+        ).join('');
+        // Add create-new option if text doesn't match
+        if(q && !allTags.some(t => t.name.toLowerCase() === q)){
+            sugBox.innerHTML += '<span class="tag-suggestion" data-create="1" data-name="'+input.value+'">+ Buat "'+input.value+'"</span>';
+        }
+        sugBox.querySelectorAll('.tag-suggestion').forEach(el => {
+            el.onclick = async () => {
+                if(el.dataset.create){
+                    const r = await fetch(api, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:el.dataset.name})});
+                    if(r.ok){ const newTag = await r.json(); allTags.push(newTag); selected.push(newTag); }
+                } else {
+                    const tag = allTags.find(t => t.id == el.dataset.id);
+                    if(tag) selected.push(tag);
+                }
+                input.value = ''; renderSelected(); renderSuggestions();
+            };
+        });
+    }
+    input.addEventListener('input', renderSuggestions);
+    input.addEventListener('keydown', function(e){
+        if(e.key === 'Enter'){
+            e.preventDefault();
+            const first = sugBox.querySelector('.tag-suggestion');
+            if(first) first.click();
+        }
+    });
+    loadTags();
+})();
+</script>
 {% endblock %}

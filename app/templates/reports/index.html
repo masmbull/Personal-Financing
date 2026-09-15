@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Laporan{% endblock %}
+{% block title %}Laporan - Finance{% endblock %}
 {% block content %}
 <div class="page">
     <header class="page-header">
@@ -7,7 +7,7 @@
         <a href="/reports/export" class="btn btn-sm">📥 Unduh CSV</a>
     </header>
 
-    <section class="summary-cards">
+    <section class="summary-cards reveal">
         <div class="summary-card">
             <div class="summary-label">Hari Ini</div>
             <div class="summary-value text-red">{{ format_rupiah(data.today_expense) }}</div>
@@ -22,11 +22,11 @@
         </div>
     </section>
 
-    <section class="section">
+    <section class="section reveal">
         <h2 class="section-title">Pemasukan vs Pengeluaran</h2>
-        <div class="ie-compare">
+        <div class="card ie-compare">
             <div class="ie-item">
-                                <div class="row-between">
+                <div class="row-between">
                     <span class="ie-label">Pemasukan</span>
                     <span class="ie-value text-green">{{ format_rupiah(data.month_income) }}</span>
                 </div>
@@ -37,7 +37,7 @@
                 {% endif %}
             </div>
             <div class="ie-item">
-                                <div class="row-between">
+                <div class="row-between">
                     <span class="ie-label">Pengeluaran</span>
                     <span class="ie-value text-red">{{ format_rupiah(data.month_expense) }}</span>
                 </div>
@@ -50,18 +50,18 @@
         </div>
     </section>
 
-    <section class="section">
+    <section class="section reveal">
         <h2 class="section-title">Kategori Terbesar</h2>
         {% if data.expense_by_category %}
-        <div class="category-list">
+        <div class="card category-list" style="padding:0;overflow:hidden">
             {% for cat in data.expense_by_category %}
             <div class="category-item">
                 <span class="cat-icon">{{ cat.icon or '📋' }}</span>
-                <span class="cat-name">{{ cat.name }}</span>
-                <span class="cat-amount">{{ format_rupiah(cat.total) }}</span>
+                <span class="cat-name fw-600" style="flex:1">{{ cat.name }}</span>
+                <span class="cat-amount text-red fw-700">{{ format_rupiah(cat.total) }}</span>
             </div>
             {% if data.month_expense > 0 %}
-            <div class="cat-bar-wrap">
+            <div class="cat-bar-wrap" style="margin:0 16px 12px">
                 <div class="cat-bar" style="width: {{ (cat.total * 100 / data.month_expense)|int }}%"></div>
             </div>
             {% endif %}
@@ -76,8 +76,8 @@
         {% endif %}
     </section>
 
-    <section class="section">
-        <h2 class="section-title">Trend 6 Bulan</h2>
+    <section class="section reveal">
+        <h2 class="section-title">Tren 6 Bulan</h2>
         <div class="trend-chart">
             {% for m in data.monthly_data %}
             <div class="trend-col">

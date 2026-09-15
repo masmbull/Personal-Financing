@@ -256,6 +256,7 @@ class Transaction(Base):
     merchant_ref = relationship("Merchant")
     payment_method_ref = relationship("PaymentMethod")
     fuel_product_ref = relationship("FuelProduct")
+    tags = relationship("Tag", secondary="transaction_tags", backref="transactions")
 
 
 class Debt(Base):
@@ -693,4 +694,85 @@ class EWalletProvider(Base):
     __table_args__ = (
         UniqueConstraint("code", "user_id", name="uq_ewallet_provider_code"),
     )
+
+
+# ── Recurring Transactions ───────────────────────────────────────────
+
+class RecurringFrequency(str, enum.Enum):
+    DAILY   = "DAILY"
+    WEEKLY  = "WEEKLY"
+    MONTHLY = "MONTHLY"
+    YEARLY  = "YEARLY"
+
+
+class RecurringTransaction(Base):
+    """Template for auto-generating recurring transactions.
+
+    The scheduler inserts one Transaction row per due occurrence using
+    next_due_date as the target date, then advances next_due_date.
+    No money moves without a real Transaction row — this model is only
+    a generation template.
+    """
+    __tablename__ = "recurring_transactions"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    user_id      = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    account_id   = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    category_id  = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    type         = Column(Enum(TransactionType), nullable=False, default=TransactionType.EXPENSE)
+    amount       = Column(Integer, nullable=False)
+    description  = Column(String(200), nullable=True)
+    frequency    = Column(Enum(RecurringFrequency), nullable=False, default=RecurringFrequency.MONTHLY)
+    next_due_date = Column(Date, nullable=False)
+    active       = Column(Boolean, nullable=False, default=True)
+    notes        = Column(Text, nullable=True)
+    created_at   = Column(DateTime, default=_utcnow)
+    updated_at   = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+    account  = relationship("Account")
+    category = relationship("Category")
+
+
+# ── Tags domain ──────────────────────────────────────────────────────
+
+class Tag(Base):
+    """User-scoped label that can be attached to any transaction."""
+    __tablename__ = "tags"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(50), nullable=False)
+    color = Column(String(7), nullable=True, comment="Hex color e.g. #ef4444")
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_tag_user_name"),
+    )
+
+
+class TransactionTag(Base):
+    """Many-to-many join between transactions and tags."""
+    __tablename__ = "transaction_tags"
+
+    transaction_id = Column(Integer, ForeignKey("transactions.id"), primary_key=True)
+    tag_id = Column(Integer, ForeignKey("tags.id"), primary_key=True)
+    created_at = Column(DateTime, default=_utcnow)
+
+
+# ── Financial Health Score (cached per user) ─────────────────────────
+
+class FinancialHealthSnapshot(Base):
+    """Periodic snapshot of the user's financial health score."""
+    __tablename__ = "financial_health_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    score = Column(Integer, nullable=False, comment="0-100 composite score")
+    savings_rate = Column(Float, nullable=True)
+    debt_ratio = Column(Float, nullable=True)
+    emergency_months = Column(Float, nullable=True, comment="Months of expenses covered")
+    budget_adherence = Column(Float, nullable=True, comment="Avg budget utilisation %")
+    insights_json = Column(Text, nullable=True, comment="JSON array of insight strings")
+    snapshot_date = Column(Date, nullable=False, index=True)
+    created_at = Column(DateTime, default=_utcnow)
 
