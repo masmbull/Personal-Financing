@@ -157,6 +157,33 @@ BRAND_LOGOS = {
 }
 
 
+ACCOUNT_TYPE_LABELS = {
+    AccountType.CASH: "Tunai",
+    AccountType.BANK: "Bank",
+    AccountType.E_WALLET: "E-Wallet",
+    AccountType.SERVER_EMONEY: "Uang elektronik (server)",
+    AccountType.CARD_EMONEY: "Uang elektronik (kartu)",
+    AccountType.CREDIT_CARD: "Kartu kredit",
+    AccountType.PAY_LATER: "PayLater",
+    AccountType.SAVINGS: "Tabungan",
+    AccountType.LOAN: "Pinjaman",
+    AccountType.INVESTMENT: "Investasi",
+    AccountType.GOLD: "Emas",
+    AccountType.ASSET: "Aset",
+    AccountType.LIABILITY: "Kewajiban",
+    AccountType.OTHER: "Lainnya",
+}
+
+
+def account_type_label(type_) -> str:
+    if isinstance(type_, AccountType):
+        return ACCOUNT_TYPE_LABELS.get(type_, type_.value.replace("_", " ").title())
+    try:
+        return ACCOUNT_TYPE_LABELS.get(AccountType(type_), str(type_).replace("_", " ").title())
+    except ValueError:
+        return str(type_).replace("_", " ").title()
+
+
 def bank_brand(account) -> dict[str, str] | None:
     """Brand mark + colours + logo for BANK/E_WALLET accounts, else None (emoji fallback)."""
     if account.type not in (AccountType.BANK, AccountType.E_WALLET):

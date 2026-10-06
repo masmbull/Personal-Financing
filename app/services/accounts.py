@@ -11,19 +11,26 @@ from app.services.finance import recalculate_account_balance
 # Account classification used for net-worth / dashboard calculations.
 ASSET_ACCOUNT_TYPES = [
     AccountType.CASH, AccountType.BANK, AccountType.E_WALLET,
-    AccountType.SAVINGS, AccountType.INVESTMENT,
+    AccountType.SERVER_EMONEY, AccountType.CARD_EMONEY,
+    AccountType.SAVINGS, AccountType.INVESTMENT, AccountType.GOLD,
+    AccountType.ASSET,
 ]
 LIQUID_ACCOUNT_TYPES = [
-    AccountType.CASH, AccountType.BANK, AccountType.E_WALLET, AccountType.SAVINGS,
+    AccountType.CASH, AccountType.BANK, AccountType.E_WALLET,
+    AccountType.SERVER_EMONEY, AccountType.CARD_EMONEY, AccountType.SAVINGS,
 ]
 LIABILITY_ACCOUNT_TYPES = [
-    AccountType.CREDIT_CARD, AccountType.LOAN, AccountType.LIABILITY,
+    AccountType.CREDIT_CARD, AccountType.PAY_LATER,
+    AccountType.LOAN, AccountType.LIABILITY,
 ]
 
 ACCOUNT_GROUPS = [
-    ("Rekening & Kas", ASSET_ACCOUNT_TYPES),
+    ("Rekening & Kas", [
+        AccountType.CASH, AccountType.BANK, AccountType.E_WALLET,
+        AccountType.SERVER_EMONEY, AccountType.CARD_EMONEY, AccountType.SAVINGS,
+    ]),
     ("Kartu Kredit & Hutang", LIABILITY_ACCOUNT_TYPES),
-    ("Investasi & Aset", [AccountType.INVESTMENT, AccountType.ASSET]),
+    ("Investasi & Aset", [AccountType.INVESTMENT, AccountType.ASSET, AccountType.GOLD]),
     ("Lainnya", [AccountType.OTHER]),
 ]
 
@@ -136,6 +143,13 @@ def get_available_credit(acc: Account) -> int | None:
     return acc.credit_limit - outstanding
 
 
+_NULLABLE_ACCOUNT_FIELDS = {
+    "credit_limit", "statement_date", "payment_due_day",
+    "interest_rate_pct", "annual_fee", "card_network", "institution",
+    "account_number", "color", "icon", "institution_id",
+}
+
+
 def update_account(db: Session, account_id: int, user_id: int, **fields) -> Account:
     """Update only OWN accounts; master/global accounts are immutable."""
     acc = get_own_account(db, account_id, user_id)
@@ -143,7 +157,7 @@ def update_account(db: Session, account_id: int, user_id: int, **fields) -> Acco
         raise AccountNotFound(f"Account {account_id} not found")
     initial_changed = False
     for key, value in fields.items():
-        if value is None:
+        if value is None and key not in _NULLABLE_ACCOUNT_FIELDS:
             continue
         if key == "type" and hasattr(value, "value"):
             value = value  # enum instance is fine for SQLAlchemy Enum column
@@ -179,13 +193,21 @@ def list_accounts_grouped(db: Session, user_id: int) -> list[dict]:
     """Group accounts by category with per-group totals (HTML accounts page)."""
     accounts = list_accounts(db, user_id)
     groups = []
+    seen: set[int] = set()
     for group_name, types in ACCOUNT_GROUPS:
         members = [a for a in accounts if a.type in types]
         if members:
+            seen.update(a.id for a in members)
             groups.append({
                 "name": group_name, "accounts": members,
                 "total": sum(a.current_balance for a in members),
             })
+    leftovers = [a for a in accounts if a.id not in seen]
+    if leftovers:
+        groups.append({
+            "name": "Lainnya", "accounts": leftovers,
+            "total": sum(a.current_balance for a in leftovers),
+        })
     return groups
 
 

@@ -2,6 +2,8 @@
 
 Aplikasi web pencatatan keuangan pribadi yang ringan, cepat, dan mobile-first. Dibangun dengan Python/FastAPI, SQLite, dan vanilla JS — tanpa framework frontend berat.
 
+> Dokumen lain: [PRD](docs/PRD.md) · [Audit](docs/AUDIT.md) · [Ollama produksi](docs/OLLAMA_PROD.md) · [Receipt AI](docs/RECEIPT_AI_ID.md)
+
 ## Daftar Isi
 
 - [Fitur](#fitur)
@@ -49,10 +51,11 @@ Aplikasi web pencatatan keuangan pribadi yang ringan, cepat, dan mobile-first. D
 - Lampiran struk per transaksi
 
 ### Akun Keuangan
-- Tipe: Cash, Bank, E-Wallet, Credit Card
+- Tipe: `CASH`, `BANK`, `E_WALLET`, `SERVER_EMONEY`, `CARD_EMONEY`, `CREDIT_CARD`, `PAY_LATER`, `SAVINGS`, `LOAN`, `INVESTMENT`, `GOLD`, `ASSET`, `LIABILITY`, `OTHER`
 - Saldo dihitung: `initial_balance + income − expense − transfer_out + transfer_in`
 - 20 bank Indonesia + 6 e-wallet + Cash di-seed otomatis
 - Bisa edit nama, ikon, dan saldo awal (recalculasi)
+- Daftar dikelompokkan (Rekening & Kas / Kartu Kredit & Hutang / Investasi & Aset / Lainnya) dengan satu total besar
 
 ### Hutang (Debt Tracker)
 - Catat hutang dengan nama kreditor, jumlah, dan tanggal jatuh tempo
@@ -81,9 +84,12 @@ Aplikasi web pencatatan keuangan pribadi yang ringan, cepat, dan mobile-first. D
 
 ### Kartu Kredit
 - Akun tipe `CREDIT_CARD` — expense di kartu kredit menambah liabilitas, bukan mengurangi cash
+- Field khusus saat buat/edit: **limit kredit**, **tanggal statement (1–28)**, **tanggal jatuh tempo (1–28)**
+- Sisa limit = `credit_limit − outstanding` ditampilkan di daftar akun
 - Pembayaran kartu kredit via transfer cash → credit card (liabilitas berkurang, bukan expense)
 - Statement calculation: charges − refunds (floored at 0)
 - Minimum payment calculation (integer math)
+- Charge melebihi limit & pembayaran melebihi liabilitas ditolak deterministik
 
 ### Struk & OCR
 - Upload struk (gambar/PDF) → validasi MIME & ukuran
@@ -310,7 +316,7 @@ pip install pytest-xdist
 pytest tests/ -n auto
 ```
 
-**275 tests** mencakup:
+**614 tests** (614 passed, 1 skipped) mencakup:
 - Auth & session (register, login, logout, CSRF, IDOR)
 - Accounting invariants (income, expense, transfer, credit card, debt, savings)
 - Statement audit (credit card statement, refund netting, payment status)

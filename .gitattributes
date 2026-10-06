@@ -1,0 +1,3 @@
+# Normalize line endings: store LF in the repo, accept CRLF on Windows checkout
+# without flattening whole files into diffs. Binary assets are auto-detected.
+* text=auto eol=lf

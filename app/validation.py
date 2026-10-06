@@ -89,6 +89,14 @@ def parse_optional_idr(value, field_name: str = "Nominal") -> Optional[int]:
     return parse_idr_input(value, field_name)
 
 
+def parse_optional_int(value, field_name: str = "Nilai",
+                        min_val: int = 0, max_val: int = 2**31) -> Optional[int]:
+    """Like parse_int_input but returns None for empty input."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return None
+    return parse_int_input(value, field_name, min_val, max_val)
+
+
 def parse_int_input(value, field_name: str = "Nilai",
                      min_val: int = 0, max_val: int = 2**31) -> int:
     """Parse strict integer (day, month, year, count)."""

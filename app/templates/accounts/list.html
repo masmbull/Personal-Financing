@@ -35,7 +35,11 @@
                     </span>
                     <div class="acc-info">
                         <span class="acc-name">{{ acc.name }}</span>
-                        <span class="acc-type">{{ acc.type.value.replace('_', ' ').title() }}</span>
+                        <span class="acc-type">{{ account_type_label(acc.type) }}</span>
+                        {% set av = available_credit(acc) %}
+                        {% if av is not none %}
+                        <span class="acc-type">Sisa limit: {{ format_rupiah(av) }}</span>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="acc-right">

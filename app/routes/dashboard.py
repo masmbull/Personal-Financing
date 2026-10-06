@@ -8,8 +8,8 @@ from app.models.models import Account, AccountType, TransactionType
 from app.services import accounts as accounts_service
 from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah
-from app.validation import parse_idr_input
-from app.account_icons import ACCOUNT_ICON_POOLS, bank_brand
+from app.validation import parse_idr_input, parse_optional_idr, parse_optional_int
+from app.account_icons import ACCOUNT_ICON_POOLS, account_type_label, bank_brand
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="app/templates")
@@ -37,6 +37,20 @@ def _parse_balance(raw: str) -> int:
         return parse_idr_input(s, "Saldo")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+def _credit_card_fields(type_, credit_limit: str, statement_date: str,
+                        payment_due_day: str) -> dict:
+    """Parse optional credit-card fields; ignored for non-CC types."""
+    if type_ != AccountType.CREDIT_CARD:
+        return {}
+    return {
+        "credit_limit": parse_optional_idr(credit_limit, "Limit kredit"),
+        "statement_date": parse_optional_int(
+            statement_date, "Tanggal statement", 1, 28),
+        "payment_due_day": parse_optional_int(
+            payment_due_day, "Tanggal jatuh tempo", 1, 28),
+    }
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -146,6 +160,8 @@ def list_accounts(request: Request, db: Session = Depends(get_db),
         "account_types": AccountType,
         "format_rupiah": format_rupiah,
         "bank_brand": bank_brand,
+        "account_type_label": account_type_label,
+        "available_credit": accounts_service.get_available_credit,
     })
 
 
@@ -156,6 +172,7 @@ def create_account_form(request: Request,
     return templates.TemplateResponse(request, "accounts/create.html", {
         "account_types": AccountType,
         "icon_pools": ACCOUNT_ICON_POOLS,
+        "account_type_label": account_type_label,
         "format_rupiah": format_rupiah,
         "sidebar_accounts_total": _account_balance_total(db, user.id),
     })
@@ -168,14 +185,19 @@ def create_account(
     name: str = Form(...),
     type: str = Form(...),
     icon: str = Form(""),
+    credit_limit: str = Form(""),
+    statement_date: str = Form(""),
+    payment_due_day: str = Form(""),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
     """Pure add-account: balance stays 0, set later via \"Isi Saldo\"."""
     try:
+        type_ = AccountType(type)
+        cc = _credit_card_fields(type_, credit_limit, statement_date, payment_due_day)
         accounts_service.create_account(
-            db, user_id=user.id, name=name, type_=AccountType(type),
-            initial_balance=0, icon=icon or None,
+            db, user_id=user.id, name=name, type_=type_,
+            initial_balance=0, icon=icon or None, **cc,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -192,6 +214,7 @@ def edit_account_form(account_id: int, request: Request,
     return templates.TemplateResponse(request, "accounts/edit.html", {
         "account": account, "account_types": AccountType,
         "icon_pools": ACCOUNT_ICON_POOLS,
+        "account_type_label": account_type_label,
         "format_rupiah": format_rupiah,
         "sidebar_accounts_total": _account_balance_total(db, user.id),
     })
@@ -201,6 +224,8 @@ def edit_account_form(account_id: int, request: Request,
 @audit_action(action="account_update", entity="account")
 def edit_account(request: Request, account_id: int, name: str = Form(...), type: str = Form(...),
                  initial_balance: str = Form("0"), icon: str = Form(""),
+                 credit_limit: str = Form(""), statement_date: str = Form(""),
+                 payment_due_day: str = Form(""),
                  db: Session = Depends(get_db),
                  user: CurrentUser = Depends(get_current_user)):
     # Ownership FIRST so intruders always get 404, never a balance parse error.
@@ -208,9 +233,11 @@ def edit_account(request: Request, account_id: int, name: str = Form(...), type:
         raise HTTPException(status_code=404, detail="Account not found")
     init_bal = _parse_balance(initial_balance)
     try:
+        type_ = AccountType(type)
+        cc = _credit_card_fields(type_, credit_limit, statement_date, payment_due_day)
         accounts_service.update_account(
-            db, account_id, user.id, name=name.strip(), type=AccountType(type),
-            initial_balance=init_bal, icon=icon or None,
+            db, account_id, user.id, name=name.strip(), type=type_,
+            initial_balance=init_bal, icon=icon or None, **cc,
         )
     except accounts_service.AccountNotFound:
         raise HTTPException(status_code=404, detail="Account not found")

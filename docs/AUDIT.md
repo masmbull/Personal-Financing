@@ -1,6 +1,6 @@
 # Application Audit - Personal-Financing
 
-Snapshot: 173 tests green (135 baseline + 38 new). Commit `be7aa49` -> scheduler + net-worth + accounting audit phase (+ integration + IDOR regression).
+Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recurring/insights/CSV-import/tags + credit-card account fields (limit / statement / due) wired end-to-end + `.gitattributes` line-ending normalization.
 
 ## A. Sudah benar (working, tested, secure)
 

@@ -16,12 +16,35 @@
             <label class="form-label" for="type">Tipe</label>
             <select name="type" id="type" class="input" required>
                 {% for t in account_types %}
-                <option value="{{ t.value }}">{{ t.value }}</option>
+                <option value="{{ t.value }}">{{ account_type_label(t) }}</option>
                 {% endfor %}
             </select>
         </div>
 
+        <div class="form-group cc-only" id="cc-fields" hidden>
+            <label class="form-label" for="credit_limit">Limit kredit</label>
+            <div class="input-prefix">
+                <span class="prefix">Rp</span>
+                <input type="text" name="credit_limit" id="credit_limit" class="input" placeholder="0" inputmode="numeric" autocomplete="off">
+            </div>
+            <label class="form-label" for="statement_date">Tanggal statement (1-28)</label>
+            <input type="number" name="statement_date" id="statement_date" class="input" min="1" max="28" inputmode="numeric">
+            <label class="form-label" for="payment_due_day">Tanggal jatuh tempo (1-28)</label>
+            <input type="number" name="payment_due_day" id="payment_due_day" class="input" min="1" max="28" inputmode="numeric">
+        </div>
+
         {% include "accounts/_icon_picker.html" %}
+
+        <script>
+        (function () {
+            var sel = document.getElementById('type');
+            var box = document.getElementById('cc-fields');
+            if (!sel || !box) return;
+            function sync() { box.hidden = sel.value !== 'CREDIT_CARD'; }
+            sel.addEventListener('change', sync);
+            sync();
+        })();
+        </script>
 
         <p class="form-hint">Saldo bisa diisi setelah akun dibuat, lewat <strong>Isi Saldo</strong> di halaman Akun.</p>
 
