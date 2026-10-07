@@ -17,6 +17,17 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.pool import NullPool
 
 from app.migrations import run_institution_fk_migration, _MARKER_TABLE
+from app.migrations import run_category_slug_unique_migration
+
+
+_LEGACY_CATEGORIES_DDL = """
+CREATE TABLE categories (
+    id INTEGER PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    type VARCHAR(20) NOT NULL,
+    slug VARCHAR(100)
+);
+"""
 
 
 _LEGACY_ACCOUNTS_DDL = """
@@ -176,5 +187,58 @@ def test_institution_fk_migration_safe_when_table_missing():
         changed = run_institution_fk_migration(eng)
 
         assert changed is False
+    finally:
+        eng.dispose()
+
+
+def test_category_slug_unique_migration_adds_index():
+    """Legacy categories without the unique index -> migration adds it."""
+    eng = _fresh_engine()
+    try:
+        with eng.begin() as conn:
+            conn.execute(text(_LEGACY_CATEGORIES_DDL))
+            conn.execute(text(
+                "INSERT INTO categories (id, name, type, slug) "
+                "VALUES (1, 'Makanan', 'EXPENSE', 'food'), "
+                "(2, 'Gaji', 'INCOME', 'salary')"
+            ))
+        assert "uq_categories_type_slug" not in {
+            i["name"] for i in inspect(eng).get_indexes("categories")}
+
+        changed = run_category_slug_unique_migration(eng)
+
+        assert changed is True
+        assert "uq_categories_type_slug" in {
+            i["name"] for i in inspect(eng).get_indexes("categories")}
+    finally:
+        eng.dispose()
+
+
+def test_category_slug_unique_migration_is_idempotent():
+    """Second run is a no-op once the index exists."""
+    eng = _fresh_engine()
+    try:
+        with eng.begin() as conn:
+            conn.execute(text(_LEGACY_CATEGORIES_DDL))
+        assert run_category_slug_unique_migration(eng) is True
+        assert run_category_slug_unique_migration(eng) is False
+    finally:
+        eng.dispose()
+
+
+def test_category_slug_unique_migration_skips_on_duplicates():
+    """Duplicate (type, slug) rows -> index skipped rather than crash startup."""
+    eng = _fresh_engine()
+    try:
+        with eng.begin() as conn:
+            conn.execute(text(_LEGACY_CATEGORIES_DDL))
+            conn.execute(text(
+                "INSERT INTO categories (id, name, type, slug) "
+                "VALUES (1, 'A', 'EXPENSE', 'dup'), (2, 'B', 'EXPENSE', 'dup')"
+            ))
+        changed = run_category_slug_unique_migration(eng)
+        assert changed is False
+        assert "uq_categories_type_slug" not in {
+            i["name"] for i in inspect(eng).get_indexes("categories")}
     finally:
         eng.dispose()

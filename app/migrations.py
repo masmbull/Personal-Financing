@@ -112,6 +112,47 @@ def run_category_hierarchy_migration(engine: Engine) -> bool:
     return True
 
 
+def run_category_slug_unique_migration(engine: Engine) -> bool:
+    """Enforce one category per (type, slug) on existing databases.
+
+    New databases already declare the unique index in the model. This adds it
+    to an existing categories table, but ONLY when it is safe: legacy rows can
+    have a NULL slug (SQLite treats NULLs as distinct, so they never collide)
+    or duplicate (type, slug) pairs created before the constraint existed. If a
+    duplicate is found the index is skipped rather than failing startup - the
+    operator can clean up, and the next boot will apply it.
+    """
+    insp = inspect(engine)
+    if "categories" not in insp.get_table_names():
+        return False
+    if "uq_categories_type_slug" in {i["name"] for i in insp.get_indexes("categories")}:
+        return False
+    with engine.begin() as conn:
+        dup = conn.execute(text(
+            "SELECT 1 FROM categories WHERE slug IS NOT NULL "
+            "GROUP BY type, slug HAVING COUNT(*) > 1 LIMIT 1"
+        )).first()
+        if dup:
+            logger.warning(
+                "Skipped categories unique index: duplicate (type, slug) rows exist"
+            )
+            return False
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_categories_type_slug "
+            "ON categories(type, slug)"
+        ))
+        conn.execute(text(
+            f"CREATE TABLE IF NOT EXISTS {_MARKER_TABLE}"
+            " (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)"
+        ))
+        conn.execute(text(
+            f"INSERT OR IGNORE INTO {_MARKER_TABLE} (name, applied_at) "
+            "VALUES ('category_slug_unique_migration', datetime('now'))"
+        ))
+        logger.info("Migrated categories: added unique index on (type, slug)")
+    return True
+
+
 def claim_legacy_rows(db: Session, user_id: int) -> None:
     """Assign legacy (user_id NULL) rows to a bootstrap owner.
 

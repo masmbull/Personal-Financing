@@ -63,6 +63,8 @@ async def lifespan(app: FastAPI):
     from app.migrations import claim_legacy_rows, run_migrations, run_category_hierarchy_migration
     legacy_altered = run_migrations(engine)
     run_category_hierarchy_migration(engine)
+    from app.migrations import run_category_slug_unique_migration
+    run_category_slug_unique_migration(engine)
     from app.migrations import run_bill_occurrence_migration
     run_bill_occurrence_migration(engine)
     from app.migrations import run_domain_expansion_migration

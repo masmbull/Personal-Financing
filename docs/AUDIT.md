@@ -28,7 +28,7 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 ## C. Broken / masalah latent
 
 - **Test pollution risk** - `test.db` bisa korup kalau pytest di-kill mid-run (SQLite WAL issue). Mitigasi: drop_all per-test.
-- **`category.slug`** indexed tapi tidak unique - risk duplikat nama per-parent (low risk).
+- **`category.slug`** - DONE: unique index `uq_categories_type_slug` on `(type, slug)` in model + `run_category_slug_unique_migration` (skips safely on pre-existing duplicates).
 
 ## D. UI tanpa backend
 
@@ -36,8 +36,8 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 
 ## E. Backend tanpa UI usable
 
-- **API `/api/v1/reports/*`** - multi-endpoint, reports page mungkin belum pakai semua.
-- **Bill occurrences** - HTML `/bills` kini menampilkan section "Jatuh Tempo" (generate idempotent + tombol Bayar via `POST /bills/occurrences/{id}/pay`).
+- **API `/api/v1/reports/*`** - DONE: 7 endpoints (cash-flow/expenses/income-vs-expense/net-worth[/history|snapshot]/categories) covered by `test_api` + `test_feature_coverage`. HTML `/reports` intentionally uses its own `get_report_data` aggregate (expense-trend view); net-worth dashboard lives on `/`.
+- **Bill occurrences** - HTML `/bills` menampilkan section "Jatuh Tempo" (generate idempotent + tombol Bayar via `POST /bills/occurrences/{id}/pay`).
 
 ## F. Security issue
 
@@ -52,7 +52,7 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 
 ## H. UX issue
 
-- **Receipt dropzone / drag-drop / camera** - perlu verifikasi.
+- **Receipt dropzone / drag-drop / camera** - DONE: drag-drop di `initReceiptUpload` (dragover/drop → `input.files`), tombol kamera `capture="environment"`, kompresi async (`compressImage`).
 - **Optimistic UI / button loading** - konsisten: `aria-busy` + `btn-loading` via `initFormGuard`.
 
 ## I. Backend completion status
@@ -71,7 +71,8 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 | Bill Occurrences | done Unique | done generate/due/pay | 3 endpoints | 13 tests | COMPLETE |
 | Receipts + OCR | done | done | upload/confirm | test_api/ui | COMPLETE |
 | AI (Ollama) | - | done | - | test_receipt_ai | COMPLETE |
-| Reports | - | done | 5 endpoints | test_api | COMPLETE |
+| Reports | - | done | 7 endpoints | test_api | COMPLETE |
+| Reports HTML | - | get_report_data | GET /reports | test_finance | COMPLETE |
 | CSV Export | - | - | 2 routes | test_export | COMPLETE |
 | Dashboard | - | done | GET | test_api | COMPLETE |
 | Net Worth | done snapshot | compute+snapshot | GET+POST | 11 tests | COMPLETE |
@@ -118,13 +119,18 @@ All previously-listed gaps are now shipped:
 
 ## UI Status
 
-Backend completion mode finished. UI wiring now being closed incrementally
-(e.g. bill occurrences surfaced on `/bills`).
+Backend + UI wiring mode COMPLETE. All section A/B/E/H gaps closed and
+verified. Leftover items are latent risks (section C/G), not missing features.
 
 ## NEXT STEP
 
-Next task (recommended): audit `/api/v1/reports/*` coverage vs reports HTML page;
-then receipt dropzone/camera UX verification.
+Next task (recommended): production DB backup guard for the SQLite
+drop_all-on-kill WAL pollution (section C) - or ship: out of latent risks to
+harden.
+
+Verified this session: `/api/v1/reports/*` (7 ep, all tested) + reports HTML
+handler live; receipt dropzone/drag-drop/camera + async compression live;
+category slug uniqueness enforced (model + idempotent migration + tests).
 
 ## Catatan arsitektural
 

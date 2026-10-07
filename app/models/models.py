@@ -2,7 +2,7 @@ import enum
 from datetime import datetime, timezone, date
 from sqlalchemy import (
     Column, Integer, String, Enum, Date, DateTime, ForeignKey, Text, Float,
-    Boolean, UniqueConstraint,
+    Boolean, UniqueConstraint, Index,
 )
 from sqlalchemy.orm import relationship
 from app.database.db import Base
@@ -210,11 +210,16 @@ class Account(Base):
 
 class Category(Base):
     __tablename__ = "categories"
+    # Natural key: a slug is unique within its transaction type (EXPENSE `other`
+    # and INCOME `other` coexist). Partial-by-type keeps the seed idempotent.
+    __table_args__ = (
+        Index("uq_categories_type_slug", "type", "slug", unique=True),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     type = Column(Enum(TransactionType), nullable=False)
-    slug = Column(String(100), nullable=True, index=True)
+    slug = Column(String(100), nullable=True)
     group = Column(String(50), nullable=True)
     parent_id = Column(Integer, ForeignKey('categories.id'), nullable=True, index=True)
     icon = Column(String(10), nullable=True)
