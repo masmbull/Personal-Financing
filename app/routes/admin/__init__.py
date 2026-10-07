@@ -307,6 +307,27 @@ def admin_audit_log_page(
 
 
 
+@router.get("/admin/services", response_class=HTMLResponse)
+def admin_services_page(request: Request, db: Session = Depends(get_db)):
+    """Service-status page: which runtime dependencies are online/offline."""
+    admin, redirect = _gate(request, db)
+    if redirect is not None:
+        return redirect
+    from app.services.service_status import collect_service_status
+
+    services = collect_service_status(db)
+    online = sum(1 for s in services if s["status"] == "online")
+    token = secrets.token_urlsafe(24)
+    resp = templates.TemplateResponse(request, "admin/services.html", {
+        "services": services,
+        "online_count": online,
+        "total_count": len(services),
+        "csrf_token": token,
+    })
+    set_csrf_cookie(resp, token)
+    return resp
+
+
 def _gen_temp_password(length: int = 12) -> str:
     """Generate a memorable-but-strong temporary password for resets."""
     import string

@@ -137,6 +137,10 @@ Production SQLite backup guard live (WAL-safe snapshot + rotation + tests).
 Budget alerts surfaced in UI (dashboard + /budgets banner, sidebar badge, reusing
 `budgets_service.alerts_from_rows`). Excel (.xlsx) export for transactions +
 reports via `openpyxl` (shared row builders, in-memory StreamingResponse).
+Admin **Status Service** page (`/admin/services` + `GET /api/v1/admin/services`)
+probes runtime dependencies (DB, disk, Tesseract OCR, selected AI provider,
+Ollama endpoint) via `app/services/service_status.py`; reports
+online/offline/disabled and never returns secrets.
 
 ## Catatan arsitektural
 

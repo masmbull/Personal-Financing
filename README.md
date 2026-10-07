@@ -536,6 +536,7 @@ Semua jumlah uang disimpan sebagai **integer dalam satuan Rupiah** (Rp 25.000 = 
 - Export Excel (.xlsx) untuk transaksi & laporan
 - Receipt OCR review + import CSV
 - Health score + insights
+- Admin panel: user management, reset requests, audit log, dan **Status Service** (`/admin/services`) untuk cek online/offline service & API (Database, disk, OCR Tesseract, AI vision provider, Ollama endpoint)
 
 ### Direncanakan 📋
 - Multi-currency

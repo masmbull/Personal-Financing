@@ -248,3 +248,43 @@ class TestHelpPage:
         assert "Transaksi" in resp.text
         assert "Hutang" in resp.text
         assert "Laporan" in resp.text
+class TestAdminServiceStatus:
+    """Tests for the admin service-status page + API."""
+
+    def test_services_page_requires_admin(self, client: TestClient, db: Session):
+        """Non-admin users are redirected away from the services page."""
+        create_user(db, "regular_user")
+        _login(client, "regular_user")
+        resp = client.get("/admin/services", follow_redirects=False)
+        assert resp.status_code == 303
+        assert resp.headers["location"] == "/"
+
+    def test_services_page_shows_dependencies(self, client: TestClient, db: Session):
+        """Admin sees the runtime dependency list with the DB marked online."""
+        create_user(db, "admin_user", is_admin=True)
+        _login(client, "admin_user")
+        resp = client.get("/admin/services")
+        assert resp.status_code == 200
+        assert "Status Service" in resp.text
+        assert "Database" in resp.text
+
+    def test_services_api_requires_admin(self, db: Session):
+        """Non-admin users cannot read the services API."""
+        create_user(db, "regular_user")
+        client = _fresh_client()
+        _login(client, "regular_user")
+        resp = client.get("/api/v1/admin/services")
+        assert resp.status_code == 403
+
+    def test_services_api_reports_status(self, db: Session):
+        """Admin gets structured service items; DB probe always online."""
+        create_user(db, "admin_user", is_admin=True)
+        client = _fresh_client()
+        _login(client, "admin_user")
+        resp = client.get("/api/v1/admin/services")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] >= 2
+        assert data["online"] >= 1
+        names = {s["name"]: s["status"] for s in data["items"]}
+        assert names.get("Database") == "online"

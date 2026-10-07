@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Status Service - Finance{% endblock %}
+{% block content %}
+<div class="page">
+    <div class="top-bar reveal">
+        <div>
+            <div class="greeting">🔐 Panel Admin</div>
+            <h1 class="page-title-large">Status Service</h1>
+        </div>
+        <div class="btn-group">
+            <a href="/admin" class="btn btn-sm">← Manajemen Sistem</a>
+            <a href="/admin/services" class="btn btn-sm btn-primary">🔄 Muat ulang</a>
+        </div>
+    </div>
+
+    <section class="summary-cards reveal stagger" style="--d:40ms">
+        <div class="summary-card" style="--i:0">
+            <div class="summary-label">Online</div>
+            <div class="summary-value text-green">{{ online_count }}/{{ total_count }}</div>
+        </div>
+        <div class="summary-card" style="--i:1">
+            <div class="summary-label">Total Service</div>
+            <div class="summary-value">{{ total_count }}</div>
+        </div>
+    </section>
+
+    <section class="section reveal stagger" style="--d:80ms">
+        <div class="section-header">
+            <h2 class="section-title">🩺 Dependensi Runtime</h2>
+            <span class="tx-meta">Diperbarui saat halaman dimuat</span>
+        </div>
+        <div class="transaction-list">
+            {% for s in services %}
+            <div class="transaction-item">
+                <div class="tx-left">
+                    <span class="tx-icon">
+                        {% if s.status == 'online' %}✅{% elif s.status == 'disabled' %}⏸️{% else %}⛔{% endif %}
+                    </span>
+                    <div class="tx-info">
+                        <span class="tx-desc strong">
+                            {{ s.name }}
+                            <span class="badge badge-neutral">{{ s.category }}</span>
+                            {% if s.status == 'online' %}
+                            <span class="badge badge-success">Online</span>
+                            {% elif s.status == 'disabled' %}
+                            <span class="badge badge-info">Nonaktif</span>
+                            {% else %}
+                            <span class="badge badge-danger">Offline</span>
+                            {% endif %}
+                        </span>
+                        {% if s.detail %}
+                        <span class="tx-meta">{{ s.detail }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}

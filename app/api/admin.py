@@ -126,6 +126,26 @@ def stats(
     }
 
 
+@router.get("/services", summary="Runtime service status (admin only)")
+def service_status(
+    db: Session = Depends(get_db),
+    admin: CurrentUser = Depends(require_admin),
+):
+    """Report which runtime dependencies are online/offline/disabled.
+
+    Probe only - no secrets (API keys/tokens) are ever returned, only
+    presence/absence of configuration.
+    """
+    from app.services.service_status import collect_service_status
+
+    services = collect_service_status(db)
+    return {
+        "items": services,
+        "online": sum(1 for s in services if s["status"] == "online"),
+        "total": len(services),
+    }
+
+
 @router.get("/audit-log", summary="Recent audit events (admin only)")
 def audit_log(
     limit: int = 100,
