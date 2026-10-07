@@ -39,12 +39,20 @@
             </div>
             <div class="form-row mt-sm">
                 <form method="post" action="/savings/deposit/{{ g.id }}" class="form-row flex-1">
-                    <input type="text" name="amount" class="form-input flex-1" inputmode="numeric" pattern="[0-9]*" placeholder="Setor">
+                    <input type="text" name="amount" class="input flex-1" inputmode="numeric" pattern="[0-9]*" placeholder="Setor" required>
+                    {% if accounts %}
+                    <select name="related_account_id" class="input input-sm">
+                        <option value="">— sumber —</option>
+                        {% for a in accounts %}
+                        <option value="{{ a.id }}">{{ a.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
                     <button type="submit" class="btn btn-primary btn-sm">Setor</button>
                 </form>
                 {% if g.current_amount > 0 %}
                 <form method="post" action="/savings/withdraw/{{ g.id }}" class="form-row flex-1">
-                    <input type="text" name="amount" class="form-input flex-1" inputmode="numeric" pattern="[0-9]*" placeholder="Tarik">
+                    <input type="text" name="amount" class="input flex-1" inputmode="numeric" pattern="[0-9]*" placeholder="Tarik" required>
                     <button type="submit" class="btn btn-sm">Tarik</button>
                 </form>
                 {% endif %}

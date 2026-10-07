@@ -20,10 +20,10 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 
 ## B. Setengah jadi (ada tapi belum lengkap)
 
-- **Savings goal contribution/withdrawal** - model + service `deposit`/`withdraw` done, UI form exists.
+- **Savings goal contribution/withdrawal** - DONE: model + service `deposit`/`withdraw` + UI form, kini dengan selector akun sumber (`related_account_id`) + `required` amount.
 - **Merchant as first-class entity** - DONE: `Merchant` + `MerchantAlias` models, `app/services/merchants.py`, `app/api/merchants.py`, + management UI `/merchants` (`app/routes/masters.py`).
 - **PaymentMethod as first-class entity** - DONE: `PaymentMethod` model, service + `app/api/payment_methods.py`, + management UI `/payment-methods` (`app/routes/masters.py`). Txn HTML form now stores `merchant_id` / `payment_method_id`.
-- **Optimistic UI / button loading** - toast/modal ada, tapi `aria-busy` + spinner inline belum konsisten.
+- **Optimistic UI / button loading** - DONE: guard submit global set `aria-busy` + `btn-loading` (`app.js` `initFormGuard`).
 
 ## C. Broken / masalah latent
 
@@ -53,7 +53,7 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 ## H. UX issue
 
 - **Receipt dropzone / drag-drop / camera** - perlu verifikasi.
-- **Optimistic UI / button loading** - belum konsisten.
+- **Optimistic UI / button loading** - konsisten: `aria-busy` + `btn-loading` via `initFormGuard`.
 
 ## I. Backend completion status
 
@@ -123,8 +123,8 @@ Backend completion mode finished. UI wiring now being closed incrementally
 
 ## NEXT STEP
 
-Next task (recommended): savings-contribution UI polish; then optimistic-UI
-spinner / `aria-busy` consistency.
+Next task (recommended): audit `/api/v1/reports/*` coverage vs reports HTML page;
+then receipt dropzone/camera UX verification.
 
 ## Catatan arsitektural
 

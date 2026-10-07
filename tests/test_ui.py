@@ -504,6 +504,13 @@ def test_savings_empty_state():
     assert "Belum ada target tabungan" in t
 
 
+def test_savings_deposit_form_has_account_select():
+    client.post("/savings/create", data={"name": "Liburan", "target_amount": "5000000"})
+    t = client.get("/savings").text
+    assert 'name="related_account_id"' in t
+    assert "Liburan" in t
+
+
 def test_assets_empty_state():
     t = client.get("/assets").text
     assert "Belum ada aset" in t

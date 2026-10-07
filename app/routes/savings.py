@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.database.db import get_db
 from app.api.deps import get_current_user, CurrentUser
+from app.models.models import Account
 from app.services import savings as savings_service
 from app.api.audit_decorator import audit_action
 from app.utils import format_rupiah
@@ -19,8 +20,11 @@ def list_savings(request: Request, db: Session = Depends(get_db),
     goals = savings_service.list_goals(db, user.id)
     total_target = sum(g.target_amount for g in goals)
     total_saved = sum(g.current_amount for g in goals)
+    accounts = db.query(Account).filter(
+        Account.user_id == user.id
+    ).order_by(Account.name).all()
     return templates.TemplateResponse(request, "savings/list.html", { "goals": goals,
-        "format_rupiah": format_rupiah,
+        "format_rupiah": format_rupiah, "accounts": accounts,
         "total_target": total_target, "total_saved": total_saved,
     })
 

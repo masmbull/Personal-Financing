@@ -547,6 +547,7 @@
       // Validasi bawaan browser gagal -> browser batalkan submit sendiri.
       try { if (typeof f.checkValidity === 'function' && !f.checkValidity()) return; } catch (err) {}
       f.setAttribute('data-guarded', '1');
+      f.setAttribute('aria-busy', 'true');
       var btns = f.querySelectorAll('button[type="submit"],input[type="submit"]');
       for (var i = 0; i < btns.length; i++) {
         btns[i].disabled = true;
@@ -556,6 +557,7 @@
       setTimeout(function () {
         try {
           f.removeAttribute('data-guarded');
+          f.removeAttribute('aria-busy');
           for (var j = 0; j < btns.length; j++) {
             btns[j].disabled = false;
             if (btns[j].classList) btns[j].classList.remove('btn-loading');
