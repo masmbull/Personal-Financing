@@ -22,3 +22,9 @@ api_out.txt
 test_out.txt
 
 _diag/
+
+# editor / tooling (local only)
+.cursor/
+.postman/
+postman/
+*.code-workspace
