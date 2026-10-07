@@ -141,6 +141,12 @@ def delete_budget(db: Session, budget_id: int, user_id: int) -> None:
     db.commit()
 
 
+def alerts_from_rows(rows: list[dict]) -> list[dict]:
+    """Payloads at WARNING/EXCEEDED status (shared by API/UI alert surfaces)."""
+    return [r["payload"] for r in rows
+            if r["status"] in ("WARNING", "EXCEEDED")]
+
+
 def expense_categories(db: Session):
     return (
         db.query(Category)

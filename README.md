@@ -104,6 +104,7 @@ Aplikasi web pencatatan keuangan pribadi yang ringan, cepat, dan mobile-first. D
 - Tren 6 bulan
 - Riwayat net worth harian (snapshot)
 - Export CSV
+- Export Excel (.xlsx)
 
 ### REST API (`/api/v1`)
 - Semua endpoint di-prefix `/api/v1/`
@@ -523,19 +524,22 @@ Semua jumlah uang disimpan sebagai **integer dalam satuan Rupiah** (Rp 25.000 = 
 - Onboarding flow
 - Sidebar navigasi lengkap
 
-### Sedang Dikerjakan 🚧
+### Sudah Ada ✅
 - Merchant sebagai first-class entity (normalized dengan aliases)
 - PaymentMethod sebagai first-class entity
 - Credit card statement-date / due-date / credit-limit
 - BBM/fuel price reference catalog
 - Master-data provenance fields
+- PWA support (service worker + manifest; installable/offline shell)
+- Recurring transactions
+- Budget alerts (banner dashboard + badge sidebar + `GET /api/v1/budgets/alerts`)
+- Export Excel (.xlsx) untuk transaksi & laporan
+- Receipt OCR review + import CSV
+- Health score + insights
 
 ### Direncanakan 📋
-- PWA support
 - Multi-currency
-- Recurring transactions
-- Budget alerts/notifications
-- Data export (PDF, Excel)
+- Data export PDF (Excel sudah ada)
 
 ---
 

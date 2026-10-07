@@ -60,6 +60,7 @@
                 <a href="/budgets" class="sidebar-nav-item {% if '/budgets' in request.url.path %}active{% endif %}">
                     <span class="icon">📊</span>
                     <span>Budget</span>
+                    {% if budget_alerts %}<span class="nav-badge nav-badge-danger" aria-label="{{ budget_alerts|length }} budget lewat batas">{{ budget_alerts|length }}</span>{% endif %}
                 </a>
                 <a href="/savings" class="sidebar-nav-item {% if '/savings' in request.url.path %}active{% endif %}">
                     <span class="icon">🎯</span>

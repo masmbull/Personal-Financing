@@ -16,6 +16,21 @@
         {% endfor %}
     </nav>
 
+    {% if budget_alerts %}
+    <div class="alert alert-warning budget-alert-banner reveal" role="status">
+        <div class="budget-alert-head">⚠️ {{ budget_alerts|length }} budget hampir/lewat batas</div>
+        <ul class="budget-alert-list">
+            {% for b in budget_alerts[:3] %}
+            <li>
+                <a href="/budgets">{{ b.category.icon or '🏷️' }} {{ b.category.name }}</a>
+                <span>— {{ b.percentage|round|int }}% ({{ format_rupiah(b.spent) }}/{{ format_rupiah(b.budget_amount) }})</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% if budget_alerts|length > 3 %}<a href="/budgets" class="alert-more">Lihat semua →</a>{% endif %}
+    </div>
+    {% endif %}
+
     <section class="balance-card hero reveal" aria-label="Saldo tersedia">
         <div class="balance-label">Saldo tersedia</div>
         <div class="balance-amount" data-amount="{{ data.available_cash }}">{{ format_rupiah(data.available_cash) }}</div>

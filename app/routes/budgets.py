@@ -20,8 +20,10 @@ def list_budgets(request: Request, db: Session = Depends(get_db),
     today = date.today()
     budget_data = budgets_service.list_with_spending(db, today.year, today.month, user.id)
     expense_cats = budgets_service.expense_categories(db)
+    budget_alerts = budgets_service.alerts_from_rows(budget_data)
     return templates.TemplateResponse(request, "budgets/list.html", { "budget_data": budget_data,
         "format_rupiah": format_rupiah, "expense_cats": expense_cats,
+        "budget_alerts": budget_alerts,
         "month": today.month, "year": today.year,
     })
 

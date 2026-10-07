@@ -6,6 +6,20 @@
         <h1 class="page-title">Budget Bulanan</h1>
     </header>
 
+    {% if budget_alerts %}
+    <div class="alert alert-warning budget-alert-banner reveal" role="status">
+        <div class="budget-alert-head">⚠️ {{ budget_alerts|length }} budget hampir/lewat batas bulan ini</div>
+        <ul class="budget-alert-list">
+            {% for b in budget_alerts %}
+            <li>
+                <span>{{ b.category.icon or '🏷️' }} {{ b.category.name }}</span>
+                <span>— {{ b.percentage|round|int }}% ({{ format_rupiah(b.spent) }}/{{ format_rupiah(b.budget_amount) }})</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
     {% if budget_data %}
     <div class="stack reveal">
         {% for item in budget_data %}

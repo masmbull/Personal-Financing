@@ -51,6 +51,48 @@ def test_export_reports_csv():
     assert "Rp 35.000" in r.text
 
 
+def _read_xlsx(payload: bytes):
+    """Parse an .xlsx response body into a list of rows (openpyxl)."""
+    import io
+
+    from openpyxl import load_workbook
+    wb = load_workbook(io.BytesIO(payload), read_only=True)
+    return [list(row) for row in wb.active.iter_rows(values_only=True)]
+
+
+def test_export_transactions_xlsx():
+    _add_expense(35000)
+    r = client.get("/transactions/export.xlsx")
+    assert r.status_code == 200
+    assert "spreadsheetml" in r.headers["content-type"]
+    assert "transaksi_" in r.headers["content-disposition"]
+    assert r.headers["content-disposition"].endswith('.xlsx"')
+    rows = _read_xlsx(r.content)
+    assert rows[0][:6] == ["Tanggal", "Tipe", "Deskripsi", "Kategori", "Akun", "Jumlah"]
+    flat = [c for row in rows for c in row if c]
+    assert any("Nasi goreng" in str(c) for c in flat)
+    assert any("Makan & Minum" in str(c) for c in flat)
+    assert any("Rp 35.000" in str(c) for c in flat)
+
+
+def test_export_transactions_xlsx_empty():
+    r = client.get("/transactions/export.xlsx")
+    assert r.status_code == 200
+    rows = _read_xlsx(r.content)
+    assert len(rows) == 1  # header only
+
+
+def test_export_reports_xlsx():
+    _add_expense(35000)
+    r = client.get("/reports/export.xlsx")
+    assert r.status_code == 200
+    assert "spreadsheetml" in r.headers["content-type"]
+    rows = _read_xlsx(r.content)
+    flat = [str(c) for row in rows for c in row if c]
+    assert any("Laporan Keuangan" in c for c in flat)
+    assert any("Makan & Minum" in c for c in flat)
+
+
 def test_rate_limit_auth_blocks_after_limit():
     """Rapid repeated logins are throttled with HTTP 429."""
     # The shared client is already authenticated for other tests via the

@@ -89,6 +89,8 @@ def dashboard(request: Request, db: Session = Depends(get_db),
         bb["category"] = NS(**bb["category"])
         budgets.append(NS(**bb))
 
+    budget_alerts = [b for b in budgets if b.status in ("WARNING", "EXCEEDED")]
+
     upcoming = [NS(**u) for u in payload["upcoming_bills"]]
 
     health_score_val = None
@@ -136,6 +138,7 @@ def dashboard(request: Request, db: Session = Depends(get_db),
 
     return templates.TemplateResponse(request, "dashboard.html", {
         "data": data,
+        "budget_alerts": budget_alerts,
         "expense_breakdown": breakdown["by_category"][:5],
         "expense_total": breakdown["total"],
         "savings_goals": goals[:3],

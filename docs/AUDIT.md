@@ -75,6 +75,8 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 | Reports | - | done | 7 endpoints | test_api | COMPLETE |
 | Reports HTML | - | get_report_data | GET /reports | test_finance | COMPLETE |
 | CSV Export | - | - | 2 routes | test_export | COMPLETE |
+| XLSX Export | - | - | 2 routes | test_export | COMPLETE |
+| Budget Alerts | - | alerts_from_rows | API+UI banner/badge | test_recurring_features | COMPLETE |
 | Dashboard | - | done | GET | test_api | COMPLETE |
 | Net Worth | done snapshot | compute+snapshot | GET+POST | 11 tests | COMPLETE |
 | Net Worth Daily Job | - | done all-users | startup+CLI | test_networth_job | COMPLETE |
@@ -131,7 +133,10 @@ section G items are informational (below). App is ship-ready.
 Verified this session: `/api/v1/reports/*` (7 ep, all tested) + reports HTML
 handler live; receipt dropzone/drag-drop/camera + async compression live;
 category slug uniqueness enforced (model + idempotent migration + tests);
-production SQLite backup guard live (WAL-safe snapshot + rotation + tests).
+Production SQLite backup guard live (WAL-safe snapshot + rotation + tests).
+Budget alerts surfaced in UI (dashboard + /budgets banner, sidebar badge, reusing
+`budgets_service.alerts_from_rows`). Excel (.xlsx) export for transactions +
+reports via `openpyxl` (shared row builders, in-memory StreamingResponse).
 
 ## Catatan arsitektural
 

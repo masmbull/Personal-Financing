@@ -118,6 +118,32 @@ def test_budget_alerts_exceeded(client):
     assert any(a["status"] == "EXCEEDED" for a in r["alerts"])
 
 
+def test_budget_alert_banner_dashboard_and_budgets(client):
+    """Exceeded budget surfaces as an alert banner on / and /budgets."""
+    acc_id, cat_id = _setup(client)
+    if not cat_id:
+        pytest.skip("no expense category")
+    today = date.today()
+    _api(client, "post", "/api/v1/budgets", json={
+        "category_id": cat_id, "amount": 1,
+        "month": today.month, "year": today.year,
+    })
+    _api(client, "post", "/api/v1/transactions", json={
+        "account_id": acc_id, "category_id": cat_id,
+        "type": "EXPENSE", "amount": 100000,
+        "date": today.isoformat(), "description": "Banner test",
+    })
+
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "budget-alert-banner" in r.text
+    assert "hampir/lewat batas" in r.text
+
+    r2 = client.get("/budgets")
+    assert r2.status_code == 200
+    assert "budget-alert-banner" in r2.text
+
+
 # ── Health score history ──────────────────────────────────────────────
 
 def test_health_score_history_empty(client):

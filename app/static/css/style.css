@@ -1829,6 +1829,17 @@ select.input{cursor:pointer}
 .budget-status-warning{font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:var(--r-pill);background:var(--amber-bg);color:var(--amber)}
 .budget-status-exceeded{font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:var(--r-pill);background:var(--red-bg);color:var(--red)}
 
+/* ── Budget alert banner ── */
+.budget-alert-banner{margin-bottom:18px}
+.budget-alert-head{font-weight:800;margin-bottom:6px}
+.budget-alert-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;font-weight:600}
+.budget-alert-list a{color:inherit;text-decoration:underline}
+.alert-more{display:inline-block;margin-top:6px;color:inherit;font-weight:700;text-decoration:underline}
+
+/* ── Nav badge (unread/count) ── */
+.nav-badge{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:var(--r-pill);font-size:.66rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.nav-badge-danger{background:var(--red);color:#fff}
+
 /* ── Tx date group ── */
 .tx-date-group{margin-bottom:18px}
 .tx-date-header{font-size:.72rem;font-weight:800;color:var(--ink-3);text-transform:uppercase;letter-spacing:.07em;padding:4px 2px 8px;display:flex;align-items:center;gap:8px}

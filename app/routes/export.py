@@ -1,7 +1,7 @@
-"""CSV export routes — scoped to current user.
+"""CSV / XLSX export routes — scoped to current user.
 
-Both endpoints produce RFC 4180 CSV via StreamingResponse so the response
-never hits disk and memory usage stays bounded for large datasets.
+Both formats produce their bytes in memory via StreamingResponse so the
+response never hits disk and memory usage stays bounded for large datasets.
 """
 import csv
 import io
@@ -20,6 +20,8 @@ from app.utils import format_rupiah
 
 router = APIRouter()
 
+XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
 
 def _bom_csv(rows: list[list[str]], filename: str) -> StreamingResponse:
     """UTF-8 BOM + CSV rows → StreamingResponse (Excel-compatible)."""
@@ -35,17 +37,34 @@ def _bom_csv(rows: list[list[str]], filename: str) -> StreamingResponse:
     )
 
 
-@router.get("/transactions/export")
-def export_transactions(
-    date_from: str = "",
-    date_to: str = "",
-    type_filter: str = "",
-    category_id: str = "",
-    tag_id: str = "",
-    db: Session = Depends(get_db),
-    user: CurrentUser = Depends(get_current_user),
-):
-    """Export current user's transactions as CSV."""
+def _xlsx(rows: list[list], filename: str, sheet_title: str = "Sheet1") -> StreamingResponse:
+    """Rows → single-sheet .xlsx workbook in memory."""
+    # ponytail: openpyxl only; drop dep if xlsx export is ever removed.
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_title[:31]  # Excel sheet-name cap
+    for row in rows:
+        ws.append(row)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.read()]),
+        media_type=XLSX_MEDIA_TYPE,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _exit_guard_ext(fmt: str) -> str:
+    return "xlsx" if fmt == "xlsx" else "csv"
+
+
+def _transactions_rows(db: Session, user: CurrentUser, *,
+                       date_from: str, date_to: str, type_filter: str,
+                       category_id: str, tag_id: str) -> list[list]:
+    """Shared transaction rows for CSV/XLSX export (header + data)."""
     from app.models.models import TransactionTag
     query = (
         db.query(Transaction)
@@ -101,41 +120,67 @@ def export_transactions(
             tx.account.name if tx.account else "", amount_str,
         ])
 
-    filename = f"transaksi_{date.today().isoformat()}.csv"
-    return _bom_csv(rows, filename)
+    return rows
 
 
+def _transactions_export(db: Session, user: CurrentUser, fmt: str, **filters) -> StreamingResponse:
+    rows = _transactions_rows(db, user, **filters)
+    ext = _exit_guard_ext(fmt)
+    filename = f"transaksi_{date.today().isoformat()}.{ext}"
+    return _xlsx(rows, filename, "Transaksi") if fmt == "xlsx" else _bom_csv(rows, filename)
 
-@router.get("/reports/export")
-def export_reports(
+
+@router.get("/transactions/export")
+def export_transactions(
     date_from: str = "",
     date_to: str = "",
+    type_filter: str = "",
+    category_id: str = "",
+    tag_id: str = "",
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
 ):
-    """Export expense breakdown by category as CSV."""
+    """Export current user's transactions as CSV."""
+    return _transactions_export(db, user, "csv", date_from=date_from,
+                                date_to=date_to, type_filter=type_filter,
+                                category_id=category_id, tag_id=tag_id)
+
+
+@router.get("/transactions/export.xlsx")
+def export_transactions_xlsx(
+    date_from: str = "",
+    date_to: str = "",
+    type_filter: str = "",
+    category_id: str = "",
+    tag_id: str = "",
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Export current user's transactions as Excel (.xlsx)."""
+    return _transactions_export(db, user, "xlsx", date_from=date_from,
+                                date_to=date_to, type_filter=type_filter,
+                                category_id=category_id, tag_id=tag_id)
+
+
+def _reports_rows(db: Session, user: CurrentUser, *,
+                  date_from: str, date_to: str) -> tuple[list[list], str, str]:
+    """Shared report rows (summary + category breakdown) for CSV/XLSX."""
     today = date.today()
     start = date.fromisoformat(date_from) if date_from else today.replace(day=1)
     end = date.fromisoformat(date_to) if date_to else today
 
-    # --- Sheet 1: ringkasan ---
     inc = income_between(db, start, end, user.id)
     exp = expense_between(db, start, end, user.id)
 
-    # --- Sheet 2: breakdown per kategori ---
     from sqlalchemy import func
 
     rows = []
-
-    # Summary header
     rows.append(["Laporan Keuangan"])
     rows.append([f"Periode: {start.isoformat()} s/d {end.isoformat()}"])
     rows.append([])
     rows.append(["", "Pemasukan", "Pengeluaran", "Selisih"])
     rows.append(["", format_rupiah(inc), format_rupiah(exp), format_rupiah(inc - exp)])
     rows.append([])
-
-    # Category breakdown
     rows.append(["Kategori", "Jumlah", "Persentase"])
     cat_rows = (
         db.query(
@@ -154,10 +199,36 @@ def export_reports(
         .order_by(func.sum(Transaction.amount).desc())
         .all()
     )
-
     for r in cat_rows:
         pct = round(r.total * 100 / exp, 1) if exp else 0
         rows.append([f"{r.icon or ''} {r.name}", format_rupiah(r.total), f"{pct}%"])
+    return rows, start.isoformat(), end.isoformat()
 
-    filename = f"laporan_{start.isoformat()}_{end.isoformat()}.csv"
-    return _bom_csv(rows, filename)
+
+def _reports_export(db: Session, user: CurrentUser, fmt: str, **filters) -> StreamingResponse:
+    rows, start_iso, end_iso = _reports_rows(db, user, **filters)
+    ext = _exit_guard_ext(fmt)
+    filename = f"laporan_{start_iso}_{end_iso}.{ext}"
+    return _xlsx(rows, filename, "Laporan") if fmt == "xlsx" else _bom_csv(rows, filename)
+
+
+@router.get("/reports/export")
+def export_reports(
+    date_from: str = "",
+    date_to: str = "",
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Export expense breakdown by category as CSV."""
+    return _reports_export(db, user, "csv", date_from=date_from, date_to=date_to)
+
+
+@router.get("/reports/export.xlsx")
+def export_reports_xlsx(
+    date_from: str = "",
+    date_to: str = "",
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Export expense breakdown by category as Excel (.xlsx)."""
+    return _reports_export(db, user, "xlsx", date_from=date_from, date_to=date_to)
