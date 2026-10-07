@@ -27,7 +27,8 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 
 ## C. Broken / masalah latent
 
-- **Test pollution risk** - `test.db` bisa korup kalau pytest di-kill mid-run (SQLite WAL issue). Mitigasi: drop_all per-test.
+- **Test pollution risk** - `test.db` bisa korup kalau pytest di-kill mid-run (SQLite WAL issue). Mitigasi: drop_all per-test (test-only, low impact).
+- **Production DB drop_all-on-kill** - DONE: `backup_database` (stdlib `sqlite3` online-backup API, WAL-safe + consistent) snapshots the SQLite file to `data/backups/<stem>_<ts>.db.bak` at the start of every **production** lifespan, before `create_all`/any migration. Keeps newest 7 per file (`rotate_backups`); dev/test skip it. `.gitignore` already covers `data/*` + `*.db`.
 - **`category.slug`** - DONE: unique index `uq_categories_type_slug` on `(type, slug)` in model + `run_category_slug_unique_migration` (skips safely on pre-existing duplicates).
 
 ## D. UI tanpa backend
@@ -124,13 +125,13 @@ verified. Leftover items are latent risks (section C/G), not missing features.
 
 ## NEXT STEP
 
-Next task (recommended): production DB backup guard for the SQLite
-drop_all-on-kill WAL pollution (section C) - or ship: out of latent risks to
-harden.
+No remaining open gaps in sections A/B/C/E/H. All items closed. Remaining
+section G items are informational (below). App is ship-ready.
 
 Verified this session: `/api/v1/reports/*` (7 ep, all tested) + reports HTML
 handler live; receipt dropzone/drag-drop/camera + async compression live;
-category slug uniqueness enforced (model + idempotent migration + tests).
+category slug uniqueness enforced (model + idempotent migration + tests);
+production SQLite backup guard live (WAL-safe snapshot + rotation + tests).
 
 ## Catatan arsitektural
 

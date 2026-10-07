@@ -11,12 +11,69 @@ Strategy:
   (the marker table ``_pf_migrations`` makes the whole flow idempotent)
 """
 import logging
+import sqlite3
+from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("app.migrations")
+
+# Keep this many most-recent snapshots per database file; older ones pruned.
+BACKUP_KEEP = 7
+BACKUP_DIR = "data/backups"
+
+
+def rotate_backups(backup_dir, stem: str, keep: int = BACKUP_KEEP) -> None:
+    """Delete the oldest ``<stem>_*.db.bak`` snapshots, keeping ``keep`` newest."""
+    snaps = sorted(Path(backup_dir).glob(f"{stem}_*.db.bak"))
+    for old in snaps[:-keep] if keep > 0 else snaps:
+        try:
+            old.unlink()
+        except OSError as exc:  # pragma: no cover - best-effort prune
+            logger.warning("Could not prune backup %s: %s", old, exc)
+
+
+def backup_database(engine: Engine, backup_dir: str = BACKUP_DIR,
+                    keep: int = BACKUP_KEEP) -> Path | None:
+    """Snapshot a file-backed SQLite database before migrations mutate it.
+
+    Uses the stdlib ``sqlite3`` online-backup API (``Connection.backup``): it is
+    WAL-safe and transactionally consistent, unlike a raw ``shutil.copy`` which
+    can capture a torn database while a WAL/journal is active. Non-SQLite
+    engines and in-memory databases are skipped (returns ``None``).
+    """
+    url = engine.url
+    if url.get_backend_name() != "sqlite":
+        return None
+    database = url.database
+    if not database or database == ":memory:":
+        return None
+    src_path = Path(database)
+    if not src_path.exists():
+        return None
+    dest_dir = Path(backup_dir)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    dest = dest_dir / f"{src_path.stem}_{stamp}.db.bak"
+    try:
+        src = sqlite3.connect(str(src_path))
+        try:
+            dst = sqlite3.connect(str(dest))
+            try:
+                src.backup(dst)
+            finally:
+                dst.close()
+        finally:
+            src.close()
+    except sqlite3.Error as exc:
+        logger.warning("Database backup failed (continuing): %s", exc)
+        return None
+    rotate_backups(dest_dir, src_path.stem, keep)
+    logger.info("Database backup written: %s", dest)
+    return dest
 
 USER_OWNED_TABLES = [
     "accounts",

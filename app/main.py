@@ -57,6 +57,13 @@ def _validate_production_config(s) -> None:
 async def lifespan(app: FastAPI):
     _validate_production_config(settings)
 
+    # Production safety: snapshot the SQLite file (WAL-safe) before create_all
+    # or any migration can mutate it, so a bad upgrade is recoverable. Dev/test
+    # skip this to avoid churn in data/backups and tests/.
+    if settings.is_production:
+        from app.migrations import backup_database
+        backup_database(engine)
+
     Base.metadata.create_all(bind=engine)
     # Legacy DB safety: add user_id columns where missing (idempotent),
     # then claim legacy rows for the bootstrap admin when one exists.

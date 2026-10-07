@@ -18,6 +18,7 @@ from sqlalchemy.pool import NullPool
 
 from app.migrations import run_institution_fk_migration, _MARKER_TABLE
 from app.migrations import run_category_slug_unique_migration
+from app.migrations import backup_database, rotate_backups
 
 
 _LEGACY_CATEGORIES_DDL = """
@@ -242,3 +243,59 @@ def test_category_slug_unique_migration_skips_on_duplicates():
             i["name"] for i in inspect(eng).get_indexes("categories")}
     finally:
         eng.dispose()
+def _file_engine(tmp_path):
+    """A file-backed SQLite engine (backup needs a real file, not :memory:)."""
+    db_file = tmp_path / "finance.db"
+    eng = create_engine(f"sqlite:///{db_file}",
+                        connect_args={"check_same_thread": False})
+    return eng, db_file
+
+
+def test_backup_database_writes_wal_safe_snapshot(tmp_path):
+    """Snapshot copies committed data and is queryable standalone."""
+    eng, db_file = _file_engine(tmp_path)
+    try:
+        with eng.begin() as conn:
+            conn.execute(text("CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)"))
+            conn.execute(text("INSERT INTO t (v) VALUES ('hello')"))
+
+        dest = backup_database(eng, backup_dir=str(tmp_path / "backups"))
+
+        assert dest is not None and dest.exists()
+        import sqlite3 as _sqlite3
+        check = _sqlite3.connect(str(dest))
+        try:
+            row = check.execute("SELECT v FROM t").fetchone()
+        finally:
+            check.close()
+        assert row == ("hello",)  # snapshot is queryable, data intact
+    finally:
+        eng.dispose()
+
+
+def test_backup_database_skips_memory_and_non_sqlite(tmp_path):
+    """In-memory and non-SQLite engines are no-ops (return None)."""
+    mem = _fresh_engine()
+    try:
+        assert backup_database(mem, backup_dir=str(tmp_path)) is None
+    finally:
+        mem.dispose()
+
+    class _FakeUrl:
+        def get_backend_name(self):
+            return "postgresql"
+
+    class _FakeEngine:
+        url = _FakeUrl()
+
+    assert backup_database(_FakeEngine(), backup_dir=str(tmp_path)) is None
+
+
+def test_rotate_backups_keeps_newest(tmp_path):
+    """Only the newest ``keep`` snapshots survive rotation."""
+    for i in range(5):
+        (tmp_path / f"finance_2020010{i}_000000.db.bak").write_text("x")
+    rotate_backups(str(tmp_path), "finance", keep=2)
+    left = sorted(p.name for p in tmp_path.glob("finance_*.db.bak"))
+    assert left == ["finance_20200103_000000.db.bak",
+                    "finance_20200104_000000.db.bak"]
