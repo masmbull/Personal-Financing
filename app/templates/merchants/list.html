@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Merchant{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Merchant</h1>
+        <a href="/merchants/create" class="btn btn-primary btn-sm">+ Merchant</a>
+    </header>
+
+    {% set own = merchants | selectattr('user_id', 'equalto', request.state.user.id) | list %}
+    {% set global_m = merchants | rejectattr('user_id', 'equalto', request.state.user.id) | list %}
+
+    <h2 class="section-title mt-xs">Merchant Saya</h2>
+    {% if own %}
+    <div class="transaction-list">
+        {% for m in own %}
+        <div class="transaction-item">
+            <div class="tx-left">
+                <span class="tx-icon">🏪</span>
+                <div class="tx-info">
+                    <span class="tx-category">{{ m.display_name }}</span>
+                    <span class="tx-desc">{{ m.merchant_type.value }}{% if m.category %} • {{ m.category.name }}{% endif %}</span>
+                    {% if m.aliases %}<span class="tx-meta">{{ m.aliases | map(attribute='alias') | join(', ') }}</span>{% endif %}
+                </div>
+            </div>
+            <div class="tx-right">
+                <a href="/merchants/delete/{{ m.id }}" class="btn-link text-red" onclick="return confirm('Hapus merchant {{ m.display_name }}?')">Hapus</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">🏪</div>
+        <div class="empty-title">Belum ada merchant</div>
+        <div class="empty-desc">Tambah merchant untuk klasifikasi pengeluaran</div>
+        <a href="/merchants/create" class="btn btn-primary btn-sm mt-xs">+ Merchant</a>
+    </div>
+    {% endif %}
+
+    {% if global_m %}
+    <h2 class="section-title mt-lg">Master (global)</h2>
+    <div class="transaction-list">
+        {% for m in global_m %}
+        <div class="transaction-item">
+            <div class="tx-left">
+                <span class="tx-icon">🏪</span>
+                <div class="tx-info">
+                    <span class="tx-category">{{ m.display_name }}</span>
+                    <span class="tx-desc">{{ m.merchant_type.value }}{% if m.category %} • {{ m.category.name }}{% endif %}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

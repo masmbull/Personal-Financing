@@ -21,8 +21,8 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 ## B. Setengah jadi (ada tapi belum lengkap)
 
 - **Savings goal contribution/withdrawal** - model + service `deposit`/`withdraw` done, UI form exists.
-- **Merchant as first-class entity** - DONE: `Merchant` + `MerchantAlias` models, `app/services/merchants.py` (normalize/resolve/CRUD), `app/api/merchants.py` (`/api/v1/merchants` + `/resolve`). No management UI yet.
-- **PaymentMethod as first-class entity** - DONE: `PaymentMethod` model, `app/services/payment_methods.py`, `app/api/payment_methods.py` (`/api/v1/payment-methods`). No management UI yet.
+- **Merchant as first-class entity** - DONE: `Merchant` + `MerchantAlias` models, `app/services/merchants.py`, `app/api/merchants.py`, + management UI `/merchants` (`app/routes/masters.py`).
+- **PaymentMethod as first-class entity** - DONE: `PaymentMethod` model, service + `app/api/payment_methods.py`, + management UI `/payment-methods` (`app/routes/masters.py`). Txn HTML form now stores `merchant_id` / `payment_method_id`.
 - **Optimistic UI / button loading** - toast/modal ada, tapi `aria-busy` + spinner inline belum konsisten.
 
 ## C. Broken / masalah latent
@@ -123,8 +123,8 @@ Backend completion mode finished. UI wiring now being closed incrementally
 
 ## NEXT STEP
 
-Next task (recommended): management UI for Merchant / PaymentMethod master data
-(CRUD exists at API level only). Then savings-contribution UI polish.
+Next task (recommended): savings-contribution UI polish; then optimistic-UI
+spinner / `aria-busy` consistency.
 
 ## Catatan arsitektural
 

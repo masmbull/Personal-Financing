@@ -108,8 +108,16 @@ def add_transaction_form(request: Request, tx_type: str = "EXPENSE",
         Account.user_id == user.id
     ).order_by(Account.name).all()
     categories = db.query(Category).filter(Category.type == TransactionType(tx_type)).order_by(Category.name).all()
+    from app.models.models import Merchant, PaymentMethod
+    merchants = db.query(Merchant).filter(
+        (Merchant.user_id == user.id) | (Merchant.user_id.is_(None))
+    ).order_by(Merchant.canonical_name).all()
+    payment_methods = db.query(PaymentMethod).filter(
+        (PaymentMethod.user_id == user.id) | (PaymentMethod.user_id.is_(None))
+    ).order_by(PaymentMethod.name).all()
     return templates.TemplateResponse(request, "transactions/add.html", {
         "accounts": own_accounts, "categories": categories,
+        "merchants": merchants, "payment_methods": payment_methods,
         "tx_type": tx_type, "today": today_str(), "TransactionType": TransactionType,
         "has_accounts": len(own_accounts) > 0,
     })
@@ -122,7 +130,8 @@ def add_transaction(
     type: str = Form(...), amount: str = Form(...), account_id: str = Form(...),
     category_id: str = Form(""), transfer_to_account_id: str = Form(""),
     date_val: str = Form(...), description: str = Form(""),
-    merchant: str = Form(""),
+    merchant: str = Form(""), merchant_id: str = Form(""),
+    payment_method_id: str = Form(""),
     tag_ids: str = Form(""),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -140,6 +149,8 @@ def add_transaction(
             date_val=tx_date, description=description.strip() if description else None,
             transfer_to_account_id=int(transfer_to_account_id) if transfer_to_account_id else None,
             merchant=merchant.strip() if merchant else None,
+            merchant_id=int(merchant_id) if merchant_id else None,
+            payment_method_id=int(payment_method_id) if payment_method_id else None,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -162,8 +173,16 @@ def edit_transaction_form(tx_id: int, request: Request,
         raise HTTPException(status_code=404, detail="Transaction not found")
     accounts = _visible_accounts(db, user.id)
     categories = db.query(Category).order_by(Category.name).all()
+    from app.models.models import Merchant, PaymentMethod
+    merchants = db.query(Merchant).filter(
+        (Merchant.user_id == user.id) | (Merchant.user_id.is_(None))
+    ).order_by(Merchant.canonical_name).all()
+    payment_methods = db.query(PaymentMethod).filter(
+        (PaymentMethod.user_id == user.id) | (PaymentMethod.user_id.is_(None))
+    ).order_by(PaymentMethod.name).all()
     return templates.TemplateResponse(request, "transactions/edit.html", { "tx": tx, "accounts": accounts,
-        "categories": categories, "TransactionType": TransactionType,
+        "categories": categories, "merchants": merchants, "payment_methods": payment_methods,
+        "TransactionType": TransactionType,
     })
 
 
@@ -175,6 +194,7 @@ def edit_transaction(
     account_id: str = Form(...), category_id: str = Form(""),
     transfer_to_account_id: str = Form(""), date_val: str = Form(...),
     description: str = Form(""), merchant: str = Form(""),
+    merchant_id: str = Form(""), payment_method_id: str = Form(""),
     tag_ids: str = Form(""),
     db: Session = Depends(get_db),
     user: CurrentUser = Depends(get_current_user),
@@ -197,6 +217,8 @@ def edit_transaction(
         date_val=tx_date, description=description.strip() if description else None,
         transfer_to_account_id=int(transfer_to_account_id) if transfer_to_account_id else None,
         merchant=merchant.strip() if merchant else None,
+        merchant_id=int(merchant_id) if merchant_id else None,
+        payment_method_id=int(payment_method_id) if payment_method_id else None,
     )
     if tag_ids and new_tx:
         from app.services.tags import attach_tags

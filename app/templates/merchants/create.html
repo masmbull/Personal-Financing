@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Tambah Merchant{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Tambah Merchant</h1>
+    </header>
+
+    <form method="post" action="/merchants/create" class="form">
+        <div class="form-group">
+            <label class="form-label" for="canonical_name">Nama</label>
+            <input type="text" name="canonical_name" id="canonical_name" class="input" placeholder="Contoh: Indomaret" required maxlength="200">
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="merchant_type">Tipe</label>
+            <select name="merchant_type" id="merchant_type" class="input" required>
+                {% for t in MerchantType %}
+                <option value="{{ t.value }}">{{ t.value }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="category_id">Kategori (opsional)</label>
+            <select name="category_id" id="category_id" class="input">
+                <option value="">—</option>
+                {% for cat in categories %}
+                <option value="{{ cat.id }}">{{ cat.icon or '' }} {{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label" for="aliases">Alias (opsional)</label>
+            <input type="text" name="aliases" id="aliases" class="input" placeholder="Pisahkan dengan koma: INDOMARET, Indomart" maxlength="500">
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Simpan Merchant</button>
+    </form>
+</div>
+{% endblock %}

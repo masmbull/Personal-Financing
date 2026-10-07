@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Metode Pembayaran{% endblock %}
+{% block content %}
+<div class="page">
+    <header class="page-header">
+        <h1 class="page-title">Metode Pembayaran</h1>
+        <a href="/payment-methods/create" class="btn btn-primary btn-sm">+ Metode</a>
+    </header>
+
+    {% set own = methods | selectattr('user_id', 'equalto', request.state.user.id) | list %}
+    {% set global_p = methods | rejectattr('user_id', 'equalto', request.state.user.id) | list %}
+
+    <h2 class="section-title mt-xs">Metode Saya</h2>
+    {% if own %}
+    <div class="transaction-list">
+        {% for pm in own %}
+        <div class="transaction-item">
+            <div class="tx-left">
+                <span class="tx-icon">💳</span>
+                <div class="tx-info">
+                    <span class="tx-category">{{ pm.name }}</span>
+                    <span class="tx-desc">{{ pm.method_type.value }}</span>
+                </div>
+            </div>
+            <div class="tx-right">
+                <a href="/payment-methods/delete/{{ pm.id }}" class="btn-link text-red" onclick="return confirm('Hapus metode {{ pm.name }}?')">Hapus</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">💳</div>
+        <div class="empty-title">Belum ada metode</div>
+        <div class="empty-desc">Tambah metode pembayaran untuk mencatat cara bayar</div>
+        <a href="/payment-methods/create" class="btn btn-primary btn-sm mt-xs">+ Metode</a>
+    </div>
+    {% endif %}
+
+    {% if global_p %}
+    <h2 class="section-title mt-lg">Master (global)</h2>
+    <div class="transaction-list">
+        {% for pm in global_p %}
+        <div class="transaction-item">
+            <div class="tx-left">
+                <span class="tx-icon">💳</span>
+                <div class="tx-info">
+                    <span class="tx-category">{{ pm.name }}</span>
+                    <span class="tx-desc">{{ pm.method_type.value }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

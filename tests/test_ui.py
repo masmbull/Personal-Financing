@@ -554,6 +554,60 @@ def test_receipt_detail_renders_ocr_items_without_typeerror():
     assert "Review Struk" in detail.text
 
 
+# ==================== master data (merchant / payment method) ====================
+
+
+def test_merchant_management_create_and_delete():
+    assert client.post("/merchants/create", data={
+        "canonical_name": "Indomaret", "merchant_type": "RETAIL",
+        "aliases": "INDOMARET, Indomart",
+    }, follow_redirects=False).status_code == 303
+    t = client.get("/merchants").text
+    assert "Indomaret" in t
+    from app.models.models import Merchant
+    db = get_test_db()
+    mid = db.query(Merchant).filter(Merchant.canonical_name == "Indomaret").first().id
+    db.close()
+    assert client.get(f"/merchants/delete/{mid}", follow_redirects=False).status_code == 303
+    assert "Indomaret" not in client.get("/merchants").text
+
+
+def test_payment_method_management_create_and_delete():
+    assert client.post("/payment-methods/create", data={
+        "name": "GoPay", "method_type": "EWALLET",
+    }, follow_redirects=False).status_code == 303
+    assert "GoPay" in client.get("/payment-methods").text
+    from app.models.models import PaymentMethod
+    db = get_test_db()
+    pid = db.query(PaymentMethod).filter(PaymentMethod.name == "GoPay").first().id
+    db.close()
+    assert client.get(f"/payment-methods/delete/{pid}", follow_redirects=False).status_code == 303
+    assert "GoPay" not in client.get("/payment-methods").text
+
+
+def test_transaction_html_form_stores_master_fks():
+    mid = client.post("/api/v1/merchants", json={
+        "canonical_name": "KopiKen", "merchant_type": "FOOD_BEVERAGE"}).json()["id"]
+    pid = client.post("/api/v1/payment-methods", json={
+        "name": "QRIS-BCA", "method_type": "QRIS"}).json()["id"]
+    r = client.post("/transactions/add", data={
+        "type": "EXPENSE", "amount": "15000", "account_id": _acc("BCA"),
+        "category_id": _cat("Makan & Minum"), "date_val": TODAY,
+        "merchant_id": str(mid), "payment_method_id": str(pid),
+    }, follow_redirects=False)
+    assert r.status_code == 303
+    from app.models.models import Transaction
+    db = get_test_db()
+    tx = db.query(Transaction).filter(Transaction.merchant_id == mid).first()
+    db.close()
+    assert tx is not None and tx.payment_method_id == pid
+
+
+def test_txn_forms_render_master_selects():
+    assert 'name="merchant_id"' in client.get("/transactions/add").text
+    assert 'name="payment_method_id"' in client.get("/transactions/add").text
+
+
 # ==================== design-system CSS regression ====================
 
 

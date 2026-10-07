@@ -19,6 +19,8 @@ MORE_LINKS = [
     ("/investments", "📈", "Investasi", "Saham, emas, crypto"),
     ("/accounts", "🏦", "Akun", "Rekening, e-wallet, kas"),
     ("/categories", "🏷️", "Kategori", "Atur kategori transaksi"),
+    ("/merchants", "🏪", "Merchant", "Kelola merchant & alias"),
+    ("/payment-methods", "💳", "Metode Bayar", "Kelola metode pembayaran"),
     ("/import", "📥", "Import CSV", "Import transaksi dari file bank"),
     ("/insights", "💡", "Insight", "Analisis pola pengeluaran & kesehatan keuangan"),
 ]
