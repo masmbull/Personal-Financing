@@ -265,3 +265,37 @@ def test_same_month_due_after_creation_is_generated():
         BillOccurrence.due_date == date(2026, 9, 10)).first()
     db.close()
     assert occ is not None
+
+
+# ==================== HTML UI wiring (/bills) ====================
+
+
+def test_bills_page_shows_and_pays_due_occurrences():
+    """/bills materialises due occurrences and exposes a pay form, mirroring
+    the /bills/occurrences API. Paying via HTML marks the occurrence PAID."""
+    rid = _setup_bill(frequency=BillFrequency.MONTHLY, due_day=10,
+                      account_id=_acc_id("BCA"))
+    page = client.get("/bills")
+    assert page.status_code == 200
+    assert "Jatuh Tempo" in page.text
+    assert "Listrik PLN" in page.text
+
+    db = get_test_db()
+    occ = db.query(BillOccurrence).filter(
+        BillOccurrence.bill_id == rid,
+        BillOccurrence.status == BillOccurrenceStatus.DUE).first()
+    oid = occ.id if occ else None
+    db.close()
+    assert oid is not None
+
+    r = client.post(f"/bills/occurrences/{oid}/pay",
+                    data={"amount": "500000", "account_id": _acc_id("BCA")},
+                    follow_redirects=False)
+    assert r.status_code == 303
+    assert r.headers["location"] == "/bills"
+
+    db = get_test_db()
+    paid = db.query(BillOccurrence).filter(BillOccurrence.id == oid).first()
+    status = paid.status
+    db.close()
+    assert status == BillOccurrenceStatus.PAID

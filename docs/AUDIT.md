@@ -21,8 +21,8 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 ## B. Setengah jadi (ada tapi belum lengkap)
 
 - **Savings goal contribution/withdrawal** - model + service `deposit`/`withdraw` done, UI form exists.
-- **Merchant as first-class entity** - transactions store free-text `merchant`; no dedicated Merchant model yet.
-- **PaymentMethod as first-class entity** - no separate payment-method table yet.
+- **Merchant as first-class entity** - DONE: `Merchant` + `MerchantAlias` models, `app/services/merchants.py` (normalize/resolve/CRUD), `app/api/merchants.py` (`/api/v1/merchants` + `/resolve`). No management UI yet.
+- **PaymentMethod as first-class entity** - DONE: `PaymentMethod` model, `app/services/payment_methods.py`, `app/api/payment_methods.py` (`/api/v1/payment-methods`). No management UI yet.
 - **Optimistic UI / button loading** - toast/modal ada, tapi `aria-busy` + spinner inline belum konsisten.
 
 ## C. Broken / masalah latent
@@ -37,7 +37,7 @@ Snapshot: **614 passed, 1 skipped** (serial run, 17:33). Head `3e7bb7a` -> recur
 ## E. Backend tanpa UI usable
 
 - **API `/api/v1/reports/*`** - multi-endpoint, reports page mungkin belum pakai semua.
-- **Bill occurrences API** - endpoints exist; HTML UI belum di-wire (API primary interface).
+- **Bill occurrences** - HTML `/bills` kini menampilkan section "Jatuh Tempo" (generate idempotent + tombol Bayar via `POST /bills/occurrences/{id}/pay`).
 
 ## F. Security issue
 
@@ -108,21 +108,23 @@ the normal pay_bill path (real expense transaction) and marks it PAID.
 
 ## Remaining backend gaps (actual)
 
-1. **Merchant as first-class entity** - normalized with aliases + provenance
-2. **PaymentMethod as first-class entity** - QRIS / e-money / transfer distinct
-3. **Credit card statement-date / due-date / credit-limit / available-credit**
-4. **BBM/fuel price reference catalog** (reference data, not ledger)
-5. **Master-data provenance fields** (source, source_url, verified_at, region)
+All previously-listed gaps are now shipped:
+
+1. **Merchant as first-class entity** - DONE (`Merchant`/`MerchantAlias` + resolve)
+2. **PaymentMethod as first-class entity** - DONE (QRIS / e-money / transfer distinct)
+3. **Credit card statement-date / due-date / credit-limit / available-credit** - DONE (fields wired end-to-end in UI + list)
+4. **BBM/fuel price reference catalog** - DONE (`app/api/fuel.py` + reference data)
+5. **Master-data provenance fields** (source, source_url, verified_at, region) - DONE on Merchant / PaymentMethod / institutions
 
 ## UI Status
 
-UI polish intentionally DEFERRED (backend completion mode active). Only
-backend/domain work performed in this phase.
+Backend completion mode finished. UI wiring now being closed incrementally
+(e.g. bill occurrences surfaced on `/bills`).
 
 ## NEXT STEP
 
-Next backend task (recommended): Merchant + PaymentMethod master-data layer.
-Then credit-card statement/limit fields.
+Next task (recommended): management UI for Merchant / PaymentMethod master data
+(CRUD exists at API level only). Then savings-contribution UI polish.
 
 ## Catatan arsitektural
 

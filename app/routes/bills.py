@@ -20,8 +20,23 @@ router = APIRouter()
 @router.get("/bills", response_class=HTMLResponse)
 def list_bills(request: Request, db: Session = Depends(get_db),
                user: CurrentUser = Depends(get_current_user)):
+    # Materialise due occurrences (idempotent) so scheduled dues surface in the
+    # UI, mirroring the /bills/occurrences API. Build plain dicts here while the
+    # session is open (relationships lazy-load safely inside the route).
+    bills_service.generate_bill_occurrences(db, user_id=user.id)
+    due = [
+        {
+            "id": o.id,
+            "name": o.bill.name if o.bill else "Tagihan",
+            "due_date": o.due_date,
+            "amount": o.amount,
+            "account_id": o.bill.account_id if o.bill else None,
+        }
+        for o in bills_service.due_occurrences(db, user_id=user.id)
+    ]
     upcoming = bills_service.with_next_due(db, user.id)
     return templates.TemplateResponse(request, "bills/list.html", { "upcoming": upcoming,
+        "due_occurrences": due,
         "format_rupiah": format_rupiah, "BillFrequency": BillFrequency,
         "today": date.today(),
     })
@@ -85,6 +100,27 @@ def mark_bill_paid(
         )
     except bills_service.BillNotFound:
         raise HTTPException(status_code=404, detail="Bill not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return RedirectResponse(url="/bills", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/bills/occurrences/{occurrence_id}/pay")
+@audit_action(action="bill_pay_occurrence", entity="bill")
+def pay_bill_occurrence(
+    occurrence_id: int, request: Request,
+    amount: str = Form(""), account_id: str = Form(""),
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(get_current_user),
+):
+    try:
+        bills_service.pay_occurrence(
+            db, occurrence_id, user.id,
+            amount=parse_idr_input(amount, "Nominal") if amount else None,
+            account_id=int(account_id) if account_id else None,
+        )
+    except bills_service.BillNotFound:
+        raise HTTPException(status_code=404, detail="Occurrence not found")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return RedirectResponse(url="/bills", status_code=status.HTTP_303_SEE_OTHER)

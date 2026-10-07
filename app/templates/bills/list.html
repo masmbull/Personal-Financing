@@ -7,6 +7,33 @@
         <a href="/bills/create" class="btn btn-primary btn-sm">+ Tagihan</a>
     </header>
 
+    {% if due_occurrences %}
+    <section class="section">
+        <h2 class="section-title">Jatuh Tempo</h2>
+        <div class="transaction-list">
+            {% for o in due_occurrences %}
+            <div class="transaction-item">
+                <div class="tx-left">
+                    <span class="tx-icon">⏰</span>
+                    <div class="tx-info">
+                        <span class="tx-category">{{ o.name }}</span>
+                        <span class="tx-desc">Jatuh tempo {{ o.due_date.strftime('%d %b %Y') }}</span>
+                    </div>
+                </div>
+                <div class="tx-right">
+                    <span class="tx-amount tx-expense">{{ format_rupiah(o.amount) }}</span>
+                    <form method="post" action="/bills/occurrences/{{ o.id }}/pay">
+                        <input type="hidden" name="amount" value="{{ o.amount }}">
+                        <input type="hidden" name="account_id" value="{{ o.account_id or '' }}">
+                        <button type="submit" class="btn btn-primary btn-sm">Bayar</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
     {% if upcoming %}
     <div class="transaction-list">
         {% for item in upcoming %}
