@@ -1,6 +1,10 @@
 .env
 *.db
 *.sqlite
+# SQLite rollback/WAL sidecar files (including interrupted test runs)
+*.db-journal
+*.db-wal
+*.db-shm
 __pycache__/
 .pytest_cache/
 .venv/

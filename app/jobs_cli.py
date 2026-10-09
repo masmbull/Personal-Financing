@@ -3,6 +3,7 @@
 Usage (no APScheduler dependency):
     python -m app.jobs_cli bills           # generate bill occurrences
     python -m app.jobs_cli networth        # daily net-worth snapshots
+    python -m app.jobs_cli recurring       # post due recurring transactions
     python -m app.jobs_cli all             # run every job once
     python -m app.jobs_cli all --date 2026-09-01  # historical date
 
@@ -23,7 +24,7 @@ def main():
     )
     parser.add_argument(
         "job",
-        choices=["bills", "networth", "all"],
+        choices=["bills", "networth", "recurring", "all"],
         help="Which job to run",
     )
     parser.add_argument(
@@ -60,6 +61,11 @@ def main():
         elif args.job == "networth":
             from app.services.jobs import run_daily_net_worth_snapshots
             result = run_daily_net_worth_snapshots(db, as_of=as_of)
+        elif args.job == "recurring":
+            from app.services.jobs import run_recurring_transactions
+            result = run_recurring_transactions(
+                db, as_of=as_of, user_id=args.user_id
+            )
         else:
             from app.services.jobs import run_all_once
             result = run_all_once(db, as_of=as_of)

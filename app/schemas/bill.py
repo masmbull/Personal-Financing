@@ -16,7 +16,7 @@ class BillCreate(BaseModel):
         None, description="Default account used when paying this bill"
     )
     due_day: Optional[int] = Field(
-        None, ge=1, le=31,
+        None, ge=0, le=31,
         description="Day of period the bill is due (day of month for MONTHLY/YEARLY, weekday 0-6 for WEEKLY)",
     )
     auto_create: bool = Field(False, description="Reserved for future auto-transaction creation")
@@ -29,7 +29,7 @@ class BillUpdate(BaseModel):
     frequency: Optional[BillFrequency] = None
     category_id: Optional[int] = None
     account_id: Optional[int] = None
-    due_day: Optional[int] = Field(None, ge=1, le=31)
+    due_day: Optional[int] = Field(None, ge=0, le=31)
     active: Optional[bool] = None
     notes: Optional[str] = None
 

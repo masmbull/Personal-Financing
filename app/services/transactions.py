@@ -10,7 +10,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.models import Transaction, TransactionType
-from app.services.finance import create_transaction, delete_transaction
+from app.services.finance import create_transaction, delete_transaction, recalculate_account_balance
 
 
 class TransactionNotFound(Exception):
@@ -125,12 +125,22 @@ def update_transaction(db: Session, tx_id: int, fields: dict, user_id: int) -> d
         "merchant": fields.get("merchant", tx.merchant),
         "merchant_id": fields.get("merchant_id", tx.merchant_id),
         "payment_method_id": fields.get("payment_method_id", tx.payment_method_id),
+        "fuel_product_id": fields.get("fuel_product_id", tx.fuel_product_id),
+        "quantity_liters": fields.get("quantity_liters", tx.quantity_liters),
+        "price_per_liter": fields.get("price_per_liter", tx.price_per_liter),
         "notes": fields.get("notes", tx.notes),
         "transfer_to_account_id": fields.get(
             "transfer_to_account_id", tx.transfer_to_account_id
         ),
     }
-    delete_transaction(db, tx_id, user_id)
+    # Keep the replacement atomic. The former implementation called the
+    # committing delete helper first, so a later validation error silently
+    # destroyed the original transaction. Flush makes the delete visible to
+    # the replacement's validation without committing it.
+    old_account_id = tx.account_id
+    old_transfer_to_id = tx.transfer_to_account_id
+    db.delete(tx)
+    db.flush()
     try:
         new_tx = create_transaction(
             db=db, user_id=user_id,
@@ -148,9 +158,20 @@ def update_transaction(db: Session, tx_id: int, fields: dict, user_id: int) -> d
             merchant=merged["merchant"],
             merchant_id=merged["merchant_id"],
             payment_method_id=merged["payment_method_id"],
+            fuel_product_id=merged["fuel_product_id"],
+            quantity_liters=merged["quantity_liters"],
+            price_per_liter=merged["price_per_liter"],
             notes=merged["notes"],
+            commit=False,
         )
-    except ValueError as e:
+        # Recalculate old accounts only when a replacement moves away from
+        # them; create_transaction already recalculated the new accounts.
+        new_accounts = {new_tx.account_id, new_tx.transfer_to_account_id}
+        for account_id in (old_account_id, old_transfer_to_id):
+            if account_id and account_id not in new_accounts:
+                recalculate_account_balance(db, account_id, user_id, commit=False)
+        db.commit()
+    except Exception:
         db.rollback()
-        raise ValueError(str(e)) from e
+        raise
     return get_transaction(db, new_tx.id, user_id)

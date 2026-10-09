@@ -1,0 +1,18 @@
+<svg width="1200" height="360" viewBox="0 0 1200 360" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title description">
+  <title id="title">Finance — uang lebih tertata</title>
+  <desc id="description">Banner warna-warni dengan kartu ringkasan keuangan dan grafik yang bergerak perlahan.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1200" y2="360" gradientUnits="userSpaceOnUse"><stop stop-color="#0B1026"/><stop offset=".5" stop-color="#20205B"/><stop offset="1" stop-color="#0A5963"/><animate attributeName="x1" values="0;240;0" dur="9s" repeatCount="indefinite"/></linearGradient>
+    <linearGradient id="card" x1="720" y1="50" x2="1080" y2="305" gradientUnits="userSpaceOnUse"><stop stop-color="#FFFFFF" stop-opacity=".19"/><stop offset="1" stop-color="#FFFFFF" stop-opacity=".06"/></linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="34"/></filter>
+  </defs>
+  <rect width="1200" height="360" rx="28" fill="url(#background)"/>
+  <circle cx="105" cy="54" r="86" fill="#FFAE4F" fill-opacity=".35" filter="url(#blur)"><animate attributeName="cx" values="105;170;105" dur="7s" repeatCount="indefinite"/></circle>
+  <circle cx="1090" cy="300" r="130" fill="#7B61FF" fill-opacity=".38" filter="url(#blur)"><animate attributeName="cy" values="300;245;300" dur="8s" repeatCount="indefinite"/></circle>
+  <circle cx="675" cy="55" r="80" fill="#39E5C1" fill-opacity=".25" filter="url(#blur)"><animate attributeName="r" values="80;112;80" dur="6s" repeatCount="indefinite"/></circle>
+  <g opacity=".16" stroke="white"><path d="M0 69H1200M0 141H1200M0 213H1200M0 285H1200"/><path d="M120 0V360M240 0V360M360 0V360M480 0V360M600 0V360M720 0V360M840 0V360M960 0V360M1080 0V360"/></g>
+  <text x="72" y="120" fill="white" font-family="Arial, sans-serif" font-size="21" font-weight="700" letter-spacing="4">PERSONAL FINANCE</text>
+  <text x="72" y="181" fill="white" font-family="Arial, sans-serif" font-size="54" font-weight="800">Uang lebih tertata.</text>
+  <text x="72" y="226" fill="#D5DCF9" font-family="Arial, sans-serif" font-size="23">Catat • pahami • tumbuhkan kebiasaan finansialmu.</text>
+  <g transform="translate(748 48)"><rect width="380" height="264" rx="24" fill="url(#card)" stroke="white" stroke-opacity=".28"/><text x="28" y="47" fill="#DFE8FF" font-family="Arial, sans-serif" font-size="16" font-weight="700">RINGKASAN BULAN INI</text><text x="28" y="93" fill="white" font-family="Arial, sans-serif" font-size="34" font-weight="800">Rp 4.250.000</text><rect x="28" y="119" width="148" height="43" rx="14" fill="#3DE2BD" fill-opacity=".2"/><text x="43" y="146" fill="#8BFFE5" font-family="Arial, sans-serif" font-size="15" font-weight="700">↗ cashflow sehat</text><path d="M28 224C65 204 78 217 108 185C142 149 171 195 202 162C237 125 270 145 302 104C321 80 338 100 352 72" stroke="#7DF7D9" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><animate attributeName="stroke-dasharray" values="0 800;500 800;0 800" dur="5s" repeatCount="indefinite"/></path><circle cx="352" cy="72" r="8" fill="#FFCF67"><animate attributeName="r" values="8;13;8" dur="1.8s" repeatCount="indefinite"/></circle></g>
+</svg>

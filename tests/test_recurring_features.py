@@ -86,6 +86,74 @@ def test_recurring_idempotent(client):
     assert r2["created"] == 0
 
 
+def test_recurring_update_rejects_another_users_account(client):
+    """A recurring schedule cannot be redirected to another user's account."""
+    acc_id, cat_id = _setup(client)
+    today = date.today().isoformat()
+    created = _api(client, "post", "/api/v1/recurring", json={
+        "account_id": acc_id, "category_id": cat_id,
+        "type": "EXPENSE", "amount": 150000,
+        "description": "Private schedule", "frequency": "MONTHLY",
+        "start_date": today,
+    })
+
+    from app.models.models import Account, AccountType, User
+    from tests.conftest import DEFAULT_USER_2, TestingSessionLocal
+    db = TestingSessionLocal()
+    try:
+        alice = db.query(User).filter(User.username == DEFAULT_USER_2).one()
+        foreign_account = Account(
+            name="Alice private account", user_id=alice.id,
+            type=AccountType.BANK, initial_balance=0, current_balance=0,
+        )
+        db.add(foreign_account)
+        db.commit()
+        foreign_account_id = foreign_account.id
+    finally:
+        db.close()
+
+    response = client.put(
+        f"/api/v1/recurring/{created['id']}",
+        json={"account_id": foreign_account_id},
+    )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+    assert _api(client, "get", f"/api/v1/recurring/{created['id']}")["account"]["id"] == acc_id
+
+
+def test_bill_rejects_another_users_default_account(client):
+    """Bills may only retain a default account owned by the current user."""
+    from app.models.models import Account, AccountType, User
+    from tests.conftest import DEFAULT_USER_2, TestingSessionLocal
+    db = TestingSessionLocal()
+    try:
+        alice = db.query(User).filter(User.username == DEFAULT_USER_2).one()
+        account = Account(name="Alice bill account", user_id=alice.id,
+                          type=AccountType.BANK, initial_balance=0, current_balance=0)
+        db.add(account)
+        db.commit()
+        foreign_account_id = account.id
+    finally:
+        db.close()
+
+    response = client.post("/api/v1/bills", json={
+        "name": "Should fail", "amount": 50_000, "frequency": "MONTHLY",
+        "account_id": foreign_account_id, "due_day": 1,
+    })
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_REQUEST"
+
+
+def test_weekly_bill_accepts_sunday_as_due_day(client):
+    """Weekly schedules use Python weekdays, where Sunday is 6."""
+    response = client.post("/api/v1/bills", json={
+        "name": "Sunday schedule", "amount": 50_000,
+        "frequency": "WEEKLY", "due_day": 6,
+    })
+    assert response.status_code == 201
+    assert response.json()["due_day"] == 6
+
+
 # ── Budget alerts ─────────────────────────────────────────────────────
 
 def test_budget_alerts_empty(client):

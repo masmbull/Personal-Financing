@@ -21,7 +21,9 @@ def validate_amount(amount: int, what: str = "Amount") -> int:
     return amount
 
 
-def recalculate_account_balance(db: Session, account_id: int, user_id: int):
+def recalculate_account_balance(
+    db: Session, account_id: int, user_id: int, *, commit: bool = True,
+):
     """Recompute an own account's current_balance from ITS OWN transactions.
 
     Global master accounts (user_id NULL) are never mutated here.
@@ -58,8 +60,9 @@ def recalculate_account_balance(db: Session, account_id: int, user_id: int):
         - sum(sums[t] for t in transfer_like)
         + transfer_in
     )
-    db.commit()
-    db.refresh(account)
+    if commit:
+        db.commit()
+        db.refresh(account)
 
 
 def create_transaction(
@@ -72,6 +75,7 @@ def create_transaction(
     fuel_product_id: int | None = None,
     quantity_liters: float | None = None,
     price_per_liter: int | None = None,
+    commit: bool = True,
 ) -> Transaction:
     """Create a transaction on an account OWNED BY ``user_id``.
 
@@ -167,11 +171,15 @@ def create_transaction(
         notes=notes.strip() if notes else None,
     )
     db.add(transaction)
-    db.commit()
-    db.refresh(transaction)
-    recalculate_account_balance(db, account_id, user_id)
+    db.flush()
+    recalculate_account_balance(db, account_id, user_id, commit=False)
     if type == TransactionType.TRANSFER and transfer_to_account_id:
-        recalculate_account_balance(db, transfer_to_account_id, user_id)
+        recalculate_account_balance(
+            db, transfer_to_account_id, user_id, commit=False
+        )
+    if commit:
+        db.commit()
+    db.refresh(transaction)
     return transaction
 
 

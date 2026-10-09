@@ -1,6 +1,8 @@
 """Receipt upload + scanner abstraction.
 
-Current state: images are validated and stored safely; OCR is a stub.
+Images are validated and stored safely, then scanned through the pluggable
+OCR pipeline in :mod:`app.services.receipt_ocr`. The legacy stub remains only
+as a test/integration seam; it is not used by the application runtime.
 
 IMPORTANT RULE: OCR output must NEVER automatically create a financial
 transaction. A human must confirm extracted data first - only then may a

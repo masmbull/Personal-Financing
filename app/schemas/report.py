@@ -55,8 +55,8 @@ class NetWorthPoint(BaseModel):
 class NetWorthReport(BaseModel):
     current: NetWorthPoint
     note: str = (
-        "Snapshot of current balances; historical time-series tracking "
-        "is planned once periodic snapshots are stored."
+        "Snapshot of current balances. Historical daily points are available "
+        "through the net-worth history endpoint."
     )
 
 

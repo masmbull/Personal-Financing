@@ -25,6 +25,7 @@ from app.services import savings as savings_service
 from app.services.finance import (
     create_transaction, delete_transaction,
 )
+from app.services.transactions import update_transaction
 
 from tests.conftest import default_user_id, get_test_db
 
@@ -359,6 +360,32 @@ def test_K_session_usable_after_failure_and_commits_exactly_one_row():
     assert _tx_count() == before + 1
     assert _balance(bank) == 0
     assert tx_amount == 10_000
+
+
+def test_K2_invalid_transaction_update_keeps_original_row_and_balance():
+    """Replacing a transaction is atomic: failed validation cannot erase it."""
+    uid = default_user_id()
+    bank = _new_account("UpdateAtomicBank", AccountType.BANK, balance=100_000)
+    cat = _cat("Makan & Minum", TransactionType.EXPENSE)
+    db = get_test_db()
+    original = create_transaction(
+        db, user_id=uid, type=TransactionType.EXPENSE, amount=25_000,
+        account_id=bank, category_id=cat, date_val=TODAY, description="keep me",
+    )
+    original_id = original.id
+    db.close()
+
+    db = get_test_db()
+    with pytest.raises(ValueError, match="Amount must be positive"):
+        update_transaction(db, original_id, {"amount": 0}, uid)
+    db.close()
+
+    db = get_test_db()
+    persisted = db.query(Transaction).filter(Transaction.id == original_id).one()
+    assert persisted.amount == 25_000
+    assert persisted.description == "keep me"
+    db.close()
+    assert _balance(bank) == 75_000
 
 
 # ==================== debt payments ====================

@@ -5,9 +5,10 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from app.models.models import (
-    Account, RecurringFrequency, RecurringTransaction,
+    Account, Category, RecurringFrequency, RecurringTransaction,
     Transaction, TransactionType,
 )
+from app.services.finance import validate_amount
 
 
 class RecurringNotFound(Exception):
@@ -22,19 +23,35 @@ def _assert_account_owned(db: Session, account_id: int, user_id: int) -> None:
         raise ValueError("Account not found or not owned by user")
 
 
+def _validate_category(db: Session, category_id, tx_type: TransactionType) -> int | None:
+    """Ensure an optional recurring category exists and fits the transaction.
+
+    Categories are shared master data, but a recurring transaction must still
+    not point to a missing category or mix an income category with an expense
+    transaction (and vice versa).
+    """
+    if category_id is None:
+        return None
+    category = db.query(Category).filter(Category.id == int(category_id)).first()
+    if category is None:
+        raise ValueError("Category not found")
+    if tx_type in (TransactionType.INCOME, TransactionType.EXPENSE) and category.type != tx_type:
+        raise ValueError("Category type does not match transaction type")
+    return category.id
+
+
 def create_recurring(
     db: Session, *, user_id: int, account_id: int, category_id,
     tx_type: str, amount: int, description, frequency: str,
     start_date: date, notes=None,
 ) -> RecurringTransaction:
-    amount = int(amount)
-    if amount <= 0:
-        raise ValueError("Amount must be positive")
+    amount = validate_amount(amount, "Amount")
     _assert_account_owned(db, account_id, user_id)
+    transaction_type = TransactionType(tx_type)
     rec = RecurringTransaction(
         user_id=user_id, account_id=account_id,
-        category_id=int(category_id) if category_id else None,
-        type=TransactionType(tx_type), amount=amount,
+        category_id=_validate_category(db, category_id, transaction_type),
+        type=transaction_type, amount=amount,
         description=description,
         frequency=RecurringFrequency(frequency),
         next_due_date=start_date, notes=notes,
@@ -66,9 +83,20 @@ def update_recurring(db: Session, rec_id: int, user_id: int, **fields) -> Recurr
     r = get_recurring(db, rec_id, user_id)
     allowed = {"amount", "description", "frequency", "next_due_date",
                "active", "notes", "category_id", "account_id"}
-    for k, v in fields.items():
-        if k in allowed and v is not None:
-            setattr(r, k, v)
+    changes = {k: v for k, v in fields.items() if k in allowed and v is not None}
+    if "amount" in changes:
+        changes["amount"] = validate_amount(changes["amount"], "Amount")
+    if "account_id" in changes:
+        changes["account_id"] = int(changes["account_id"])
+        _assert_account_owned(db, changes["account_id"], user_id)
+    if "category_id" in changes:
+        changes["category_id"] = _validate_category(db, changes["category_id"], r.type)
+    if "frequency" in changes:
+        changes["frequency"] = RecurringFrequency(changes["frequency"])
+    if "next_due_date" in changes and not isinstance(changes["next_due_date"], date):
+        raise ValueError("next_due_date must be a date")
+    for key, value in changes.items():
+        setattr(r, key, value)
     db.commit(); db.refresh(r)
     return r
 
@@ -122,7 +150,12 @@ def generate_recurring_transactions(
                 Transaction.notes.contains(marker),
             ).first()
             if not exists:
-                acc = db.query(Account).filter(Account.id == rec.account_id).first()
+                # A corrupted/legacy schedule must never write to another
+                # user's account. Normal create/update paths enforce this too.
+                acc = db.query(Account).filter(
+                    Account.id == rec.account_id,
+                    Account.user_id == rec.user_id,
+                ).first()
                 if acc:
                     tx = Transaction(
                         user_id=rec.user_id, account_id=rec.account_id,

@@ -5,7 +5,8 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from app.models.models import (
-    Bill, BillPayment, BillFrequency, BillOccurrence, BillOccurrenceStatus,
+    Account, Bill, BillPayment, BillFrequency, BillOccurrence, BillOccurrenceStatus,
+    Category,
     TransactionType,
 )
 from app.services.finance import create_transaction
@@ -68,17 +69,56 @@ def with_next_due(db: Session, user_id: int, today: date | None = None) -> list[
     ]
 
 
-def create_bill(db: Session, *, user_id: int, **fields) -> Bill:
+def _validate_bill_fields(db: Session, *, user_id: int, amount, frequency,
+                          due_day, account_id, category_id, name) -> tuple:
+    """Validate references and schedule semantics before a bill is persisted."""
     from app.services.finance import validate_amount
-    amount = validate_amount(fields["amount"])
+
+    normalized_amount = validate_amount(amount, "Amount")
+    normalized_frequency = (
+        frequency if isinstance(frequency, BillFrequency)
+        else BillFrequency(str(frequency).upper())
+    )
+    normalized_name = (name or "").strip()
+    if not normalized_name:
+        raise ValueError("Bill name is required")
+    if due_day is not None:
+        due_day = int(due_day)
+        maximum = 6 if normalized_frequency == BillFrequency.WEEKLY else 31
+        minimum = 0 if normalized_frequency == BillFrequency.WEEKLY else 1
+        if not minimum <= due_day <= maximum:
+            label = "0-6 for weekly bills" if normalized_frequency == BillFrequency.WEEKLY else "1-31"
+            raise ValueError(f"due_day must be {label}")
+    if account_id is not None:
+        account = db.query(Account).filter(
+            Account.id == int(account_id), Account.user_id == user_id
+        ).first()
+        if account is None:
+            raise ValueError("Account not found or not owned by user")
+        account_id = account.id
+    if category_id is not None:
+        category = db.query(Category).filter(Category.id == int(category_id)).first()
+        if category is None:
+            raise ValueError("Category not found")
+        if category.type != TransactionType.EXPENSE:
+            raise ValueError("Bill category must be an expense category")
+        category_id = category.id
+    return normalized_amount, normalized_frequency, due_day, account_id, category_id, normalized_name
+
+
+def create_bill(db: Session, *, user_id: int, **fields) -> Bill:
+    amount, frequency, due_day, account_id, category_id, name = _validate_bill_fields(
+        db, user_id=user_id, amount=fields["amount"],
+        frequency=fields.get("frequency", BillFrequency.MONTHLY),
+        due_day=fields.get("due_day"), account_id=fields.get("account_id"),
+        category_id=fields.get("category_id"), name=fields.get("name"),
+    )
     bill = Bill(
         user_id=user_id,
-        name=(fields["name"] or "").strip(),
+        name=name,
         amount=amount,
-        frequency=fields.get("frequency", BillFrequency.MONTHLY),
-        category_id=fields.get("category_id"),
-        account_id=fields.get("account_id"),
-        due_day=fields.get("due_day"),
+        frequency=frequency, category_id=category_id, account_id=account_id,
+        due_day=due_day,
         auto_create=bool(fields.get("auto_create", False)),
         notes=(fields.get("notes") or "").strip() or None,
     )
@@ -90,8 +130,24 @@ def create_bill(db: Session, *, user_id: int, **fields) -> Bill:
 
 def update_bill(db: Session, bill_id: int, user_id: int, fields: dict) -> Bill:
     bill = get_bill(db, bill_id, user_id)
-    for key in ("name", "amount", "frequency", "category_id", "account_id",
-                "due_day", "active", "notes"):
+    candidate = {
+        "name": fields.get("name", bill.name),
+        "amount": fields.get("amount", bill.amount),
+        "frequency": fields.get("frequency", bill.frequency),
+        "category_id": fields.get("category_id", bill.category_id),
+        "account_id": fields.get("account_id", bill.account_id),
+        "due_day": fields.get("due_day", bill.due_day),
+    }
+    amount, frequency, due_day, account_id, category_id, name = _validate_bill_fields(
+        db, user_id=user_id, **candidate
+    )
+    bill.name = name
+    bill.amount = amount
+    bill.frequency = frequency
+    bill.category_id = category_id
+    bill.account_id = account_id
+    bill.due_day = due_day
+    for key in ("active", "notes"):
         value = fields.get(key)
         if value is not None:
             setattr(bill, key, value)
